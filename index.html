@@ -586,8 +586,9 @@ class Game {
       hp: Math.round(d.hp * m.hp), maxHp: Math.round(d.hp * m.hp), spd: d.spd * m.spd * (team === 2 ? 1 : 1),
       atk: d.atk, rate: d.rate, rng: d.rng, ma: Math.max(0, d.ma - arm), pa: Math.max(0, d.pa - arm),
       bonus: d.bonus, ranged: !!d.ranged, sight: d.sight, carryMax: d.carry || 0,
-      order: { t: 'idle' }, path: null, pi: 0, cd: 0, carry: { type: null, amt: 0 },
-      face: 1, anim: Math.random() * 3, atkT: 0, scan: Math.random() * 0.5, rp: 0, wait: 0, hit: 0, moving: false, gt: 0
+      order: { t: 'idle', hx: x, hy: y }, path: null, pi: 0, cd: 0, carry: { type: null, amt: 0 },
+      face: 1, anim: Math.random() * 3, atkT: 0, scan: Math.random() * 0.5, rp: 0, wait: 0, hit: 0, moving: false, gt: 0,
+      hx: 1, hy: 0, side: 1, stk: 0, stuckN: 0, sx: x, sy: y
     };
     this.units.push(u); this.byId.set(u.id, u);
     return u;
@@ -743,7 +744,14 @@ class Game {
     const g = this.nearestFree(gx, gy, u.layer, 8);
     const goal = (x, y) => x === g.x && y === g.y;
     const h = (x, y) => { const dx = Math.abs(x - g.x), dy = Math.abs(y - g.y); return Math.max(dx, dy) + 0.4142 * Math.min(dx, dy); };
-    return this.findPath(Math.floor(u.x), Math.floor(u.y), u.layer, goal, h);
+    const res = this.findPath(Math.floor(u.x), Math.floor(u.y), u.layer, goal, h);
+    // finish on the exact point (e.g. a formation slot) rather than the tile centre, when that point is open ground
+    if (res && res.reached && Math.floor(gx) === g.x && Math.floor(gy) === g.y) {
+      const last = res.path[res.path.length - 1];
+      if (last && Math.floor(last[0]) === g.x && Math.floor(last[1]) === g.y) res.path[res.path.length - 1] = [gx, gy];
+      else res.path.push([gx, gy]);
+    }
+    return res;
   }
   setPath(u, res) {
     if (!res) { u.path = null; return false; }
@@ -754,6 +762,7 @@ class Game {
     let rem = u.spd * dt;
     while (rem > 0 && u.pi < u.path.length) {
       const p = u.path[u.pi], dx = p[0] - u.x, dy = p[1] - u.y, d = Math.hypot(dx, dy);
+      if (d > 1e-4) { u.hx = dx / d; u.hy = dy / d; }
       if (d <= rem) {
         u.x = p[0]; u.y = p[1]; rem -= d; u.pi++;
         if (u.pi < u.path.length) {
@@ -806,7 +815,7 @@ class Game {
   }
 
   /* ======================= orders ======================= */
-  idleOrder(u) { u.order = { t: 'idle' }; u.path = null; u.moving = false; }
+  idleOrder(u) { u.order = { t: 'idle', hx: u.x, hy: u.y }; u.path = null; u.moving = false; }
   gatherInfo(o) {
     if (!o) return null;
     if (o.isNode) return { type: o.type, amt: o.amt, rate: NK[o.kind].rate, rect: o.rect };
@@ -869,19 +878,34 @@ class Game {
     let fx = wx - cx, fy = wy - cy; const fl = Math.hypot(fx, fy);
     if (fl < 0.5) { fx = 1; fy = 0; } else { fx /= fl; fy /= fl; }
     const lx = -fy, ly = fx;
+    // melee (and villagers) take the formation up front; ranged units always line up in rows behind them
     const sorted = us.slice().sort((a, b) => ORDER_CLS[a.cls] - ORDER_CLS[b.cls]);
     const n = sorted.length, sp = 0.95, form = opts.formation || 'box', slots = [];
-    if (form === 'line') {
-      const per = Math.min(n, 12);
-      for (let i = 0; i < n; i++) slots.push({ lat: ((i % per) - (Math.min(per, n - ((i / per | 0) * per)) - 1) / 2) * sp, depth: Math.floor(i / per) * sp });
-    } else if (form === 'wedge') {
-      let row = 0, left = n;
-      while (left > 0) { const c = Math.min(left, row * 2 + 1); for (let i = 0; i < c; i++) slots.push({ lat: (i - (c - 1) / 2) * sp * 1.05, depth: row * sp * 0.9 }); left -= c; row++; }
-    } else {
-      const cols = Math.ceil(Math.sqrt(n * 1.4));
-      for (let i = 0; i < n; i++) { const c = i % cols, r = Math.floor(i / cols), rowN = Math.min(cols, n - r * cols); slots.push({ lat: (c - (rowN - 1) / 2) * sp, depth: r * sp }); }
+    const nBack = sorted.filter(u => u.ranged || u.cls === 'boat').length, nFront = n - nBack;
+    const shape = (m, out) => {
+      if (form === 'line') {
+        const per = Math.min(m, 12);
+        for (let i = 0; i < m; i++) out.push({ lat: ((i % per) - (Math.min(per, m - ((i / per | 0) * per)) - 1) / 2) * sp, depth: Math.floor(i / per) * sp });
+      } else if (form === 'wedge') {
+        let row = 0, left = m;
+        while (left > 0) { const c = Math.min(left, row * 2 + 1); for (let i = 0; i < c; i++) out.push({ lat: (i - (c - 1) / 2) * sp * 1.05, depth: row * sp * 0.9 }); left -= c; row++; }
+      } else {
+        const cols = Math.ceil(Math.sqrt(m * 1.4));
+        for (let i = 0; i < m; i++) { const c = i % cols, r = Math.floor(i / cols), rowN = Math.min(cols, m - r * cols); out.push({ lat: (c - (rowN - 1) / 2) * sp, depth: r * sp }); }
+      }
+      out.sort((a, b) => a.depth - b.depth);
+    };
+    if (!nFront || !nBack) shape(n, slots);
+    else {
+      shape(nFront, slots);
+      let width = 0, back = 0;
+      for (const s of slots) { width = Math.max(width, Math.abs(s.lat)); back = Math.max(back, s.depth); }
+      const per = Math.max(3, Math.min(12, Math.round(width * 2 / sp) + 1));
+      for (let i = 0; i < nBack; i++) {
+        const r = Math.floor(i / per), rowN = Math.min(per, nBack - r * per);
+        slots.push({ lat: ((i % per) - (rowN - 1) / 2) * sp, depth: back + sp * 1.15 + r * sp });
+      }
     }
-    slots.sort((a, b) => a.depth - b.depth);
     for (let i = 0; i < n; i++) {
       const u = sorted[i], s = slots[i];
       const x = wx + lx * s.lat - fx * s.depth, y = wy + ly * s.lat - fy * s.depth;
@@ -1064,9 +1088,29 @@ class Game {
       case 'wander': this.doWander(u, dt); break;
       case 'flee': this.doFlee(u, dt); break;
     }
+    // stuck check: walking but barely moved for a while -> try the other side, then re-path
+    if (u.moving) {
+      u.stk += dt;
+      if (u.stk >= 0.6) {
+        if (Math.hypot(u.x - u.sx, u.y - u.sy) < 0.25) { u.side = -u.side; if (++u.stuckN >= 3) { u.stuckN = 0; u.path = null; } }
+        else u.stuckN = 0;
+        u.stk = 0; u.sx = u.x; u.sy = u.y;
+      }
+    } else { u.stk = 0; u.sx = u.x; u.sy = u.y; }
   }
 
   doIdle(u, dt) {
+    // drift back to where we stopped if others have shoved us (keeps formations and archer rows intact)
+    const o = u.order;
+    if (o.hx != null && u.cls !== 'animal') {
+      const dx = o.hx - u.x, dy = o.hy - u.y, d = Math.hypot(dx, dy);
+      if (d > 0.3) {
+        const k = Math.min(1, u.spd * 0.5 * dt / d), nx = u.x + dx * k, ny = u.y + dy * k;
+        o.hk = (o.hk || 0) + dt;
+        if (d < 2.5 && o.hk < 2 && this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; u.moving = true; u.hx = dx / d; u.hy = dy / d; if (Math.abs(dx) > 0.02) u.face = dx > 0 ? 1 : -1; }
+        else { o.hx = u.x; o.hy = u.y; o.hk = 0; }
+      } else o.hk = 0;
+    }
     if (u.cls === 'vil' || u.cls === 'boat' || u.cls === 'animal') return;
     u.scan -= dt;
     if (u.scan > 0) return;
@@ -1160,7 +1204,7 @@ class Game {
     }
     if (o.s === 'go') {
       const d = rectDist(u.x, u.y, info.rect);
-      if (d <= 0.9) { o.s = 'work'; u.path = null; u.gt = 0; return; }
+      if (d <= 0.9) { o.s = 'work'; u.path = null; u.gt = 0; this.workSpot(u, node, info.rect); return; }
       if (!u.path) {
         if (u.wait > 0) return;
         const res = this.pathToRect(u, info.rect, 0.85);
@@ -1174,7 +1218,17 @@ class Game {
       if (this.stepMove(u, dt)) u.path = null;
     } else if (o.s === 'work') {
       if (rectDist(u.x, u.y, info.rect) > 1.3) { o.s = 'go'; u.path = null; return; }
-      u.atkT = 0; u.working = true;
+      u.atkT = 0;
+      // step in from the path end to stand right at the resource (or on the farm)
+      if (o.wx != null) {
+        const dx = o.wx - u.x, dy = o.wy - u.y, dd = Math.hypot(dx, dy), st = u.spd * 0.7 * dt;
+        if (dd > 0.06) {
+          const k = Math.min(1, st / dd), nx = u.x + dx * k, ny = u.y + dy * k;
+          if (this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; u.moving = true; u.hx = dx / dd; u.hy = dy / dd; if (Math.abs(dx) > 0.02) u.face = dx > 0 ? 1 : -1; return; }
+          o.wx = null;
+        } else o.wx = null;
+      }
+      u.working = true;
       const cx = (info.rect.ax + info.rect.bx) / 2 - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
       u.gt += dt * info.rate;
       if (u.gt >= 1) {
@@ -1213,6 +1267,25 @@ class Game {
     }
   }
 
+  /* where a gatherer stands while working: inside a farm, or hugging the side of a node it walked up to */
+  workSpot(u, node, r) {
+    const o = u.order;
+    if (node.isBld) {
+      const in_ = 0.4, w = r.bx - r.ax - in_ * 2;
+      o.wx = r.ax + in_ + hash2(u.id, node.id, 5) * w; o.wy = r.ay + in_ + hash2(u.id, node.id, 6) * w;
+      return;
+    }
+    if (node.kind === 'carcass') {
+      const dx = u.x - node.x, dy = u.y - node.y, l = Math.hypot(dx, dy) || 1;
+      o.wx = node.x + dx / l * 0.45; o.wy = node.y + dy / l * 0.45;
+      return;
+    }
+    const qx = Math.max(r.ax, Math.min(r.bx, u.x)), qy = Math.max(r.ay, Math.min(r.by, u.y));
+    const dx = u.x - qx, dy = u.y - qy, l = Math.hypot(dx, dy);
+    if (l < 1e-3) { o.wx = null; return; }
+    o.wx = qx + dx / l * 0.22; o.wy = qy + dy / l * 0.22;
+  }
+
   doBuild(u, dt) {
     const o = u.order, b = this.byId.get(o.id);
     if (!b || b.hp <= 0 || b.done) { this.idleOrder(u); return; }
@@ -1248,6 +1321,10 @@ class Game {
         const uw = u.moving ? 0.35 : 0.65, ow = o.moving ? 0.35 : 0.65, s = uw + ow;
         this.nudge(u, -nx * push * (uw / s) * 2, -ny * push * (uw / s) * 2);
         this.nudge(o, nx * push * (ow / s) * 2, ny * push * (ow / s) * 2);
+        // a unit walking into another steps to its own right (or left, once it has been stuck), so head-on pairs slide past
+        const side = Math.min(1, (0.6 - d) / 0.3) * 0.06;
+        if (u.moving && u.hx * nx + u.hy * ny > 0.3) this.nudge(u, -u.hy * side * u.side, u.hx * side * u.side);
+        if (o.moving && -(o.hx * nx + o.hy * ny) > 0.3) this.nudge(o, -o.hy * side * o.side, o.hx * side * o.side);
       });
     }
   }
@@ -2056,8 +2133,44 @@ function drawArrow(a) {
   ctx.save(); ctx.translate(x * TILE, y * TILE - 8); ctx.rotate(ang);
   ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-5, -1, 10, 2); ctx.fillStyle = '#e8eef4'; ctx.fillRect(5, -1, 2, 2); ctx.restore();
 }
+/* where a unit is headed for its job (gather / build / hunt target), if anywhere */
+function jobTarget(u) {
+  const o = u.order;
+  if (o.t === 'gather' || o.t === 'build' || (o.t === 'attack' && o.hunt)) { const t = G.byId.get(o.id); return t && t.hp > 0 ? t : null; }
+  return null;
+}
+function targetRing(t, col, grow, alpha) {
+  const big = t.isBld ? t.size * 0.62 : 0.62, x = t.x * TILE, y = (t.isBld ? t.y + (t.kind === 'farm' ? 0 : t.size * 0.32) : t.y + 0.3) * TILE;
+  ctx.strokeStyle = col; ctx.globalAlpha = alpha; ctx.lineWidth = 2;
+  ell(x, y, big * TILE * grow, big * TILE * 0.5 * grow); ctx.stroke(); ctx.globalAlpha = 1;
+}
+function paintJobs() {
+  // selected workers: a dashed trail to the job they are walking to, and a ring on everything they are working on
+  const done = new Set();
+  for (const u of selUnits()) {
+    const t = jobTarget(u); if (!t) continue;
+    const col = u.order.t === 'build' ? '#9be3ff' : '#f2c94c';
+    if (u.moving && Math.hypot(t.x - u.x, t.y - u.y) > 1.2) {
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]); ctx.lineDashOffset = -nowS * 14;
+      ctx.beginPath(); ctx.moveTo(u.x * TILE, u.y * TILE); ctx.lineTo(t.x * TILE, t.y * TILE); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.globalAlpha = 1;
+    }
+    if (!done.has(t)) { done.add(t); targetRing(t, col, 1, 0.7); }
+  }
+}
 function paintMarkers() {
+  paintJobs();
   for (const m of markers) {
+    if (m.o) {
+      // target flash: two expanding rings and the resource popping up above it
+      const p = 1 - m.t / m.max, col = m.kind === 'build' ? '#9be3ff' : '#f2c94c';
+      targetRing(m.o, col, 0.8 + (p * 2 % 1) * 0.7, 1 - (p * 2 % 1));
+      if (m.o.hp > 0 && m.kind === 'gather') {
+        const ty = (m.o.isBld ? m.o.ty : m.o.ty - (m.o.kind === 'tree' ? 1.1 : 0.2)) * TILE - p * 10;
+        ctx.globalAlpha = Math.min(1, (1 - p) * 2.5); ctx.drawImage(iconSprite(m.o.type || 'food'), m.o.x * TILE - 8, ty - 8, 16, 16); ctx.globalAlpha = 1;
+      }
+      continue;
+    }
     const p = 1 - m.t / m.max, x = m.x * TILE, y = m.y * TILE + 4;
     ctx.strokeStyle = m.kind === 'attack' ? '#ff6a5a' : m.kind === 'gather' ? '#f2c94c' : m.kind === 'build' ? '#9be3ff' : '#ffffff';
     ctx.globalAlpha = 1 - p; ctx.lineWidth = 2; ell(x, y, 5 + p * 12, 2.5 + p * 6); ctx.stroke(); ctx.globalAlpha = 1;
@@ -2168,7 +2281,7 @@ function drawMini() {
 /* ---------------- selection and orders ---------------- */
 function selUnits() { return sel.filter(o => o.isUnit && o.team === 0 && o.hp > 0); }
 function select(list) { sel = list.filter(Boolean); panelKey = ''; }
-function addMarker(x, y, kind) { markers.push({ x, y, kind, t: 0.7, max: 0.7 }); }
+function addMarker(x, y, kind, o) { const t = o ? 1.3 : 0.7; markers.push({ x, y, kind, t, max: t, o }); }
 function issue(wx, wy, hit) {
   const us = selUnits(); if (!us.length) return false;
   const amove = !!(mode && mode.kind === 'amove');
@@ -2176,8 +2289,8 @@ function issue(wx, wy, hit) {
   G.command(ids, wx, wy, hit, { formation, amove });
   if (hit && hit.isUnit && hit.team !== 0) addMarker(hit.x, hit.y, 'attack');
   else if (hit && hit.isBld && hit.team === 1) addMarker(hit.x, hit.y, 'attack');
-  else if (hit && (hit.isNode || (hit.isBld && hit.kind === 'farm'))) addMarker(hit.x, hit.y, 'gather');
-  else if (hit && hit.isBld && !hit.done) addMarker(hit.x, hit.y, 'build');
+  else if (hit && (hit.isNode || (hit.isBld && hit.kind === 'farm'))) addMarker(hit.x, hit.y, 'gather', hit);
+  else if (hit && hit.isBld && !hit.done) addMarker(hit.x, hit.y, 'build', hit);
   else addMarker(wx, wy, amove ? 'attack' : 'move');
   if (amove) mode = null;
   panelKey = '';
