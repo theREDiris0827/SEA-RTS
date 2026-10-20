@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{color-scheme:dark}html,body{margin:0;background:#0b1612}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>SEA RTS Pixel Game</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap">
 <style>
 :root {
   --ink: #0b1612;
@@ -31,6 +31,8 @@
   --wood: #d9a66a;
   --font-ui: "Pixelify Sans", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --font-hd: "Silkscreen", "Pixelify Sans", ui-monospace, Menlo, Consolas, monospace;
+  /* numbers use a plain condensed face: the pixel font's 0/8/S and 1/7 are easy to misread */
+  --font-num: "Barlow Semi Condensed", "Roboto Condensed", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   color-scheme: dark;
 }
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
@@ -62,12 +64,12 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 #topbar > * { pointer-events: auto; }
 .res { display: flex; gap: 6px; flex: 1; min-width: 0; }
 .chip-r {
-  flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 5px; padding: 4px 6px; height: 34px;
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 5px; padding: 4px 6px; height: 34px;
   background: var(--panel); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 2px var(--edge), 0 3px 0 rgba(0, 0, 0, .45);
-  font-weight: 700; font-size: 16px; justify-content: center;
+  font-family: var(--font-num); font-weight: 700; font-size: 18px; justify-content: center;
 }
 .chip-r img { width: 20px; height: 20px; flex: none; }
-.chip-r span { font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+.chip-r span { font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: .01em; }
 .chip-r.warn { box-shadow: inset 0 0 0 2px var(--bad), 0 3px 0 rgba(0, 0, 0, .45); color: #ffb3a8; }
 #btn-menu, .sbtn {
   background: var(--panel); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 2px var(--edge), 0 3px 0 rgba(0, 0, 0, .45);
@@ -80,7 +82,7 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 /* hint strip */
 #strip { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 9px; font-size: 14px; min-height: 28px; pointer-events: none !important; background: rgba(11, 22, 18, .78); border: 2px solid var(--edge-dark); }
 #hint { color: var(--gold); min-width: 0; }
-#clock { color: var(--muted); white-space: pre; flex: none; font-variant-numeric: tabular-nums; }
+#clock { color: var(--muted); white-space: pre; flex: none; font-family: var(--font-num); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
 
 /* mid: minimap left, side buttons right */
 #mid { flex: 1; min-height: 0; position: relative; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none !important; }
@@ -94,7 +96,7 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 .sbtn { width: 44px; height: 44px; }
 .badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
-  background: var(--bad); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--edge-dark);
+  background: var(--bad); color: #fff; font-family: var(--font-num); font-size: 13px; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--edge-dark);
 }
 #toasts { position: absolute; left: 0; right: 0; bottom: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none !important; }
 .toast {
@@ -113,7 +115,7 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 .p-head > img { width: 40px; height: 40px; flex: none; background: var(--panel-2); border: 2px solid var(--edge-dark); }
 .p-name { font-family: var(--font-hd); font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--gold); }
 .p-name.sm { font-size: 12px; }
-.p-sub { color: var(--muted); font-size: 13px; min-height: 16px; }
+.p-sub { color: var(--muted); font-family: var(--font-num); font-weight: 600; font-size: 14px; min-height: 16px; }
 .p-line { color: var(--muted); font-size: 13px; min-height: 17px; line-height: 1.25; }
 .bar { height: 7px; background: var(--edge-dark); border: 1px solid var(--edge-dark); }
 .bar i { display: block; height: 100%; width: 0; background: #5fd37a; }
@@ -121,7 +123,7 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; background: var(--panel-2); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge); }
 .chip img { width: 30px; height: 30px; }
-.chip b { font-size: 16px; }
+.chip b { font-family: var(--font-num); font-size: 17px; }
 .p-cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
 .cmd {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px; padding: 3px 2px 2px; min-height: 66px;
@@ -130,7 +132,7 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 .cmd:active { transform: translateY(2px); box-shadow: inset 0 0 0 1px var(--edge), 0 1px 0 rgba(0, 0, 0, .45); }
 .cmd img { width: 32px; height: 32px; }
 .cmd .nm { font-size: 12px; line-height: 1.1; text-transform: capitalize; }
-.cmd .ct { font-size: 11px; display: flex; gap: 4px; line-height: 1.1; min-height: 12px; }
+.cmd .ct { font-family: var(--font-num); font-weight: 700; font-size: 13px; display: flex; gap: 4px; line-height: 1.05; min-height: 13px; }
 .cmd.no { opacity: .5; }
 .cmd.on, .cmd.ok { background: var(--jade-deep); box-shadow: inset 0 0 0 1px var(--jade), 0 3px 0 rgba(0, 0, 0, .45); }
 .cmd.ok.no { background: var(--panel-2); }
@@ -169,7 +171,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #end-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #end-stats div { background: var(--panel-2); border: 2px solid var(--edge-dark); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
-#end-stats b { font-size: 22px; color: var(--gold); font-variant-numeric: tabular-nums; }
+#end-stats b { font-family: var(--font-num); font-size: 24px; color: var(--gold); font-variant-numeric: tabular-nums; }
 #end-stats span { color: var(--muted); font-size: 12px; }
 .help { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.3; }
 .help li { padding-left: 14px; position: relative; }
@@ -183,14 +185,33 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
   .p-info { width: 250px; flex: none; }
   .p-cmds { flex: 1; align-content: start; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); }
 }
+/* phones: keep the command panel short so the map stays visible */
+@media (max-width: 699px) {
+  #panel { padding: 6px; gap: 5px; }
+  .p-head > img { width: 32px; height: 32px; }
+  .p-line { display: none; }
+  .p-cmds { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 5px; }
+  .cmd { min-height: 50px; padding: 2px 1px 1px; }
+  .cmd img { width: 24px; height: 24px; }
+  .cmd .nm { font-size: 11px; }
+  .chip img { width: 24px; height: 24px; }
+}
+@media (max-width: 480px) {
+  .res { gap: 4px; }
+  .chip-r { padding: 4px 5px; gap: 3px; font-size: 17px; }
+  .chip-r img { width: 16px; height: 16px; }
+}
 @media (max-height: 520px) {
   #mini { width: 96px; height: 72px; }
-  #panel { flex-direction: row; align-items: stretch; padding: 5px; gap: 8px; }
-  .p-info { width: 36%; flex: none; }
+  #panel { flex-direction: row; align-items: center; padding: 5px; gap: 8px; }
+  .p-info { width: 190px; flex: none; }
+  .p-head > img { width: 32px; height: 32px; }
   .p-line { display: none; }
-  .p-cmds { flex: 1; align-content: start; }
-  .cmd { min-height: 56px; }
-  .cmd img { width: 26px; height: 26px; }
+  .p-cmds { flex: 1; display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .p-cmds::-webkit-scrollbar { display: none; }
+  .cmd { flex: 0 0 56px; min-height: 50px; padding: 2px 1px 1px; }
+  .cmd img { width: 24px; height: 24px; }
+  .cmd .nm { font-size: 11px; }
 }
 </style>
 
@@ -273,7 +294,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
         <li><b>Select:</b> tap a unit or building. <b>Group:</b> hold, then drag a box. Double-tap a unit to pick all of its kind on screen.</li>
         <li><b>Command:</b> with units selected, tap the ground to move, a tree, berries or gold to gather, an enemy to attack. Mouse: right-click.</li>
         <li><b>Build:</b> select villagers, pick a building, drag the ghost into place, then tap it again (or Place).</li>
-        <li><b>Train:</b> select the Town Centre or Barracks and tap a unit. Tap the ground to set where new units gather.</li>
+        <li><b>Train:</b> select the Town Centre or Barracks and tap a unit. Double-tap the ground (or right-click) to set where new units gather; a single tap deselects.</li>
         <li><b>Fishing:</b> build a Trading Port on the shore, train boats, send them to fish. The Port also earns gold from trade.</li>
         <li><b>Houses</b> raise your population limit. Raids come on a timer, so keep a few warriors home.</li>
         <li><b>Win</b> by destroying the red Town Centre. Keys: A attack-move, S stop, F formation, . idle villager, H home, Space pause.</li>
@@ -2239,7 +2260,7 @@ function render() {
   paintPlacement(); paintMarkers();
   for (const a of G.arrows) drawArrow(a);
   for (const f of G.fx) if ((f.k === 'spark' || f.k === 'smoke') && inView(f.x * TILE, f.y * TILE, 60)) paintTop(f);
-  ctx.font = '700 11px "Pixelify Sans", monospace'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+  ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
   for (const fl of G.floaters) {
     const p = 1 - fl.t / 1.1, x = fl.x * TILE, y = fl.y * TILE - p * 16;
     ctx.globalAlpha = Math.min(1, fl.t * 2.2); ctx.strokeStyle = '#10201a'; ctx.strokeText(fl.text, x, y); ctx.fillStyle = RESCOL[fl.type] || '#fff'; ctx.fillText(fl.text, x, y); ctx.globalAlpha = 1;
@@ -2341,6 +2362,8 @@ function findSpot(kind, cx, cy) {
     }
   return null;
 }
+let rallyTap = null;
+function clearRallyTap() { if (rallyTap) { clearTimeout(rallyTap.timer); rallyTap = null; } }
 function handleTap(wx, wy, o) {
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
@@ -2366,8 +2389,14 @@ function handleTap(wx, wy, o) {
     issue(wx, wy, hit); return;
   }
   if (single && canRally(single)) {
-    if (hit && hit.team === 0 && (hit.isUnit || hit.isBld)) { select([hit]); return; }
-    if (!hit || hit.isNode) { setRallyFor(single, wx, wy, hit); return; }
+    if (hit && hit.team === 0 && (hit.isUnit || hit.isBld)) { clearRallyTap(); select([hit]); return; }
+    if (!hit || hit.isNode) {
+      // one tap on the map deselects the building; a double tap sets its rally point
+      if (rallyTap && rallyTap.b === single && now - rallyTap.t < 380 && Math.hypot(wx - rallyTap.wx, wy - rallyTap.wy) < 1.5) { clearRallyTap(); setRallyFor(single, wx, wy, hit); return; }
+      clearRallyTap();
+      rallyTap = { b: single, t: now, wx, wy, timer: setTimeout(() => { if (rallyTap && sel.length === 1 && sel[0] === rallyTap.b) select([]); rallyTap = null; }, 380) };
+      return;
+    }
   }
   select(hit ? [hit] : []);
 }
@@ -2570,7 +2599,7 @@ function buildPanel() {
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';
-      $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? 'Tap the map to set a rally point.' : own && b.kind === 'farm' ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : own && d.trade ? 'Earns gold from trade.' : Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
+      $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? ((hover && hover.mouse) ? 'Right-click the map to set a rally point.' : 'Double-tap the map to set a rally point.') : own && b.kind === 'farm' ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : own && d.trade ? 'Earns gold from trade.' : Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
     });
     if (own && b.done && d.train) {
       for (const k of d.train) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), TRAIN_SHORT[k], c, G.unitName({ kind: k, team: 0 }) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
