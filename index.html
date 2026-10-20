@@ -293,7 +293,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
         <li><b>Scroll:</b> drag the map. <b>Zoom:</b> pinch (or the +/- buttons, or mouse wheel).</li>
         <li><b>Select:</b> tap a unit or building. <b>Group:</b> hold, then drag a box. Double-tap a unit to pick all of its kind on screen.</li>
         <li><b>Command:</b> with units selected, tap the ground to move, a tree, berries or gold to gather, an enemy to attack. Mouse: right-click.</li>
-        <li><b>Build:</b> select villagers, pick a building, drag the ghost into place, then tap it again (or Place).</li>
+        <li><b>Build:</b> select villagers, pick a building, drag it into place, then tap the green tick (or Place). The red cross cancels.</li>
         <li><b>Train:</b> select the Town Centre or Barracks and tap a unit. Double-tap the ground (or right-click) to set where new units gather; a single tap deselects.</li>
         <li><b>Fishing:</b> build a Trading Port on the shore, train boats, send them to fish. The Port also earns gold from trade.</li>
         <li><b>Houses</b> raise your population limit. Raids come on a timer, so keep a few warriors home.</li>
@@ -781,7 +781,17 @@ class Game {
     const px = (x) => x + 0.5;
     const goal = (x, y) => rectDist(px(x), px(y), rect) <= reach;
     const h = (x, y) => Math.max(0, rectDist(px(x), px(y), rect) - reach);
-    return this.findPath(Math.floor(u.x), Math.floor(u.y), u.layer, goal, h);
+    const res = this.findPath(Math.floor(u.x), Math.floor(u.y), u.layer, goal, h);
+    // the goal tile's centre can be in reach while the unit's real spot is not: finish with a short step towards the rect
+    if (res && res.reached) {
+      const last = res.path[res.path.length - 1], ex = last ? last[0] : u.x, ey = last ? last[1] : u.y;
+      if (rectDist(ex, ey, rect) > reach) {
+        const qx = Math.max(rect.ax, Math.min(rect.bx, ex)), qy = Math.max(rect.ay, Math.min(rect.by, ey));
+        const dx = ex - qx, dy = ey - qy, l = Math.hypot(dx, dy) || 1, k = reach * 0.6 / l;
+        res.path.push([qx + dx * k, qy + dy * k]);
+      }
+    }
+    return res;
   }
   pathToPoint(u, gx, gy) {
     const g = this.nearestFree(gx, gy, u.layer, 8);
@@ -862,7 +872,7 @@ class Game {
   gatherInfo(o) {
     if (!o) return null;
     if (o.isNode) return { type: o.type, amt: o.amt, rate: NK[o.kind].rate, rect: o.rect };
-    if (o.isBld && o.kind === 'farm') return { type: 'food', amt: o.food, rate: FARM_RATE, rect: o.rect };
+    if (o.isBld && o.kind === 'farm' && o.done) return { type: 'food', amt: o.food, rate: FARM_RATE, rect: o.rect };
     return null;
   }
   orderGather(u, target) {
@@ -900,7 +910,7 @@ class Game {
         for (const u of us) { if (u.cls === 'boat') this.orderMove(u, target.x, target.y); else this.orderAttack(u, target); }
         return;
       }
-      if (target.isNode || (target.isBld && target.kind === 'farm' && target.team === team)) {
+      if (target.isNode || (target.isBld && target.kind === 'farm' && target.done && target.team === team)) {
         const movers = [], gi = this.gatherInfo(target);
         this.countClaims();
         const workers = us.filter(u => u.cls === 'vil' || u.cls === 'boat').sort((a, b) => Math.hypot(a.x - target.x, a.y - target.y) - Math.hypot(b.x - target.x, b.y - target.y));
@@ -1314,7 +1324,8 @@ class Game {
       // step in from the path end to stand right at the resource (or on the farm)
       if (o.wx != null) {
         const dx = o.wx - u.x, dy = o.wy - u.y, dd = Math.hypot(dx, dy), st = u.spd * 0.7 * dt;
-        if (dd > 0.06) {
+        o.wt = (o.wt || 0) + dt;
+        if (dd > 0.06 && o.wt < 2.5) {
           const k = Math.min(1, st / dd), nx = u.x + dx * k, ny = u.y + dy * k;
           if (this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; u.moving = true; u.hx = dx / dd; u.hy = dy / dd; if (Math.abs(dx) > 0.02) u.face = dx > 0 ? 1 : -1; return; }
           o.wx = null;
@@ -1362,9 +1373,19 @@ class Game {
   /* where a gatherer stands while working: inside a farm, or hugging the side of a node it walked up to */
   workSpot(u, node, r) {
     const o = u.order;
+    o.wt = 0;
     if (node.isBld) {
-      const in_ = 0.4, w = r.bx - r.ax - in_ * 2;
-      o.wx = r.ax + in_ + hash2(u.id, node.id, 5) * w; o.wy = r.ay + in_ + hash2(u.id, node.id, 6) * w;
+      // each farmer gets their own patch of the field: the closest one nobody else is standing on
+      const spots = [[0.5, 0.95], [1.5, 1.05], [1.0, 0.45], [1.0, 1.55]];
+      let best = null, bd = 1e9;
+      for (const sp of spots) {
+        const sx = r.ax + sp[0], sy = r.ay + sp[1];
+        let taken = false;
+        for (const w of this.units) if (w !== u && w.hp > 0 && w.order.t === 'gather' && w.order.id === node.id && w.order.s === 'work' && w.order.wx != null && Math.hypot(w.order.wx - sx, w.order.wy - sy) < 0.3) { taken = true; break; }
+        const d = Math.hypot(u.x - sx, u.y - sy) + (taken ? 100 : 0);
+        if (d < bd) { bd = d; best = [sx, sy]; }
+      }
+      o.wx = best[0]; o.wy = best[1];
       return;
     }
     if (node.kind === 'carcass') {
@@ -2175,14 +2196,15 @@ function paintNode(n) {
 }
 function paintBuilding(b) {
   const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = b.kind === 'farm';
-  let lvl = 2; if (flat) { const f = b.food / BD.farm.food; lvl = f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
+  let lvl = 2; if (flat) { const f = b.food / BD.farm.food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
   const spr = buildingSprite(b.kind, b.team, lvl);
   const dx = px + (w - spr.width) / 2, dy = flat ? py : py + w - spr.height + 2;
   if (!flat) shadow(px + w / 2, py + w - 6, w * 0.46, w * 0.2, 0.26);
   if (b.done || flat) {
-    if (flat && !b.done) ctx.globalAlpha = 0.6;
+    if (flat && !b.done) ctx.globalAlpha = 0.35 + 0.4 * b.progress;
     ctx.drawImage(spr, dx, dy);
     ctx.globalAlpha = 1;
+    if (flat && !b.done) hpBar(px + 4, py + w + 2, w - 8, b.progress);
     if (b.hit > 0) { ctx.globalAlpha = 0.4; ctx.drawImage(whiteOf(spr), dx, dy); ctx.globalAlpha = 1; }
   } else {
     ctx.fillStyle = 'rgba(70,46,24,0.55)'; ctx.fillRect(px + 2, py + w - 12, w - 4, 10);
@@ -2284,6 +2306,24 @@ function paintPlacement() {
   ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, w);
 }
 
+/* touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests */
+function placeButtons() {
+  if (!mode || mode.kind !== 'place' || !mode.touch || mode.tx == null) return null;
+  const d = BD[mode.bkind], c = w2s(mode.tx + d.size / 2, mode.ty + d.size);
+  const y = clamp(c.y + 30, 30, view.h - 30), x = clamp(c.x, 50, view.w - 50);
+  return { ok: { x: x - 30, y }, no: { x: x + 30, y }, r: 22 };
+}
+function paintPlaceButtons() {
+  const B = placeButtons(); if (!B) return;
+  for (const k of ['ok', 'no']) {
+    const b = B[k], on = k === 'no' || mode.valid;
+    ctx.beginPath(); ctx.arc(b.x, b.y + 2, B.r, 0, 6.2832); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(b.x, b.y, B.r, 0, 6.2832);
+    ctx.fillStyle = k === 'ok' ? (on ? '#1e6b42' : '#3a4a42') : '#7a2620'; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = k === 'ok' ? (on ? '#7dffa8' : '#6b7a72') : '#ff8a7a'; ctx.stroke();
+    ctx.globalAlpha = on ? 1 : 0.45; ctx.drawImage(iconSprite(k === 'ok' ? 'check' : 'x'), b.x - 12, b.y - 12, 24, 24); ctx.globalAlpha = 1;
+  }
+}
 function render() {
   const sc = view.zoom * view.dpr;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#0b1612'; ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -2339,6 +2379,7 @@ function render() {
   // fog of war, softened by smooth upscaling
   refreshFog(); ctx.imageSmoothingEnabled = true; ctx.drawImage(fogC, 0, 0, W * TILE, H * TILE); ctx.imageSmoothingEnabled = false;
   ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  paintPlaceButtons();
   if (boxRect) {
     const r = boxRect; ctx.fillStyle = 'rgba(125,255,168,0.14)'; ctx.strokeStyle = '#7dffa8'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
     ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
@@ -2439,8 +2480,11 @@ function handleTap(wx, wy, o) {
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
     if (o.touch) {
+      const B = placeButtons(), sp = w2s(wx, wy);
+      if (B && Math.hypot(sp.x - B.ok.x, sp.y - B.ok.y) <= B.r + 6) { if (mode.valid) tryPlace(false); else toast('Move the building to a green spot.'); return; }
+      if (B && Math.hypot(sp.x - B.no.x, sp.y - B.no.y) <= B.r + 6) { mode = null; panelKey = ''; return; }
       const inside = mode.tx != null && wx >= mode.tx && wx < mode.tx + d.size && wy >= mode.ty && wy < mode.ty + d.size;
-      if (inside && mode.valid) { tryPlace(false); } else placeAt(wx, wy);
+      if (!inside) placeAt(wx, wy);
     } else { placeAt(wx, wy); tryPlace(o.shift); }
     return;
   }
@@ -2513,6 +2557,8 @@ cvs.addEventListener('pointerdown', (e) => {
     if (e.button === 2) { const w = s2w(q.x, q.y); if (mode) { mode = null; panelKey = ''; } else contextCommand(w.x, w.y); ptrs.delete(e.pointerId); return; }
     if (e.button === 1) { gest = { type: 'pan', p }; return; }
     gest = { type: 'press', p };
+  } else if (mode && mode.kind === 'place' && mode.tx != null && (() => { const w = s2w(q.x, q.y), d = BD[mode.bkind]; return w.x >= mode.tx - 0.3 && w.x < mode.tx + d.size + 0.3 && w.y >= mode.ty - 0.3 && w.y < mode.ty + d.size + 0.3; })()) {
+    const w = s2w(q.x, q.y); gest = { type: 'ghost', p, ox: w.x - mode.tx, oy: w.y - mode.ty };
   } else {
     gest = { type: 'press', p, timer: setTimeout(() => { if (gest && gest.p === p && !p.moved && gest.type === 'press') { gest.type = 'box'; boxRect = { x: p.sx, y: p.sy, w: 0, h: 0 }; if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_) { /* ignore */ } } } }, 360) };
   }
@@ -2533,6 +2579,11 @@ cvs.addEventListener('pointermove', (e) => {
   }
   if (gest.p !== p) return;
   const dist = Math.hypot(q.x - p.sx, q.y - p.sy);
+  if (gest.type === 'ghost') {
+    if (dist > 6) p.moved = true;
+    if (p.moved && mode && mode.kind === 'place') { const w = s2w(q.x, q.y); mode.tx = Math.round(w.x - gest.ox); mode.ty = Math.round(w.y - gest.oy); }
+    p.lx = q.x; p.ly = q.y; return;
+  }
   if (gest.type === 'press') {
     if (p.type === 'mouse') { if (dist > 5) { gest.type = 'box'; p.moved = true; } }
     else if (dist > 9) { p.moved = true; clearTimeout(gest.timer); gest.type = 'pan'; }
@@ -2553,7 +2604,7 @@ function endPointer(e, cancelled) {
   if (g0.type === 'box') {
     const r = boxRect; boxRect = null;
     if (r && (r.w > 6 || r.h > 6)) boxSelect(r, p.shift); else { const w = s2w(p.x, p.y); handleTap(w.x, w.y, { touch: p.type !== 'mouse', shift: p.shift }); }
-  } else if (g0.type === 'press') {
+  } else if (g0.type === 'press' || (g0.type === 'ghost' && !p.moved)) {
     const w = s2w(p.x, p.y); handleTap(w.x, w.y, { touch: p.type !== 'mouse', shift: p.shift });
   }
 }
@@ -2631,7 +2682,7 @@ function buildPanel() {
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
     info = '<div class="p-head"><img alt="" src="' + bldIcon(mode.bkind, 0) + '"><div><div class="p-name">Place ' + d.name + '</div><div class="p-sub">' + costTitle(d.cost) + '</div></div></div>' +
-      '<div class="p-line">' + ((hover && hover.mouse) ? 'Click to place. Shift-click keeps building. Esc cancels.' : 'Tap the map to move it. Tap the building again or press Place.') + '</div>';
+      '<div class="p-line">' + ((hover && hover.mouse) ? 'Click to place. Shift-click keeps building. Esc cancels.' : 'Drag the building (or tap the map) to move it, then tap the green tick to build.') + '</div>';
     cmds = '<button class="cmd ok" data-a="place-ok" title="Place building"><img alt="" src="' + resIcon('check') + '"><span class="nm">Place</span><span class="ct">&nbsp;</span></button>' +
       '<button class="cmd" data-a="place-cancel" title="Cancel"><img alt="" src="' + resIcon('x') + '"><span class="nm">Cancel</span><span class="ct">&nbsp;</span></button>';
   } else if (!sel.length) {
