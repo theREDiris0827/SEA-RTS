@@ -554,13 +554,14 @@ class Game {
       place('tree', cx + Math.cos(spots[2][0]) * spots[2][1], cy + Math.sin(spots[2][0]) * spots[2][1], 3.4, 24);
       place('tree', cx + Math.cos(spots[3][0]) * spots[3][1], cy + Math.sin(spots[3][0]) * spots[3][1], 3.0, 18);
       place('tree', cx + Math.cos(spots[4][0]) * spots[4][1], cy + Math.sin(spots[4][0]) * spots[4][1], 3.2, 16);
+      // starting people each get their own tile, so nobody spawns on top of anyone else
       const sp = this.findSpawn(tc, null, 0);
       for (let i = 0; i < 5; i++) {
-        const p = this.nearestFree(sp.x + (i % 3) * 0.8, sp.y + ((i / 3) | 0) * 0.8, 0, 6);
-        this.addUnit('villager', team, p.x + 0.5, p.y + 0.5);
+        const p = this.openSpot(sp.x + (i % 3) * 1.1, sp.y + ((i / 3) | 0) * 1.1, 0);
+        this.addUnit('villager', team, p.x, p.y);
       }
-      const p = this.nearestFree(sp.x + 2, sp.y, 0, 6);
-      this.addUnit('tombak', team, p.x + 0.5, p.y + 0.5);
+      const p = this.openSpot(sp.x + 3.4, sp.y + 0.5, 0);
+      this.addUnit('tombak', team, p.x, p.y);
     };
     mk(0); mk(1);
     // forests across the map
@@ -671,14 +672,34 @@ class Game {
     return { x: Math.max(0, Math.min(W - 1, cx)), y: Math.max(0, Math.min(H - 1, cy)) };
   }
 
-  /* spawn tile next to a building, preferring the side facing 'toward' */
+  unitNear(x, y, r, layer, skip) {
+    for (const o of this.units) if (o !== skip && o.hp > 0 && o.layer === layer && Math.hypot(o.x - x, o.y - y) < r) return o;
+    return null;
+  }
+  /* centre of the nearest walkable tile nobody is standing on */
+  openSpot(px, py, layer) {
+    const cx = Math.floor(px), cy = Math.floor(py);
+    for (let r = 0; r <= 8; r++) {
+      let best = null, bd = 1e9;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = cx + dx, y = cy + dy;
+        if (!this.walkable(x, y, layer) || this.unitNear(x + 0.5, y + 0.5, 0.75, layer)) continue;
+        const d = Math.hypot(x + 0.5 - px, y + 0.5 - py); if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 }; }
+      }
+      if (best) return best;
+    }
+    const p = this.nearestFree(px, py, layer, 8); return { x: p.x + 0.5, y: p.y + 0.5 };
+  }
+
+  /* spawn tile next to a building, preferring the side facing 'toward' (and tiles nobody stands on) */
   findSpawn(b, toward, layer) {
     const tx = toward ? toward.x : b.x, ty = toward ? toward.y : b.y + 6;
     let best = null, bd = 1e9;
     for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) {
       if (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + b.size) continue;
       if (!this.walkable(x, y, layer)) continue;
-      const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty);
+      const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty) + (this.unitNear(x + 0.5, y + 0.5, 0.6, layer) ? 4 : 0);
       if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 }; }
     }
     if (!best) { const p = this.nearestFree(b.x, b.y, layer, 12); best = { x: p.x + 0.5, y: p.y + 0.5 }; }
@@ -1125,7 +1146,10 @@ class Game {
     const o = u.order;
     if (o.hx != null && u.cls !== 'animal') {
       const dx = o.hx - u.x, dy = o.hy - u.y, d = Math.hypot(dx, dy);
-      if (d > 0.3) {
+      // someone else is standing on our spot: settle where we are instead of shoving back forever
+      const squatter = d > 0.3 && this.unitNear(o.hx, o.hy, 0.55, u.layer, u);
+      if (squatter && !squatter.moving) { o.hx = u.x; o.hy = u.y; o.hk = 0; }
+      else if (d > 0.3) {
         const k = Math.min(1, u.spd * 0.5 * dt / d), nx = u.x + dx * k, ny = u.y + dy * k;
         o.hk = (o.hk || 0) + dt;
         if (d < 2.5 && o.hk < 2 && this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; u.moving = true; u.hx = dx / d; u.hy = dy / d; if (Math.abs(dx) > 0.02) u.face = dx > 0 ? 1 : -1; }
