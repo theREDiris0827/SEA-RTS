@@ -1,0 +1,29 @@
+{
+  "name": "Melaka vs Majapahit",
+  "short_name": "Melaka RTS",
+  "description": "A pixel-art real-time strategy prototype set in Southeast Asian history.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "any",
+  "background_color": "#0b1612",
+  "theme_color": "#0b1612",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
