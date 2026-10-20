@@ -402,6 +402,7 @@ class Game {
     this.cell = 2; this.cw = Math.ceil(W / 2); this.ch = Math.ceil(H / 2);
     this.hash = []; for (let i = 0; i < this.cw * this.ch; i++) this.hash.push([]);
     this.rng = mulberry32(this.seed);
+    this.claims = new Map();
     this.tradeAcc = 0; this.aiAcc = 0; this.fogAcc = 0; this.endAcc = 0; this.lastAlert = -99;
     this.ai = { wave: 0, next: DIFF[this.diff].wave0, lastBuild: 0, defendT: 0 };
     this.genMap();
@@ -868,6 +869,8 @@ class Game {
     const gi = this.gatherInfo(target); if (!gi) return false;
     if (target.kind === 'fish' ? u.cls !== 'boat' : u.cls === 'boat') return false;
     if (u.carry.type && u.carry.type !== gi.type) u.carry = { type: null, amt: 0 };
+    if (u.order.t === 'gather') this.claims.set(u.order.id, Math.max(0, (this.claims.get(u.order.id) || 0) - 1));
+    this.claims.set(target.id, (this.claims.get(target.id) || 0) + 1);
     u.order = { t: 'gather', id: target.id, type: gi.type, s: 'go' }; u.path = null; u.wait = 0;
     return true;
   }
@@ -898,8 +901,19 @@ class Game {
         return;
       }
       if (target.isNode || (target.isBld && target.kind === 'farm' && target.team === team)) {
-        const movers = [];
-        for (const u of us) { if (!(u.cls === 'vil' || u.cls === 'boat') || !this.orderGather(u, target)) movers.push(u); }
+        const movers = [], gi = this.gatherInfo(target);
+        this.countClaims();
+        const workers = us.filter(u => u.cls === 'vil' || u.cls === 'boat').sort((a, b) => Math.hypot(a.x - target.x, a.y - target.y) - Math.hypot(b.x - target.x, b.y - target.y));
+        for (const u of workers) if (u.order.t === 'gather') { this.claims.set(u.order.id, Math.max(0, this.claimsOf({ id: u.order.id }) - 1)); u.order = { t: 'idle' }; }
+        for (const u of workers) {
+          let t = target;
+          if (this.claimsOf(target) >= this.gatherCap(target) && gi) {
+            const alt = this.freeSameKind(target, target.x, target.y, u.team, 9);
+            if (alt) t = alt;
+          }
+          if (!this.orderGather(u, t)) movers.push(u);
+        }
+        for (const u of us) if (!(u.cls === 'vil' || u.cls === 'boat')) movers.push(u);
         if (movers.length) this.groupMove(movers, target.x, target.y, opts);
         return;
       }
@@ -1011,22 +1025,45 @@ class Game {
     for (const b of this.dropOffs(u.team, type, u.layer)) { const d = rectDist(u.x, u.y, b.rect); if (d < bd) { bd = d; best = b; } }
     return best;
   }
+  /* nearest resource of a type; one with a free gathering slot wins over a full one */
   nearestNode(x, y, type, layer, maxD, team, bad) {
-    let best = null, bd = maxD || 1e9;
+    let best = null, bd = maxD || 1e9, full = null, fd = maxD || 1e9;
+    const consider = (n) => {
+      if (bad && bad.has(n.id)) return;
+      const d = Math.hypot(n.x - x, n.y - y);
+      if (this.claimsOf(n) < this.gatherCap(n)) { if (d < bd) { bd = d; best = n; } }
+      else if (d < fd) { fd = d; full = n; }
+    };
     for (const n of this.nodes) {
       if (n.hp <= 0 || n.amt <= 0 || n.type !== type) continue;
       if ((n.kind === 'fish') !== (layer === 1)) continue;
-      if (bad && bad.has(n.id)) continue;
-      const d = Math.hypot(n.x - x, n.y - y); if (d < bd) { bd = d; best = n; }
+      consider(n);
     }
     if (type === 'food' && layer === 0) {
       for (const b of this.buildings) {
         if (b.kind !== 'farm' || b.hp <= 0 || !b.done || b.food <= 0 || b.team !== team) continue;
-        if (bad && bad.has(b.id)) continue;
-        const d = Math.hypot(b.x - x, b.y - y); if (d < bd) { bd = d; best = b; }
+        consider(b);
       }
     }
+    return best || full;
+  }
+  /* nearest other resource of the same kind as `like` (tree -> tree, farm -> own farm) with a free slot */
+  freeSameKind(like, x, y, team, maxD) {
+    let best = null, bd = maxD;
+    const list = like.isBld ? this.buildings.filter(b => b.kind === 'farm' && b.team === team && b.done && b.food > 0) : this.nodes;
+    for (const n of list) {
+      if (n === like || n.hp <= 0 || (n.isNode && (n.amt <= 0 || n.kind !== like.kind))) continue;
+      if (this.claimsOf(n) >= this.gatherCap(n)) continue;
+      const d = Math.hypot(n.x - x, n.y - y); if (d < bd) { bd = d; best = n; }
+    }
     return best;
+  }
+  /* how many villagers (or boats) may work one resource at once */
+  gatherCap(n) { return n.isBld ? 2 : n.kind === 'fish' ? 2 : 3; }
+  claimsOf(n) { return this.claims.get(n.id) || 0; }
+  countClaims() {
+    this.claims.clear();
+    for (const u of this.units) if (u.hp > 0 && u.order.t === 'gather') this.claims.set(u.order.id, (this.claims.get(u.order.id) || 0) + 1);
   }
   setRally(b, x, y, target) {
     b.rally = target && this.gatherInfo(target) ? { id: target.id } : { x, y };
@@ -1036,7 +1073,7 @@ class Game {
   update(dt) {
     if (this.over) return;
     this.t += dt; this.tickN++;
-    this.rebuildHash();
+    this.rebuildHash(); this.countClaims();
     for (const b of this.buildings) this.updateBuilding(b, dt);
     for (const u of this.units) if (u.hp > 0) this.updateUnit(u, dt);
     this.separate();
@@ -1245,6 +1282,16 @@ class Game {
         if (retarget()) return;
         if (u.carry.amt > 0) { o.s = 'ret'; u.path = null; } else { this.idleOrder(u); }
         return;
+      }
+    }
+    if (o.s === 'go' && this.claimsOf(node) > this.gatherCap(node) && (u.ovr = (u.ovr || 0) - dt) <= 0) {
+      u.ovr = 0.5;
+      const myD = Math.hypot(u.x - node.x, u.y - node.y);
+      let closer = 0;
+      for (const w of this.units) if (w !== u && w.hp > 0 && w.order.t === 'gather' && w.order.id === node.id && Math.hypot(w.x - node.x, w.y - node.y) <= myD) closer++;
+      if (closer >= this.gatherCap(node)) {
+        const alt = this.freeSameKind(node, u.x, u.y, u.team, 12);
+        if (alt) { const keep = u.carry; this.orderGather(u, alt); u.carry = keep; return; }
       }
     }
     if (o.s === 'go') {
