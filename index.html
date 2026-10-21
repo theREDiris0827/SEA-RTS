@@ -70,6 +70,8 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 }
 .chip-r img { width: 20px; height: 20px; flex: none; }
 .chip-r span { font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: .01em; }
+.chip-r .gn { font-size: .72em; font-weight: 600; color: var(--muted, #b9c4b4); opacity: .9; }
+.chip-r .gn.zero { opacity: .5; }
 .chip-r.warn { box-shadow: inset 0 0 0 2px var(--bad), 0 3px 0 rgba(0, 0, 0, .45); color: #ffb3a8; }
 #btn-menu, .sbtn {
   background: var(--panel); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 2px var(--edge), 0 3px 0 rgba(0, 0, 0, .45);
@@ -124,6 +126,7 @@ img { image-rendering: pixelated; image-rendering: crisp-edges; }
 .chip { display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; background: var(--panel-2); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge); }
 .chip img { width: 30px; height: 30px; }
 .chip b { font-family: var(--font-num); font-size: 17px; }
+.p-cmds.more { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); }
 .p-cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
 .cmd {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px; padding: 3px 2px 2px; min-height: 66px;
@@ -200,6 +203,9 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
   .res { gap: 4px; }
   .chip-r { padding: 4px 5px; gap: 3px; font-size: 17px; }
   .chip-r img { width: 16px; height: 16px; }
+  /* no room beside the number: the villager count sits as a tag on the chip's lower edge */
+  .chip-r { position: relative; }
+  .chip-r .gn { position: absolute; right: 3px; bottom: -9px; font-size: 12px; line-height: 14px; padding: 0 3px; background: var(--panel); border: 1px solid var(--edge-dark); }
 }
 @media (max-height: 520px) {
   #mini { width: 96px; height: 72px; }
@@ -222,9 +228,9 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
   <div id="hud">
     <div id="topbar">
       <div class="res">
-        <div class="chip-r"><img id="i-food" alt="Food"><span id="v-food">0</span></div>
-        <div class="chip-r"><img id="i-wood" alt="Wood"><span id="v-wood">0</span></div>
-        <div class="chip-r"><img id="i-gold" alt="Gold"><span id="v-gold">0</span></div>
+        <div class="chip-r"><img id="i-food" alt="Food"><span id="v-food">0</span><span class="gn" id="g-food" title="Villagers gathering food">(0)</span></div>
+        <div class="chip-r"><img id="i-wood" alt="Wood"><span id="v-wood">0</span><span class="gn" id="g-wood" title="Villagers gathering wood">(0)</span></div>
+        <div class="chip-r"><img id="i-gold" alt="Gold"><span id="v-gold">0</span><span class="gn" id="g-gold" title="Villagers gathering gold">(0)</span></div>
         <div class="chip-r" id="pop-chip"><img id="i-pop" alt="Population"><span id="v-pop">0/0</span></div>
       </div>
       <button id="btn-menu" aria-label="Menu"><img id="i-menu" alt=""></button>
@@ -341,15 +347,38 @@ function fbm(x, y, s) {
 /* ---------- data ---------- */
 const UD = {
   villager: { name: 'Villager', hp: 25, spd: 2.1, atk: 3, rng: 0.85, rate: 1.5, ma: 0, pa: 0, sight: 5, cost: { food: 50 }, time: 8, cls: 'vil', carry: 10 },
-  keris: { name: 'Keris Warrior', hp: 55, spd: 2.4, atk: 8, rng: 0.85, rate: 1.0, ma: 1, pa: 1, sight: 6.5, cost: { food: 50, gold: 20 }, time: 9, cls: 'sword' },
-  tombak: { name: 'Tombak Warrior', hp: 50, spd: 2.3, atk: 5, bonus: { sword: 4 }, rng: 1.5, rate: 1.1, ma: 2, pa: 3, sight: 6.5, cost: { food: 40, wood: 25 }, time: 9, cls: 'spear' },
-  archer: { name: 'Archer', hp: 30, spd: 2.2, atk: 6, rng: 5.5, rate: 1.5, ma: 0, pa: 0, sight: 7.5, cost: { wood: 30, gold: 35 }, time: 10, cls: 'archer', ranged: true },
-  bhaya: { name: 'Bhayangkara', hp: 70, spd: 3.5, atk: 5, rng: 0.85, rate: 0.55, ma: 0, pa: 1, sight: 6.5, cost: { food: 70, gold: 40 }, time: 12, cls: 'elite' },
-  boat: { name: 'Fishing Boat', hp: 40, spd: 3.0, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 50 }, time: 10, cls: 'boat', carry: 14, layer: 1 },
+  // counters: Tombak beats Keris, Keris beats Archer, Archer beats Tombak; elites have their own jobs
+  keris: { name: 'Keris Warrior', hp: 55, spd: 2.4, atk: 8, bonus: { archer: 3 }, rng: 0.85, rate: 1.0, ma: 1, pa: 2, sight: 6.5, cost: { food: 50, gold: 20 }, time: 9, cls: 'sword' },
+  tombak: { name: 'Tombak Warrior', hp: 50, spd: 2.3, atk: 5, bonus: { sword: 5, elite: 4 }, rng: 1.5, rate: 1.1, ma: 2, pa: 0, sight: 6.5, cost: { food: 40, wood: 25 }, time: 9, cls: 'spear' },
+  archer: { name: 'Archer', hp: 30, spd: 2.2, atk: 6, bonus: { spear: 3, elite: 3 }, rng: 5.5, rate: 1.5, ma: 0, pa: 0, sight: 7.5, cost: { wood: 30, gold: 35 }, time: 10, cls: 'archer', ranged: true },
+  pahlawan: { name: 'Pahlawan', hp: 80, spd: 2.3, atk: 11, bonus: { sword: 5, elite: 4 }, rng: 0.85, rate: 1.0, ma: 2, pa: 0, sight: 6.5, cost: { food: 90, gold: 60 }, time: 14, cls: 'elite', civ: 0 },
+  bhaya: { name: 'Bhayangkara', hp: 75, spd: 3.5, atk: 6, bonus: { archer: 4, sword: 2 }, rng: 0.85, rate: 0.55, ma: 1, pa: 4, sight: 6.5, cost: { food: 70, gold: 40 }, time: 12, cls: 'elite', civ: 1 },
+  // healers: herbal medicine. Melaka heals one unit well, Majapahit heals a crowd a little
+  tabib: { name: 'Tabib', hp: 30, spd: 2.2, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 7, cost: { food: 40, gold: 45 }, time: 11, cls: 'healer', civ: 0, heal: { amt: 5, rate: 1, rng: 3 } },
+  acaraki: { name: 'Acaraki', hp: 25, spd: 2.4, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 7, cost: { food: 35, gold: 15 }, time: 8, cls: 'healer', civ: 1, heal: { amt: 2, rate: 1.5, rng: 2.5, area: true, max: 6 } },
+  boat: { name: 'Fishing Boat', hp: 40, spd: 3.0, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 50 }, time: 10, cls: 'boat', carry: 14, layer: 1, slot: 'fishing' },
+  // navy (Melaka numbers; Majapahit ships get NAVMOD on top: cheaper, faster, weaker)
+  trade: { name: 'Armed Trade Ship', hp: 150, spd: 2.6, atk: 4, rng: 4.5, rate: 2.0, ma: 1, pa: 2, sight: 7, cost: { wood: 100, gold: 60 }, time: 18, cls: 'ship', ranged: true, layer: 1, slot: 'trade', civ: 0, trader: true },
+  fireship: { name: 'Fire Ship', hp: 55, spd: 3.5, atk: 0, rng: 0.7, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 70, gold: 10 }, time: 10, cls: 'ship', layer: 1, slot: 'trade', civ: 1, boom: { dmg: 105, r: 1.7 } },
+  light: { name: 'Sloop', hp: 90, spd: 3.4, atk: 5, rng: 5, rate: 1.6, ma: 1, pa: 1, sight: 7.5, cost: { wood: 70, gold: 20 }, time: 14, cls: 'ship', ranged: true, layer: 1, slot: 'light' },
+  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 7, rng: 5.5, rate: 1.8, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', ranged: true, layer: 1, slot: 'galley' },
+  frigate: { name: 'Frigate', hp: 300, spd: 2.4, atk: 12, rng: 6.5, rate: 2.5, ma: 2, pa: 3, sight: 8, cost: { wood: 200, gold: 120 }, time: 30, cls: 'ship', ranged: true, layer: 1, slot: 'frigate' },
+  flagship: { name: 'Flagship', hp: 650, spd: 2.0, atk: 16, rng: 7, rate: 2.6, ma: 3, pa: 4, sight: 9, cost: { wood: 450, gold: 300 }, time: 45, cls: 'ship', ranged: true, layer: 1, slot: 'flagship', one: true, civHp: [650, 1100] },
   deer: { name: 'Deer', hp: 14, spd: 1.3, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 3, cost: {}, time: 0, cls: 'animal' }
 };
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
-const ENEMY_NAMES = { keris: 'Golok Warrior', tombak: 'Galah Warrior', bhaya: 'Bhayangkara' };
+/* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
+const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };
+/* civ names: [Melaka, Majapahit]; English class in brackets where the name is local */
+const CIV_NAMES = {
+  keris: [null, 'Golok Warrior'], tombak: [null, 'Galah Warrior'],
+  boat: ['Sampan (Fishing Boat)', 'Jukung (Fishing Boat)'], trade: ['Jong Dagang (Armed Trade Ship)', null], fireship: [null, 'Perahu Api (Fire Ship)'],
+  light: ['Penjajap (Sloop)', 'Jukung Perang (Sloop)'], galley: ['Lancaran (Galley)', 'Kelulus (Galley)'],
+  frigate: ['Ghali (Frigate)', 'Jong Perang (Frigate)'], flagship: ['Mendam Berahi (Flagship)', 'Jong Raya (Flagship)'],
+  granary: ['Jelapang (Granary)', 'Lumbung (Granary)'], tower: ['Menara Kawal (Watchtower)', 'Bale Kulkul (Watchtower)'],
+  palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)']
+};
+function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[team === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
 
 const BD = {
   towncentre: { name: 'Town Centre', size: 3, hp: 1200, pop: 8, drop: ['food', 'wood', 'gold'], train: ['villager'], atk: { dmg: 5, range: 7, rate: 2 }, sight: 10, cost: {}, time: 0 },
@@ -358,8 +387,18 @@ const BD = {
   goldmine: { name: 'Gold Mine', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['gold'], sight: 4 },
   farm: { name: 'Farm', size: 2, hp: 100, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3 },
   barracks: { name: 'Barracks', size: 3, hp: 800, cost: { wood: 150 }, time: 30, train: ['keris', 'tombak', 'archer'], sight: 6 },
-  port: { name: 'Trading Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat'], trade: 0.35, shore: true, sight: 8 }
+  port: { name: 'Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat', 'trade', 'fireship', 'light', 'galley', 'frigate', 'flagship'], shore: true, sight: 8 },
+  granary: { name: 'Granary', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['food'], sight: 4 },
+  tower: { name: 'Watchtower', size: 2, hp: 600, civHp: [600, 800], cost: { wood: 75, gold: 25 }, time: 25, atk: { dmg: 5, range: 7, rate: 1.8 }, sight: 11, civSight: [11, 9] },
+  rumahtabib: { name: 'Rumah Tabib (Physician\'s House)', size: 3, hp: 500, cost: { wood: 120, gold: 30 }, time: 30, train: ['tabib'], needs: 'barracks', civ: 0, sight: 5 },
+  patirthan: { name: 'Patirthan (Bathing Pool)', size: 3, hp: 900, cost: { wood: 150, gold: 50 }, time: 40, train: ['acaraki'], needs: 'barracks', civ: 1, aura: { rng: 3, amt: 1, max: 10 }, sight: 5 },
+  palace: { name: 'Palace', size: 4, hp: 2400, cost: { wood: 400, gold: 200 }, time: 60, train: ['pahlawan', 'bhaya'], one: true, sight: 9 },
+  tradepost: { name: 'Trading Post', size: 3, hp: 700, cost: { wood: 150, gold: 50 }, time: 30, site: true, sight: 7 },
+  village: { name: 'Orang Laut Village', size: 3, hp: 99999, cost: null, time: 0, neutral: true, sight: 0 }
 };
+/* gold a trade ship earns per round trip, by straight-line distance between Port and Trading Post */
+const TRADE = { k: 1 / 40, melaka: 1.2 };
+const TRIBUTE = 0.55;   // gold per second from each Majapahit Bandar
 const BARM = { ma: 2, pa: 6 };
 const NK = {
   tree: { type: 'wood', amt: 100, rate: 1.2 }, berry: { type: 'food', amt: 120, rate: 1.3 },
@@ -403,6 +442,7 @@ class Game {
     this.hash = []; for (let i = 0; i < this.cw * this.ch; i++) this.hash.push([]);
     this.rng = mulberry32(this.seed);
     this.claims = new Map();
+    this.villages = []; this.siteMask = new Uint8Array(W * H); this.tradeGold = 0;
     this.tradeAcc = 0; this.aiAcc = 0; this.fogAcc = 0; this.endAcc = 0; this.lastAlert = -99;
     this.ai = { wave: 0, next: DIFF[this.diff].wave0, lastBuild: 0, defendT: 0 };
     this.genMap();
@@ -542,6 +582,8 @@ class Game {
     };
     const notNearStart = (x, y) => STARTS.every(st => Math.hypot(x - st.x - 1, y - st.y - 1) > 7.5);
     const notBeach = (x, y) => this.terrain[y * W + x] !== T.SAND;
+    // neutral Orang Laut villages on the coast, each with an empty landing where a Trading Post can go
+    for (const gx of [6, 33, 57]) this.addVillage(gx);
     // Starting buildings and people
     const mk = (team) => {
       const st = STARTS[team];
@@ -600,13 +642,47 @@ class Game {
     for (const p of [[19, 31], [23, 31], [21, 32]]) if (this.isWater(p[0], p[1]) && !this.block[p[1] * W + p[0]]) this.addNode('fish', p[0], p[1]);
   }
 
+  addVillage(gx) {
+    const land3 = (tx, ty) => { for (let y = ty; y < ty + 3; y++) for (let x = tx; x < tx + 3; x++) if (!this.freeTile(x, y) || this.siteMask[y * W + x]) return false; return true; };
+    const shore = (tx, ty) => {
+      let water = 0;
+      for (let y = ty - 1; y <= ty + 3; y++) for (let x = tx - 1; x <= tx + 3; x++) if ((x < tx || x > tx + 2 || y < ty || y > ty + 2) && this.isWater(x, y)) water++;
+      return water >= 4;
+    };
+    let best = null, bd = 1e9;
+    for (let ty = 22; ty < H - 4; ty++) for (let tx = Math.max(2, gx - 8); tx <= Math.min(W - 5, gx + 8); tx++) {
+      if (!land3(tx, ty) || !shore(tx, ty)) continue;
+      if (STARTS.some(st => Math.hypot(tx + 1.5 - st.x - 1.5, ty + 1.5 - st.y - 1.5) < 9)) continue;
+      for (const vx of [tx - 3, tx + 3]) {
+        // the village stands on dry land beside the landing (it may lean a row inland)
+        for (const vy of [ty, ty - 1, ty - 2]) {
+          if (!land3(vx, vy)) continue;
+          const d = Math.abs(tx - gx) + (vy !== ty ? 0.5 : 0);
+          if (d < bd) { bd = d; best = { tx, ty, vx, vy }; }
+          break;
+        }
+      }
+    }
+    if (!best) return null;
+    const v = this.addBuilding('village', 2, best.vx, best.vy, true);
+    v.site = { tx: best.tx, ty: best.ty }; v.post = 0;
+    for (let y = best.ty - 1; y <= best.ty + 3; y++) for (let x = best.tx - 1; x <= best.tx + 3; x++) if (this.inb(x, y)) { this.reserve[y * W + x] = 1; if (x >= best.tx && x < best.tx + 3 && y >= best.ty && y < best.ty + 3) this.siteMask[y * W + x] = 1; }
+    for (let y = best.vy - 1; y <= best.vy + 3; y++) for (let x = best.vx - 1; x <= best.vx + 3; x++) if (this.inb(x, y)) this.reserve[y * W + x] = 1;
+    this.villages.push(v);
+    return v;
+  }
+  /* the free village landing whose corner is at (tx, ty), if any */
+  siteAt(tx, ty) { return this.villages.find(v => v.hp > 0 && !v.post && v.site.tx === tx && v.site.ty === ty) || null; }
+
   /* ======================= entities ======================= */
   addUnit(kind, team, x, y) {
-    const d = UD[kind], m = TEAMMOD[team] || TEAMMOD[0];
-    const arm = d.cls === 'vil' || d.cls === 'animal' || d.cls === 'boat' ? 0 : m.arm;
+    const d = UD[kind], m0 = TEAMMOD[team] || TEAMMOD[0], nv = d.layer && team === 1 ? NAVMOD : null;
+    const m = nv ? { hp: m0.hp * nv.hp, spd: m0.spd * nv.spd, arm: m0.arm } : m0;
+    const arm = d.cls === 'vil' || d.cls === 'animal' || d.cls === 'boat' || d.cls === 'ship' ? 0 : m.arm;
+    const hp0 = d.civHp ? d.civHp[team === 1 ? 1 : 0] : d.hp;
     const u = {
       id: this.nextId++, isUnit: true, kind, team, x, y, layer: d.layer || 0, cls: d.cls,
-      hp: Math.round(d.hp * m.hp), maxHp: Math.round(d.hp * m.hp), spd: d.spd * m.spd * (team === 2 ? 1 : 1),
+      hp: Math.round(hp0 * m.hp), maxHp: Math.round(hp0 * m.hp), spd: d.spd * m.spd * (team === 2 ? 1 : 1),
       atk: d.atk, rate: d.rate, rng: d.rng, ma: Math.max(0, d.ma - arm), pa: Math.max(0, d.pa - arm),
       bonus: d.bonus, ranged: !!d.ranged, sight: d.sight, carryMax: d.carry || 0,
       order: { t: 'idle', hx: x, hy: y }, path: null, pi: 0, cd: 0, carry: { type: null, amt: 0 },
@@ -616,21 +692,30 @@ class Game {
     this.units.push(u); this.byId.set(u.id, u);
     return u;
   }
-  unitName(u) { return (u.team === 1 && ENEMY_NAMES[u.kind]) || UD[u.kind].name; }
+  unitName(u) { return civName(u.kind, u.team); }
   costOf(kind, team) {
-    const base = UD[kind] ? UD[kind].cost : BD[kind].cost, m = TEAMMOD[team].cost, o = {};
-    for (const k in base) o[k] = UD[kind] && team === 1 ? Math.ceil(base[k] * m) : base[k];
+    const base = UD[kind] ? UD[kind].cost : BD[kind].cost, o = {};
+    const m = UD[kind] && team === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1) : 1;
+    for (const k in base) o[k] = m !== 1 ? Math.ceil(base[k] * m) : base[k];
     return o;
+  }
+  /* what a building can train for this team (unique units and ships belong to one civ) */
+  trainable(kind, team) { const t = BD[kind].train; return t ? t.filter(k => UD[k].civ == null || UD[k].civ === (team === 1 ? 1 : 0)) : null; }
+  countOf(team, kind) {
+    let n = 0;
+    for (const u of this.units) if (u.team === team && u.hp > 0 && u.kind === kind) n++;
+    for (const b of this.buildings) if (b.team === team && b.hp > 0) { if (b.kind === kind) n++; for (const q of b.queue) if (q.kind === kind) n++; }
+    return n;
   }
   canAfford(team, cost) { const r = this.res[team]; for (const k in cost) if (r[k] < cost[k]) return false; return true; }
   pay(team, cost) { const r = this.res[team]; for (const k in cost) r[k] -= cost[k]; }
   refund(team, cost) { const r = this.res[team]; for (const k in cost) r[k] += cost[k]; }
 
   addBuilding(kind, team, tx, ty, done) {
-    const d = BD[kind];
+    const d = BD[kind], hp = d.civHp ? d.civHp[team === 1 ? 1 : 0] : d.hp;
     const b = {
       id: this.nextId++, isBld: true, kind, team, tx, ty, size: d.size, x: tx + d.size / 2, y: ty + d.size / 2,
-      maxHp: d.hp, hp: done ? d.hp : Math.round(d.hp * 0.1), done: !!done, progress: done ? 1 : 0,
+      maxHp: hp, hp: done ? hp : Math.round(hp * 0.1), done: !!done, progress: done ? 1 : 0,
       queue: [], qt: 0, rally: null, food: d.food || 0, cd: 0, nb: 0, _bn: 0, hit: 0, stall: false
     };
     b.rect = rectOfTiles(tx, ty, d.size, d.size);
@@ -848,9 +933,12 @@ class Game {
   isVisible(x, y) { const i = Math.floor(y) * W + Math.floor(x); return this.visible[i] === 1; }
   nearestEnemy(u, r) {
     let best = null, bs = 1e9;
-    const team = u.team;
+    const team = u.team, sea = u.layer === 1;
+    if (sea) r = Math.min(r, u.rng + 1.5);
     this.unitsNear(u.x, u.y, r, (o) => {
       if (o.hp <= 0 || o.team === team || o.team === 2) return;
+      if (o.layer === 1 && !u.ranged && !sea) return;
+      if (u.kind === 'fireship' && o.layer !== 1) return;
       const d = Math.hypot(o.x - u.x, o.y - u.y); if (d > r) return;
       if (team === 0 && !this.isVisible(o.x, o.y)) return;
       const s = d + (o.cls === 'vil' || o.cls === 'boat' ? 3 : 0);
@@ -858,8 +946,8 @@ class Game {
     });
     if (!best || best.cls === 'vil' || best.cls === 'boat') {
       for (const b of this.buildings) {
-        if (b.hp <= 0 || b.team === team) continue;
-        const d = rectDist(u.x, u.y, b.rect); if (d > r * 0.8) continue;
+        if (b.hp <= 0 || b.team === team || b.team === 2) continue;
+        const d = rectDist(u.x, u.y, b.rect); if (d > (sea ? r : r * 0.8)) continue;
         if (team === 0 && !this.explored[Math.floor(b.y) * W + Math.floor(b.x)]) continue;
         const s = d + 6; if (s < bs && !best) { bs = s; best = b; }
       }
@@ -887,6 +975,7 @@ class Game {
   orderAttack(u, target, extra) {
     u.order = Object.assign({ t: 'attack', id: target.id }, extra || {}); u.path = null; u.rp = 0;
   }
+  orderTrade(u, post) { u.order = { t: 'trade', post: post.id, s: 'out' }; u.path = null; u.wait = 0; }
   orderBuild(u, b) { u.order = { t: 'build', id: b.id }; u.path = null; u.wait = 0; }
   orderMove(u, x, y) { u.order = { t: 'move', x, y }; u.path = null; u.wait = 0; }
   orderAMove(u, x, y) { u.order = { t: 'amove', x, y }; u.path = null; u.wait = 0; }
@@ -906,8 +995,14 @@ class Game {
         }
         return;
       }
-      if (target.isBld && target.team !== team) {
+      if (target.isBld && target.team !== team && target.team !== 2) {
         for (const u of us) { if (u.cls === 'boat') this.orderMove(u, target.x, target.y); else this.orderAttack(u, target); }
+        return;
+      }
+      if (target.isBld && target.team === team && target.kind === 'tradepost' && target.done) {
+        const movers = [];
+        for (const u of us) { if (UD[u.kind].trader) this.orderTrade(u, target); else movers.push(u); }
+        if (movers.length) this.groupMove(movers, target.x, target.y, opts);
         return;
       }
       if (target.isNode || (target.isBld && target.kind === 'farm' && target.done && target.team === team)) {
@@ -947,7 +1042,7 @@ class Game {
     // melee (and villagers) take the formation up front; ranged units always line up in rows behind them
     const sorted = us.slice().sort((a, b) => ORDER_CLS[a.cls] - ORDER_CLS[b.cls]);
     const n = sorted.length, sp = 0.95, form = opts.formation || 'box', slots = [];
-    const nBack = sorted.filter(u => u.ranged || u.cls === 'boat').length, nFront = n - nBack;
+    const nBack = sorted.filter(u => u.ranged || u.cls === 'boat' || u.cls === 'healer').length, nFront = n - nBack;
     const shape = (m, out) => {
       if (form === 'line') {
         const per = Math.min(m, 12);
@@ -983,6 +1078,8 @@ class Game {
   canPlace(kind, tx, ty, team) {
     const d = BD[kind];
     if (tx < 1 || ty < 1 || tx + d.size > W - 1 || ty + d.size > H - 1) return false;
+    if (d.site && !this.siteAt(tx, ty)) return false;
+    if (!d.site) for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) if (this.siteMask[y * W + x]) return false;
     for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
       if (!this.freeTile(x, y)) return false;
       if (team === 0 && !this.explored[y * W + x]) return false;
@@ -1002,17 +1099,22 @@ class Game {
     const d = BD[kind];
     if (!d || !d.cost) return { ok: false, why: 'Cannot build that.' };
     if (!this.canAfford(team, d.cost)) return { ok: false, why: 'Not enough resources.' };
-    if (!this.canPlace(kind, tx, ty, team)) return { ok: false, why: kind === 'port' ? 'Ports need a spot on the shore.' : 'Cannot build there.' };
+    if (d.needs && !this.buildings.some(b => b.team === team && b.kind === d.needs && b.done && b.hp > 0)) return { ok: false, why: 'Build a ' + civName(d.needs, team) + ' first.' };
+    if (d.one && this.countOf(team, kind) > 0) return { ok: false, why: 'You can only have one ' + civName(kind, team) + '.' };
+    if (!this.canPlace(kind, tx, ty, team)) return { ok: false, why: kind === 'port' ? 'Ports need a spot on the shore.' : d.site ? 'Build it on the landing beside a neutral village.' : 'Cannot build there.' };
     this.pay(team, d.cost);
     const b = this.addBuilding(kind, team, tx, ty, false);
+    if (d.site) this.siteAt(tx, ty).post = b.id;
     for (const id of builderIds || []) { const u = this.byId.get(id); if (u && u.hp > 0 && u.cls === 'vil') this.orderBuild(u, b); }
     if (team === 0) this.stats.built++;
     return { ok: true, b };
   }
   queueUnit(b, kind, team) {
     if (!b || b.hp <= 0 || !b.done || b.team !== (team == null ? 0 : team)) return 'Not available.';
-    if (!BD[b.kind].train || !BD[b.kind].train.includes(kind)) return 'Cannot train that here.';
+    const can = this.trainable(b.kind, b.team);
+    if (!can || !can.includes(kind)) return 'Cannot train that here.';
     if (b.queue.length >= 5) return 'Queue is full.';
+    if (UD[kind].one && this.countOf(b.team, kind) > 0) return 'Only one ' + civName(kind, b.team) + ' at a time.';
     const cost = this.costOf(kind, b.team);
     if (!this.canAfford(b.team, cost)) return 'Not enough resources.';
     this.pay(b.team, cost); b.queue.push({ kind, t: 0 });
@@ -1076,7 +1178,7 @@ class Game {
     for (const u of this.units) if (u.hp > 0 && u.order.t === 'gather') this.claims.set(u.order.id, (this.claims.get(u.order.id) || 0) + 1);
   }
   setRally(b, x, y, target) {
-    b.rally = target && this.gatherInfo(target) ? { id: target.id } : { x, y };
+    b.rally = target && (this.gatherInfo(target) || (target.kind === 'tradepost' && target.team === b.team)) ? { id: target.id } : { x, y };
   }
 
   /* ======================= per-tick update ======================= */
@@ -1095,14 +1197,23 @@ class Game {
   }
 
   updateBuilding(b, dt) {
-    if (b.hp <= 0) return;
+    if (b.hp <= 0 || b.team === 2) return;
     b.hit = Math.max(0, b.hit - dt);
     const d = BD[b.kind];
     if (!b.done) {
       b.nb = b._bn; b._bn = 0;
       return;
     }
-    if (d.trade) { this.tradeAcc += d.trade * dt * (b.team === 0 ? 1 : 0); if (this.tradeAcc >= 1) { const g = Math.floor(this.tradeAcc); this.tradeAcc -= g; this.res[0].gold += g; } }
+    // Patirthan: units resting in the pool's area heal slowly
+    if (d.aura) {
+      b.acd = (b.acd || 0) - dt;
+      if (b.acd <= 0) {
+        b.acd = 1; let n = 0;
+        this.unitsNear(b.x, b.y, d.aura.rng + b.size, (o) => { if (n < d.aura.max && this.canHeal(o, b.team) && rectDist(o.x, o.y, b.rect) <= d.aura.rng) { n++; this.healOne(o, d.aura.amt); } });
+      }
+    }
+    // Majapahit Bandar: the village pays tribute, no ships needed
+    if (b.kind === 'tradepost' && b.team === 1) this.res[1].gold += TRIBUTE * dt;
     // production
     if (b.queue.length) {
       const q = b.queue[0], need = UD[q.kind].time;
@@ -1118,7 +1229,7 @@ class Game {
           const u = this.addUnit(q.kind, b.team, sp.x, sp.y);
           if (b.team === 0) this.stats.trained++;
           if (b.rally) {
-            if (b.rally.id) { const t = this.byId.get(b.rally.id); if (t && t.hp !== 0 && !this.orderGather(u, t)) this.orderMove(u, t.x, t.y); }
+            if (b.rally.id) { const t = this.byId.get(b.rally.id); if (t && t.hp > 0 && t.kind === 'tradepost' && UD[u.kind].trader) this.orderTrade(u, t); else if (t && t.hp !== 0 && !this.orderGather(u, t)) this.orderMove(u, t.x, t.y); }
             else this.orderMove(u, b.rally.x, b.rally.y);
           }
         }
@@ -1144,7 +1255,7 @@ class Game {
 
   finishBuilding(b) {
     b.done = true; b.progress = 1; b.hp = b.maxHp;
-    if (b.team === 0) this.msg(BD[b.kind].name + ' complete.');
+    if (b.team === 0) this.msg(civName(b.kind, 0) + ' complete.');
     for (const u of this.units) {
       if (u.hp <= 0 || u.order.t !== 'build' || u.order.id !== b.id) continue;
       this.idleOrder(u);
@@ -1176,6 +1287,8 @@ class Game {
       case 'build': this.doBuild(u, dt); break;
       case 'wander': this.doWander(u, dt); break;
       case 'flee': this.doFlee(u, dt); break;
+      case 'trade': this.doTrade(u, dt); break;
+      case 'heal': this.doHeal(u, dt); break;
     }
     // stuck check: walking but barely moved for a while -> try the other side, then re-path
     if (u.moving) {
@@ -1203,6 +1316,7 @@ class Game {
         else { o.hx = u.x; o.hy = u.y; o.hk = 0; }
       } else o.hk = 0;
     }
+    if (u.cls === 'healer') { this.healStep(u, dt); return; }
     if (u.cls === 'vil' || u.cls === 'boat' || u.cls === 'animal') return;
     u.scan -= dt;
     if (u.scan > 0) return;
@@ -1213,7 +1327,7 @@ class Game {
   doAMove(u, dt) {
     const o = u.order;
     u.scan -= dt;
-    if (u.scan <= 0 && u.cls !== 'vil' && u.cls !== 'boat') {
+    if (u.scan <= 0 && u.cls !== 'vil' && u.cls !== 'boat' && u.cls !== 'healer') {
       u.scan = 0.4;
       const t = this.nearestEnemy(u, u.sight);
       if (t) { this.orderAttack(u, t, { amove: { x: o.x, y: o.y } }); return; }
@@ -1233,6 +1347,7 @@ class Game {
     if (dist <= reach) {
       u.path = null; u.moving = false;
       if (Math.abs(t.x - u.x) > 0.05) u.face = t.x > u.x ? 1 : -1;
+      if (UD[u.kind].boom) { this.explode(u); return; }
       if (u.cd <= 0) {
         u.cd = u.rate; u.atkT = Math.min(0.28, u.rate * 0.6);
         if (u.ranged) this.arrows.push({ x0: u.x, y0: u.y - 0.4, x1: t.x, y1: t.isBld ? t.y : t.y - 0.3, t: 0, dur: 0.12 + dist * 0.035 });
@@ -1269,6 +1384,78 @@ class Game {
       if (!this.setPath(u, this.pathToPoint(u, g.x + 0.5, g.y + 0.5))) { u.path = null; return; }
     }
     const sp = u.spd; u.spd = sp * 1.9; if (this.stepMove(u, dt)) u.path = null; u.spd = sp;
+  }
+
+  /* trade ship: sail to the Trading Post, load goods, sail home to the nearest Port and get paid by distance */
+  doTrade(u, dt) {
+    const o = u.order, post = this.byId.get(o.post);
+    if (!post || post.hp <= 0 || !post.done) { this.idleOrder(u); return; }
+    const home = o.s === 'back' ? this.dropOffs(u.team, 'food', 1).sort((a, b) => rectDist(u.x, u.y, a.rect) - rectDist(u.x, u.y, b.rect))[0] : null;
+    if (o.s === 'back' && !home) { if (u.team === 0 && this.t - (u.lastNoDrop || -99) > 10) { u.lastNoDrop = this.t; this.msg('Your trade ships need a Port to bring goods home.'); } return; }
+    const goal = o.s === 'out' ? post : home;
+    if (rectDist(u.x, u.y, goal.rect) <= 1.6) {
+      u.path = null;
+      if (o.s === 'out') { o.s = 'back'; o.from = { x: post.x, y: post.y }; u.carry = { type: 'gold', amt: 1 }; }
+      else {
+        const d = Math.hypot(o.from.x - home.x, o.from.y - home.y);
+        const gold = Math.max(1, Math.round(d * d * TRADE.k * (u.team === 0 ? TRADE.melaka : 1)));
+        this.res[u.team].gold += gold; u.carry = { type: null, amt: 0 }; o.s = 'out';
+        if (u.team === 0) { this.tradeGold += gold; this.floaters.push({ x: u.x, y: u.y - 0.8, text: '+' + gold, type: 'gold', t: 1.4 }); }
+      }
+      return;
+    }
+    if (!u.path) {
+      if (u.wait > 0) return;
+      if (!this.setPath(u, this.pathToRect(u, goal.rect, 1.5))) { u.wait = 1; return; }
+    }
+    if (this.stepMove(u, dt)) u.path = null;
+  }
+  /* healing: allies on land, hurt, and out of combat for HEAL_CALM seconds */
+  canHeal(o, team) { return o.isUnit && o.hp > 0 && o.team === team && o.layer !== 1 && o.cls !== 'animal' && o.hp < o.maxHp && this.t - (o.lastHit == null ? -99 : o.lastHit) >= HEAL_CALM; }
+  healOne(o, amt) { o.hp = Math.min(o.maxHp, o.hp + amt); this.fx.push({ k: 'heal', x: o.x, y: o.y - 0.5, t: 0.7, max: 0.7 }); }
+  /* idle healer: heal what's in reach, or walk over to the worst-hurt ally it can see */
+  healStep(u, dt) {
+    const H = UD[u.kind].heal;
+    u.hcd = Math.max(0, (u.hcd || 0) - dt);
+    u.scan -= dt;
+    if (u.hcd > 0 && u.scan > 0) return;
+    let worst = null, ws = 2, inReach = [];
+    this.unitsNear(u.x, u.y, u.sight, (o) => {
+      if (o === u || !this.canHeal(o, u.team)) return;
+      const d = Math.hypot(o.x - u.x, o.y - u.y); if (d > u.sight) return;
+      if (d <= H.rng) inReach.push(o);
+      const f = o.hp / o.maxHp; if (f < ws) { ws = f; worst = o; }
+    });
+    if (inReach.length) {
+      if (u.hcd > 0) return;
+      u.hcd = H.rate; u.atkT = 0.45;
+      if (H.area) { inReach.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp); for (const o of inReach.slice(0, H.max)) this.healOne(o, H.amt); }
+      else { inReach.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp); this.healOne(inReach[0], H.amt); const t = inReach[0]; if (Math.abs(t.x - u.x) > 0.05) u.face = t.x > u.x ? 1 : -1; }
+      return;
+    }
+    if (u.scan > 0) return;
+    u.scan = 0.5;
+    if (worst) { u.order = { t: 'heal', id: worst.id, hx: u.x, hy: u.y }; u.path = null; }
+  }
+  doHeal(u, dt) {
+    const o = u.order, t = this.byId.get(o.id), H = UD[u.kind].heal;
+    if (!t || !this.canHeal(t, u.team)) { this.idleOrder(u); return; }
+    if (Math.hypot(t.x - u.x, t.y - u.y) <= H.rng - 0.4) { this.idleOrder(u); return; }
+    if (!u.path || u.rp <= 0) { u.rp = 0.6; if (!this.setPath(u, this.pathToPoint(u, t.x, t.y))) { this.idleOrder(u); return; } }
+    if (this.stepMove(u, dt)) u.path = null;
+  }
+
+  /* fire ship: burns everything hostile around it and sinks itself */
+  explode(u) {
+    const B = UD[u.kind].boom;
+    this.unitsNear(u.x, u.y, B.r + 0.5, (o) => {
+      if (o.hp <= 0 || o.team === u.team || o.team === 2 || o.layer !== 1 || Math.hypot(o.x - u.x, o.y - u.y) > B.r) return;
+      this.damage({ atk: B.dmg, team: u.team, x: u.x, y: u.y, isUnit: true, kind: u.kind }, o);
+    });
+    for (const b of this.buildings) if (b.hp > 0 && b.team !== u.team && b.team !== 2 && rectDist(u.x, u.y, b.rect) <= B.r * 0.8) this.damage({ atk: B.dmg * 0.6, team: u.team, isUnit: true, kind: u.kind }, b);
+    for (let i = 0; i < 10; i++) this.fx.push({ k: 'smoke', x: u.x + (this.rng() - 0.5) * 1.6, y: u.y + (this.rng() - 0.5) * 1.2, vy: -0.7 - this.rng() * 0.8, t: 1.2 + this.rng(), max: 2.2 });
+    this.fx.push({ k: 'fire', x: u.x, y: u.y, t: 0.9, max: 0.9 });
+    u.hp = 0; this.onKilled(u, null);
   }
 
   doGather(u, dt) {
@@ -1448,14 +1635,15 @@ class Game {
 
   damage(att, tgt) {
     let dmg = att.atk + ((att.bonus && att.bonus[tgt.cls]) || 0);
+    if (att.isUnit && att.cls === 'ship' && att.team === 0 && att.kind !== 'flagship' && this.units.some(f => f.kind === 'flagship' && f.team === 0 && f.hp > 0 && Math.hypot(f.x - att.x, f.y - att.y) < 5)) dmg += 2;
     const arm = tgt.isBld ? (att.ranged ? BARM.pa : BARM.ma) : (att.ranged ? tgt.pa : tgt.ma);
     dmg = Math.max(1, dmg - arm);
-    tgt.hp -= dmg; tgt.hit = 0.15;
+    tgt.hp -= dmg; tgt.hit = 0.15; tgt.lastHit = this.t;
     if (tgt.isUnit && tgt.cls === 'animal') { tgt.order = { t: 'flee', t0: 3, fx: att.x != null ? att.x : tgt.x, fy: att.y != null ? att.y : tgt.y }; tgt.path = null; }
     if (tgt.team === 0 && att.team === 1 && this.t - this.lastAlert > 5) {
       this.lastAlert = this.t; this.alerts.push({ x: tgt.x, y: tgt.y, t: 3 }); this.msg('We are under attack!');
     }
-    if (tgt.isUnit && tgt.cls !== 'vil' && tgt.cls !== 'boat' && tgt.cls !== 'animal' && att.isUnit && tgt.order.t === 'idle') {
+    if (tgt.isUnit && tgt.cls !== 'vil' && tgt.cls !== 'boat' && tgt.cls !== 'animal' && tgt.cls !== 'healer' && !UD[tgt.kind].trader && att.isUnit && att.hp > 0 && tgt.order.t === 'idle') {
       this.orderAttack(tgt, att, { leash: { x: tgt.x, y: tgt.y, r: 11 } });
     }
     this.fx.push({ k: 'spark', x: tgt.x + (tgt.isBld ? (this.rng() - 0.5) * tgt.size * 0.6 : 0), y: tgt.y - (tgt.isBld ? 0.3 : 0.3), t: 0.25, max: 0.25 });
@@ -1474,7 +1662,8 @@ class Game {
     } else if (t.isBld) {
       for (let i = 0; i < 14; i++) this.fx.push({ k: 'smoke', x: t.x + (this.rng() - 0.5) * t.size, y: t.y + (this.rng() - 0.5) * t.size, vy: -0.6 - this.rng() * 0.8, t: 1.4 + this.rng(), max: 2.4 });
       this.fx.push({ k: 'rubble', x: t.x, y: t.y, size: t.size, t: 8, max: 8 });
-      if (t.team === 0) { this.msg(BD[t.kind].name + ' destroyed!'); }
+      if (t.team === 0) { this.msg(civName(t.kind, 0) + ' destroyed!'); }
+      if (BD[t.kind].site) for (const v of this.villages) if (v.post === t.id) v.post = 0;
     }
   }
   msg(text) { this.msgs.push({ text, t: 3.2 }); if (this.msgs.length > 4) this.msgs.shift(); }
@@ -1556,7 +1745,7 @@ class Game {
     const tc = this.buildings.find(b => b.team === 1 && b.kind === 'towncentre' && b.done && b.hp > 0);
     if (!tc) return;
     const vils = this.units.filter(u => u.team === 1 && u.kind === 'villager' && u.hp > 0);
-    const mil = this.units.filter(u => u.team === 1 && u.hp > 0 && u.cls !== 'vil' && u.cls !== 'boat');
+    const mil = this.units.filter(u => u.team === 1 && u.hp > 0 && u.cls !== 'vil' && u.layer !== 1);
     const myB = (k) => this.buildings.filter(b => b.team === 1 && b.kind === k && b.hp > 0);
     const pop = this.popOf(1), cap = this.popCap(1);
     const barracks = myB('barracks').filter(b => b.done);
@@ -1605,16 +1794,53 @@ class Game {
       this.orderGather(v, n); counts[pick]++;
     }
 
-    // 5. train military
+    // 4b. Majapahit buildings: Lumbung by the farms, a Bale Kulkul, the Kraton, a Bandar on a neutral village
+    const has = (k) => myB(k).length > 0;
+    const late = { easy: 1.4, normal: 1, hard: 0.75 }[this.diff];
+    if (farms.length >= 2 && !has('granary') && r.wood >= 100 && !building.length) this.aiBuildNear('granary', farms[0], vils.slice(0, 1));
+    if (this.t > 200 * late && !has('tower') && r.wood >= 75 && r.gold >= 25 && !building.length) this.aiBuild('tower', tc, vils, 2, 4, 7);
+    if (this.t > 300 * late && !has('palace') && r.wood >= 400 && r.gold >= 200) this.aiBuild('palace', tc, vils, 4, 6, 12);
+    if (this.t > 360 * late && !has('tradepost') && r.wood >= 150 && r.gold >= 50) {
+      const v = this.villages.filter(v => !v.post && v.hp > 0).sort((a, b) => Math.hypot(a.x - tc.x, a.y - tc.y) - Math.hypot(b.x - tc.x, b.y - tc.y))[0];
+      if (v) { const near = vils.slice().sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y)).slice(0, 2); this.placeBuilding(1, 'tradepost', v.site.tx, v.site.ty, near.map(u => u.id)); }
+    }
+
+    if (barracks.length && this.t > 240 * late && !has('patirthan') && r.wood >= 150 && r.gold >= 50 && !building.length) this.aiBuild('patirthan', tc, vils, 2, 5, 10);
+    const pool = myB('patirthan').find(b => b.done);
+    if (pool) {
+      const heal = mil.filter(m => m.cls === 'healer').length + pool.queue.length;
+      if (heal < Math.floor(mil.length / 8) && pop < cap) this.queueUnit(pool, 'acaraki', 1);
+      if (!pool.rally) pool.rally = { x: tc.x - 6, y: tc.y + 2 };
+    }
+
+    // 5. train military (Bhayangkara come from the Kraton)
     const milCap = D.milBase + Math.floor(this.t / D.milRate);
+    const palace = myB('palace').find(b => b.done);
+    if (palace && palace.queue.length < 1 && mil.length < milCap && pop < cap && this.rng() < 0.5) this.queueUnit(palace, 'bhaya', 1);
+    if (palace && !palace.rally) palace.rally = { x: tc.x - 6, y: tc.y + 2 };
     for (const b of barracks) {
       if (b.queue.length >= 2 || mil.length + b.queue.length >= milCap) continue;
-      let kind;
-      const roll = this.rng();
-      if (this.t > 330 && roll < 0.28) kind = 'bhaya'; else kind = roll < 0.45 ? 'keris' : roll < 0.75 ? 'tombak' : 'archer';
-      if (kind === 'bhaya') { if (this.canAfford(1, this.costOf('bhaya', 1)) && pop < cap) { b.queue.push({ kind, t: 0 }); this.pay(1, this.costOf('bhaya', 1)); } continue; }
+      const roll = this.rng(), kind = roll < 0.4 ? 'keris' : roll < 0.72 ? 'tombak' : 'archer';
       if (pop + b.queue.length < cap) this.queueUnit(b, kind, 1);
       if (!b.rally) b.rally = { x: tc.x - 6, y: tc.y + 2 };
+    }
+
+    // 5b. navy: a port on the southern shore, then swarms of fire ships and jukung perang
+    if (this.t > 330 * late && !has('port') && r.wood >= 120) this.aiBuildShore('port', vils);
+    const port = myB('port').find(b => b.done);
+    if (port) {
+      const navy = this.units.filter(u => u.team === 1 && u.hp > 0 && u.cls === 'ship');
+      const navCap = Math.min(this.diff === 'easy' ? 4 : 9, 2 + Math.floor((this.t - 300) / 80));
+      if (port.queue.length < 2 && navy.length + port.queue.length < navCap && pop + port.queue.length < cap) this.queueUnit(port, this.rng() < 0.45 ? 'fireship' : 'light', 1);
+      const idle = navy.filter(u => u.order.t === 'idle' || u.order.t === 'move');
+      if (idle.length >= 3 && this.t >= (ai.navyNext || 0)) {
+        const foes = this.buildings.filter(b => b.team === 0 && b.hp > 0 && b.kind === 'port');
+        const ships = this.units.filter(u => u.team === 0 && u.hp > 0 && u.layer === 1);
+        const goal = foes[0] || ships[0];
+        const gx = goal ? goal.x : 21, gy = goal ? goal.y + (goal.isBld ? 2.5 : 0) : 31;
+        this.groupMove(idle, gx, gy, { amove: true });
+        ai.navyNext = this.t + 60;
+      }
     }
 
     // 6. defend the base
@@ -1652,6 +1878,15 @@ class Game {
     }
     return false;
   }
+  aiBuildShore(kind, vils) {
+    const cx = 44, cy = 31;
+    for (let r = 0; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !this.canPlace(kind, cx + dx, cy + dy, 1)) continue;
+      const near = vils.slice().sort((p, q) => Math.hypot(p.x - cx, p.y - cy) - Math.hypot(q.x - cx, q.y - cy)).slice(0, 2);
+      return this.placeBuilding(1, kind, cx + dx, cy + dy, near.map(v => v.id)).ok;
+    }
+    return false;
+  }
   aiBuildNear(kind, node, vils) {
     const size = BD[kind].size;
     for (let i = 0; i < 40; i++) {
@@ -1663,7 +1898,8 @@ class Game {
     return false;
   }
 }
-const ORDER_CLS = { spear: 0, sword: 1, elite: 1, vil: 2, archer: 3, boat: 4, animal: 5 };
+const ORDER_CLS = { spear: 0, sword: 1, elite: 1, vil: 2, archer: 3, healer: 3.5, boat: 4, ship: 4, animal: 5 };
+const HEAL_CALM = 3;   // a unit hit within the last 3 s can't be healed (no healing mid-fight)
 if (typeof module !== 'undefined') module.exports = { Game, UD, BD, NK, W, H, T, STEP, STARTS, rectDist };
 
 /* ===== art.js ===== */
@@ -1721,7 +1957,14 @@ function roofGable(P, cx, y0, y1, hw0, hw1, cA, cB, edge) {
 function posts(P, xs, y0, y1, w) { for (const x of xs) { P.r(x, y0, w, y1 - y0, '#5a3a1e'); P.r(x, y0, 1, y1 - y0, '#40270f'); } }
 
 /* ------------------------------ people ------------------------------ */
-/* Unit art: distinct silhouettes and cultural detail (approved Oct 2026). */
+/* Approved unit art (Oct 2026): distinct silhouettes + cultural detail.
+   MERGE: in the art.js section of index.html, replace everything from `const LEGS = ...`
+   through the end of `function drawUnit(...)` with PART 1, and replace `function boatSprite(team)`
+   with PART 2. Same canvas sizes and signatures as before (the boat canvas grows from 20x22 to 24x22 with the
+   hull still centred at x=10 so paintUnit's drawImage(spr, -20, -34) needs no change).
+   Also draws 'pahlawan' (Melaka unique unit) for when it is added to UD. */
+
+/* ---------- PART 1: people ---------- */
 const GOLD = '#e8b830', GOLD_D = '#a87a1c';
 const LUK = [0, 0, 1, 1, 0, 0, 1];
 const LEGS = [[[5, 12, 2, 3], [9, 12, 2, 2]], [[6, 12, 2, 3], [8, 12, 2, 3]], [[6, 12, 2, 2], [10, 12, 2, 3]], [[6, 12, 2, 3], [8, 12, 2, 3]]];
@@ -1840,7 +2083,9 @@ function drawUnit(P, kind, team, anim, f, tool) {
     else { if (f === 0) B(11, 6, 1, 3, SKIN); else B(11, 9, 2, 2, SKIN); }
   }
 }
+
 function unitSprite(kind, team, anim, f, tool) {
+  if (UD[kind] && UD[kind].cls === 'healer') return CIVB.healerSprite(UD[kind].civ, anim === 'attack' ? 'heal' : anim === 'work' ? 'idle' : anim, anim === 'attack' ? f : anim === 'walk' ? f : 0);
   return sprite(`u|${kind}|${team}|${anim}|${f}|${tool || ''}`, 16, 18, 2, (P) => drawUnit(P, kind, team, anim, f, tool));
 }
 function deerSprite(f) {
@@ -1857,16 +2102,42 @@ function carcassSprite() {
     const r = P.r; r(3, 7, 11, 4, '#a56d3b'); r(4, 10, 9, 1, '#d4a771'); r(13, 8, 3, 2, '#b98048'); r(5, 6, 1, 1, '#8a5a2b'); r(9, 6, 1, 1, '#8a5a2b'); r(14, 6, 1, 2, '#e6d6aa'); r(6, 8, 3, 1, '#c4894d');
   });
 }
+/* ---------- PART 2: fishing boat (Melaka sampan / Majapahit jukung) ---------- */
+const SAIL = '#efe3c0', SAIL_D = '#cbbd92', MAT = '#c9a96a', MAT_D = '#a4844a';
+const HULL = '#7a4a24', HULL_D = '#5e3b1c', HULL_L = '#a8773c';
+// hull with upswept bow and stern; x0..x1 is the deck length, y the deck line
+function hull(P, x0, x1, y, depth, T) {
+  for (let i = 0; i < depth; i++) P.r(x0 + i, y + i, x1 - x0 - i * 2, 1, i === 0 ? HULL_L : i === depth - 1 ? HULL_D : HULL);
+  P.r(x0 + 1, y + 1, x1 - x0 - 2, 1, T.main);
+  P.r(x0 - 1, y - 1, 2, 1, HULL); P.r(x0 - 2, y - 2, 1, 1, HULL);
+  P.r(x1 - 1, y - 1, 2, 1, HULL); P.r(x1 + 1, y - 3, 1, 3, HULL); P.r(x1 + 1, y - 4, 1, 1, T.trim);
+}
+// tanja: slanted four-sided sail between two spars, the classic Nusantara rig
+function tanja(P, x, y, w, h, col, colD, T, mark) {
+  const mat = col === MAT;
+  for (let i = 0; i < h; i++) { const sx = x + Math.round(i * 0.5); P.r(sx, y + i, w, 1, (mat && i % 4 === 3) ? colD : col); if (!mat) P.r(sx + w - 1, y + i, 1, 1, colD); }
+  P.r(x - 1, y - 1, w + 2, 1, WOOD_D);
+  P.r(x + Math.round(h * 0.5) - 1, y + h, w + 2, 1, WOOD_D);
+  if (mark) P.r(x + Math.round(h * 0.25) + (w >> 1) - 1, y + (h >> 1) - 1, 2, 2, T.main);
+}
 function boatSprite(team) {
   const T = TEAMC[team] || TEAMC[0];
-  return sprite('boat|' + team, 20, 22, 2, (P) => {
+  return sprite('boat|' + team, 24, 22, 2, (P) => {
     const r = P.r;
-    r(10, 3, 1, 11, WOOD_D);
-    for (let i = 0; i < 8; i++) r(11, 4 + i, Math.max(1, 8 - i), 1, CREAM);
-    r(11, 4, 8, 1, T.main); r(11, 1, 3, 2, T.trim);
-    r(5, 9, 4, 1, '#e8c97a'); r(5, 10, 2, 2, SKIN); r(5, 12, 2, 2, '#d4c796');
-    r(2, 13, 16, 1, '#a8773c'); r(2, 14, 16, 2, '#7a4a24'); r(3, 16, 14, 2, WOOD_D); r(3, 14, 14, 1, T.main);
-    r(1, 12, 2, 2, '#7a4a24'); r(17, 12, 2, 2, '#7a4a24'); r(0, 11, 1, 1, '#7a4a24'); r(19, 11, 1, 1, '#7a4a24');
+    if (team !== 1) {
+      // sampan: one small tanja sail, fisherman under a terendak
+      r(10, 3, 1, 11, WOOD_D); tanja(P, 8, 3, 8, 9, SAIL, SAIL_D, T, true);
+      r(4, 9, 4, 1, '#e8c97a'); r(5, 10, 2, 2, SKIN); r(5, 12, 2, 1, T.main);
+      hull(P, 3, 17, 13, 4, T); r(2, 11, 1, 2, '#cfc3a0'); r(1, 12, 1, 1, '#cfc3a0');
+    } else {
+      // jukung: outrigger canoe with a crab-claw sail
+      r(10, 4, 1, 10, WOOD_D);
+      for (let i = 0; i < 9; i++) r(11, 4 + i, Math.max(1, 7 - Math.abs(i - 3)), 1, (i % 3 === 2) ? MAT_D : MAT);
+      r(11, 4, 1, 9, T.main);
+      r(5, 9, 2, 1, HAIR); r(5, 10, 2, 2, SKIN); r(5, 12, 2, 1, T.main);
+      hull(P, 3, 17, 13, 3, T);
+      r(4, 17, 14, 1, WOOD); r(6, 15, 1, 3, WOOD_D); r(14, 15, 1, 3, WOOD_D); r(3, 18, 16, 1, '#c8b88a');
+    }
   });
 }
 
@@ -1911,8 +2182,475 @@ function goldSprite() {
   });
 }
 
+/* ---------- naval roster and civ buildings (approved art from the art thread) ----------
+   Each file is kept whole inside its own scope so its helpers don't clash with the ones above. */
+const NAVAL = (() => {
+  /* Naval roster sprite mockups. Uses sprite(), TEAMC and the palette constants
+     from art.js. All ships face right (bow on the right).
+     navalSprite(kind, team), kinds by roster slot:
+       fishing  - Melaka Sampan            / Majapahit Jukung
+       trade    - Melaka Jong Dagang (armed trader, unique) / Majapahit Perahu Api (fire ship, unique)
+       light    - Melaka Penjajap          / Majapahit Jukung Perang
+       galley   - Melaka Lancaran          / Majapahit Kelulus      (both carry troops)
+       frigate  - Melaka Ghali             / Majapahit Jong Perang
+       flagship - Melaka Mendam Berahi     / Majapahit Jong Raya */
+  const SAIL = '#efe3c0', SAIL_D = '#cbbd92', MAT = '#c9a96a', MAT_D = '#a4844a', JSAIL = '#6f8a52', JSAIL_D = '#52683c';
+  const HULL = '#7a4a24', HULL_D = '#5e3b1c', HULL_L = '#a8773c', PORT = '#2a1a10', FIRE = '#e2562c', FIRE_L = '#f6b33a';
+
+  // Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line.
+  function hull(P, x0, x1, y, depth, T, ports) {
+    for (let i = 0; i < depth; i++) P.r(x0 + i, y + i, x1 - x0 - i * 2, 1, i === 0 ? HULL_L : i === depth - 1 ? HULL_D : HULL);
+    P.r(x0 + 1, y + 1, x1 - x0 - 2, 1, T.main);
+    if (ports) for (let x = x0 + 4; x < x1 - 4; x += 4) P.r(x, y + 3, 2, 1, PORT);
+    P.r(x0 - 1, y - 1, 2, 1, HULL); P.r(x0 - 2, y - 2, 1, 1, HULL);
+    P.r(x1 - 1, y - 1, 2, 1, HULL); P.r(x1 + 1, y - 3, 1, 3, HULL); P.r(x1 + 1, y - 4, 1, 1, T.trim);
+  }
+  // Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig.
+  function tanja(P, x, y, w, h, col, colD, T, mark) {
+    const mat = col === MAT;
+    for (let i = 0; i < h; i++) { const sx = x + Math.round(i * 0.5); P.r(sx, y + i, w, 1, (mat && i % 4 === 3) ? colD : col); if (!mat) P.r(sx + w - 1, y + i, 1, 1, colD); }
+    P.r(x - 1, y - 1, w + 2, 1, WOOD_D);
+    P.r(x + Math.round(h * 0.5) - 1, y + h, w + 2, 1, WOOD_D);
+    if (mark) P.r(x + Math.round(h * 0.25) + (w >> 1) - 1, y + (h >> 1) - 1, 2, 2, T.main);
+  }
+  // Junk-style battened fan sail (the green sails of the great Jong).
+  function fan(P, x, y, w, h) {
+    for (let i = 0; i < h; i++) {
+      const t = i / (h - 1), ww = Math.max(2, Math.round(w * (0.55 + 0.45 * Math.sin(Math.min(1, t * 1.4) * Math.PI / 2))));
+      P.r(x + Math.round(i * 0.35), y + i, ww, 1, (i % 3 === 2) ? JSAIL_D : JSAIL);
+    }
+    P.r(x - 1, y - 1, Math.round(w * 0.6), 1, WOOD_D);
+  }
+  // Square sail with a darker belly edge (European-influenced late ships).
+  function sq(P, x, y, w, h) { P.r(x, y, w, h, SAIL); P.r(x + w - 1, y + 1, 1, h - 1, SAIL_D); P.r(x, y + h - 1, w, 1, SAIL_D); P.r(x - 1, y - 1, w + 2, 1, WOOD_D); }
+  function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
+  function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
+  function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+  function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
+  function flames(P, list, base) { for (const [x, h] of list) { P.r(x, base - h, 2, h, FIRE); P.r(x, base - h + 2, 1, h - 3, FIRE_L); P.r(x, base - h + 3, 1, 1, '#fff0a0'); } }
+
+  const NAVAL_DIMS = { fishing: [24, 22], trade: [36, 30], light: [30, 24], galley: [38, 29], frigate: [44, 36], flagship: [54, 42] };
+  const NAVAL_NAMES = [
+    { fishing: 'Sampan', trade: 'Jong Dagang', light: 'Penjajap', galley: 'Lancaran', frigate: 'Ghali', flagship: 'Mendam Berahi' },
+    { fishing: 'Jukung', trade: 'Perahu Api', light: 'Jukung Perang', galley: 'Kelulus', frigate: 'Jong Perang', flagship: 'Jong Raya' }
+  ];
+
+  const NAVAL_CLASS = [
+    { fishing: 'Fishing Boat', trade: 'Armed Trade Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' },
+    { fishing: 'Fishing Boat', trade: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' }
+  ];
+
+  function navalSprite(kind, team) {
+    const T = TEAMC[team] || TEAMC[0], mel = team === 0;
+    const d = (kind === 'trade' && !mel) ? [24, 24] : NAVAL_DIMS[kind];
+    return sprite('naval|' + kind + '|' + team, d[0], d[1], 2, (P) => {
+      const r = P.r, S1 = mel ? SAIL : MAT, S2 = mel ? SAIL_D : MAT_D;
+      if (kind === 'fishing') {
+        if (mel) {
+          // Sampan: one small tanja sail, fisherman under a terendak
+          mast(P, 10, 3, 14); tanja(P, 8, 3, 8, 9, SAIL, SAIL_D, T, true);
+          r(4, 9, 4, 1, '#e8c97a'); r(5, 10, 2, 2, SKIN); r(5, 12, 2, 1, T.main);
+          hull(P, 3, 17, 13, 4, T); r(2, 11, 1, 2, '#cfc3a0'); r(1, 12, 1, 1, '#cfc3a0');
+        } else {
+          // Jukung: outrigger canoe with a crab-claw sail
+          mast(P, 10, 4, 14);
+          for (let i = 0; i < 9; i++) r(11, 4 + i, Math.max(1, 7 - Math.abs(i - 3)), 1, (i % 3 === 2) ? MAT_D : MAT);
+          r(11, 4, 1, 9, T.main);
+          crew(P, 5, 9, HAIR, T.main);
+          hull(P, 3, 17, 13, 3, T);
+          r(4, 17, 14, 1, WOOD); r(6, 15, 1, 3, WOOD_D); r(14, 15, 1, 3, WOOD_D); r(3, 18, 16, 1, '#c8b88a');
+        }
+      } else if (kind === 'trade' && mel) {
+        // Jong Dagang: broad Malay merchant junk, two big tanja sails, swivel guns (lela) on the rail
+        mast(P, 13, 2, 20); mast(P, 24, 5, 20);
+        tanja(P, 9, 2, 9, 14, SAIL, SAIL_D, T, true); tanja(P, 21, 5, 8, 11, SAIL, SAIL_D, T, false);
+        flag(P, 14, 0, T.main, T.trim);
+        // stern deckhouse with a gold-trimmed roof, crates midships
+        r(3, 15, 7, 1, T.main); r(3, 16, 7, 3, WOOD); r(16, 17, 4, 2, '#a07040');
+        hull(P, 3, 32, 19, 6, T, true);
+        for (const x of [12, 22, 28]) { r(x, 18, 1, 1, STEEL_D); r(x + 1, 18, 1, 1, STEEL); }
+      } else if (kind === 'trade') {
+        // Perahu Api: fire ship packed with oiled brush
+        r(11, 3, 3, 2, '#5a5560'); r(9, 1, 3, 2, '#77727c'); r(12, 0, 2, 1, '#77727c');
+        flames(P, [[6, 6], [8, 9], [10, 7], [12, 10], [14, 6], [16, 8]], 16);
+        r(5, 13, 13, 3, '#6a4a2a'); r(6, 14, 2, 1, '#8a6b3a'); r(11, 13, 3, 1, '#8a6b3a');
+        hull(P, 3, 19, 16, 4, T);
+        r(18, 12, 1, 4, WOOD_D); r(19, 12, 2, 1, T.main);
+      } else if (kind === 'light') {
+        if (mel) {
+          // Penjajap: slim fast raider, one tall tanja sail, bow gun
+          mast(P, 14, 1, 16); tanja(P, 11, 1, 9, 13, SAIL, SAIL_D, T, true); flag(P, 15, -1, T.main, T.trim);
+          r(25, 13, 3, 1, STEEL_D);
+          hull(P, 3, 27, 16, 4, T);
+        } else {
+          // Jukung Perang: cheap outrigger war canoe, crab-claw sail, spearmen
+          mast(P, 13, 2, 15);
+          for (let i = 0; i < 11; i++) r(14, 2 + i, Math.max(1, 8 - Math.abs(i - 4)), 1, (i % 3 === 2) ? MAT_D : MAT);
+          r(14, 2, 1, 11, T.main);
+          hull(P, 3, 25, 14, 3, T);
+          r(4, 19, 22, 1, WOOD); r(7, 17, 1, 3, WOOD_D); r(21, 17, 1, 3, WOOD_D); r(3, 20, 24, 1, '#c8b88a');
+        }
+      } else if (kind === 'galley') {
+        // Lancaran / Kelulus: oared war galley with two tanja sails and a fighting deck; carries troops
+        mast(P, 13, 2, 18); mast(P, 25, 4, 18);
+        tanja(P, 10, 2, 9, 12, S1, S2, T, true); tanja(P, 22, 4, 8, 10, S1, S2, T, false);
+        flag(P, 14, 0, T.main, T.trim);
+        hull(P, 3, 34, 18, 6, T);
+        oars(P, [10, 15, 20, 25, 30], 24, 4);
+      } else if (kind === 'frigate') {
+        if (mel) {
+          // Ghali: big gunned galley-ship, square sails forward, tanja aft, row of gunports
+          mast(P, 15, 1, 24); mast(P, 28, 4, 24); mast(P, 8, 9, 24);
+          sq(P, 10, 3, 11, 14); sq(P, 24, 6, 9, 11); r(15, 9, 2, 2, T.main);
+          tanja(P, 4, 10, 5, 7, SAIL, SAIL_D, T, false);
+          flag(P, 16, -1, T.main, T.trim); flag(P, 28, 1, T.main, T.trim);
+          hull(P, 3, 40, 24, 8, T, true);
+        } else {
+          // Jong Perang: two-masted Javanese war jong, mat tanja sails, castle aft, archers on deck
+          mast(P, 15, 0, 24); mast(P, 29, 4, 24);
+          tanja(P, 10, 1, 12, 16, MAT, MAT_D, T, true); tanja(P, 25, 5, 10, 13, MAT, MAT_D, T, false);
+          flag(P, 16, -2, T.main, GOLD);
+          r(3, 17, 8, 1, T.main); r(3, 18, 8, 6, WOOD);
+          hull(P, 3, 40, 24, 7, T);
+        }
+      } else if (kind === 'flagship') {
+        if (mel) {
+          // Mendam Berahi: Hang Tuah's legendary flagship. Three tall tanja masts, two gun decks,
+          // a Malay-roofed stern castle and royal yellow pennants.
+          mast(P, 16, 2, 28); mast(P, 28, 4, 28); mast(P, 39, 8, 28);
+          tanja(P, 11, 3, 11, 17, SAIL, SAIL_D, T, true); tanja(P, 24, 5, 10, 15, SAIL, SAIL_D, T, true); tanja(P, 35, 9, 8, 11, SAIL, SAIL_D, T, false);
+          flag(P, 17, 0, GOLD, T.main); flag(P, 29, 2, GOLD, T.main); flag(P, 40, 6, GOLD, T.main);
+          // stern castle with a layered Malay roof
+          r(3, 16, 10, 1, T.dark); r(4, 15, 8, 1, T.main); r(6, 14, 4, 1, GOLD); r(3, 17, 10, 11, WOOD);
+          hull(P, 3, 49, 28, 10, T, true); r(5, 30, 42, 1, GOLD);
+        } else {
+          // Jong Raya: the great Javanese jong. Four green battened fan sails, towering hull,
+          // wooden castles fore and aft, sweeps along the side.
+          for (const [mx, top] of [[10, 4], [21, 1], [32, 2], [43, 6]]) { mast(P, mx, top, 26); fan(P, mx - 5, top + 1, 8, 17 - (top >> 1)); }
+          flag(P, 23, -1, T.main, GOLD); flag(P, 13, 1, T.main, GOLD);
+          r(3, 19, 8, 1, T.main); r(3, 20, 8, 6, WOOD); r(43, 21, 7, 1, T.main); r(44, 22, 6, 4, WOOD);
+          hull(P, 3, 50, 26, 11, T); r(6, 30, 42, 1, GOLD);
+        }
+      }
+    });
+  }
+  return { navalSprite };
+})();
+const CIVB = (() => {
+  /* Melaka building mockups, same style as buildingSprite() in art.js (stilts, planks, thatch gables).
+     Needs sprite(), disc(), planks(), roofGable(), posts(), TEAMC and the palette constants from art.js,
+     and GOLD/GOLD_D from drawUnit.js.
+     melakaBuilding(kind, team): kind jelapang | pangkalan | menara | istana
+     neutralSite(kind): kind village (Orang Laut settlement) | landing (empty Pangkalan site) */
+  const MB_DIMS = { jelapang: [32, 50], pangkalan: [48, 54], menara: [32, 64], istana: [64, 78] };
+  const THATCH = '#c9ae5e', THATCH_D = '#a98f48', BAMBOO = '#c9b27a', BAMBOO_D = '#9c8450';
+
+  function weave(P, x, y, w, h) { P.r(x, y, w, h, BAMBOO); for (let j = 0; j < h; j += 2) for (let i = (j >> 1) & 1; i < w; i += 2) P.r(x + i, y + j, 1, 1, BAMBOO_D); }
+  function sacks(P, x, y, n) { for (let i = 0; i < n; i++) { P.r(x + i * 4, y, 3, 3, '#d9c79a'); P.r(x + i * 4, y, 3, 1, '#efe3c0'); P.r(x + i * 4 + 1, y - 1, 1, 1, '#a08a5a'); } }
+  function crates(P, x, y) { P.r(x, y, 5, 4, '#a8773c'); P.r(x, y + 2, 5, 1, '#7d5b30'); P.r(x + 5, y + 1, 4, 3, '#8a5a2b'); P.r(x + 2, y - 3, 4, 3, '#b88a52'); P.r(x + 2, y - 2, 4, 1, '#8a5a2b'); }
+  function banner(P, x, y, h, T) { P.r(x, y, 1, h, WOOD_D); P.r(x + 1, y + 1, 6, 4, T.main); P.r(x + 1, y + 1, 6, 1, GOLD); P.r(x + 3, y + 3, 2, 1, GOLD); }
+
+  function melakaBuilding(kind, team) {
+    const T = TEAMC[team] || TEAMC[0], d = MB_DIMS[kind];
+    return sprite(`mb|${kind}|${team}`, d[0], d[1], 2, (P) => {
+      const r = P.r;
+      if (kind === 'jelapang') {
+        // Jelapang (Granary): rice barn on tall stilts with rat guards, woven walls, steep thatch, sacks below
+        posts(P, [5, 12, 19, 25], 34, 48, 2);
+        for (const x of [5, 12, 19, 25]) { r(x - 1, 38, 4, 1, '#5e5a52'); }          // rat-guard discs on the posts
+        r(3, 32, 26, 2, '#8f6232'); r(3, 34, 26, 1, '#5a3a1e');
+        weave(P, 6, 22, 20, 10); r(13, 25, 6, 7, '#3f2713'); r(12, 24, 8, 1, T.trim);
+        roofGable(P, 16, 4, 22, 2, 15, THATCH, THATCH_D, T.roofR); r(2, 22, 28, 1, T.main);
+        r(15, 1, 2, 4, WOOD_D);
+        r(21, 34, 1, 14, WOOD); r(24, 34, 1, 14, WOOD); for (let y = 36; y < 48; y += 3) r(21, y, 4, 1, WOOD);   // ladder
+        sacks(P, 2, 45, 2); sacks(P, 26, 45, 1);
+      } else if (kind === 'pangkalan') {
+        // Pangkalan (Trading Post): godown on a pier, wide doors, stacked goods, trade canopy and banner
+        r(0, 40, 48, 12, '#a47a45'); for (let x = 0; x < 48; x += 4) r(x, 40, 1, 12, '#7d5b30'); r(0, 40, 48, 1, '#c99b5d'); r(0, 51, 48, 1, '#5a3a1e');
+        posts(P, [1, 12, 24, 36, 46], 48, 53, 2);
+        planks(P, 3, 24, 28, 16, '#c99b5d', '#a97d45'); r(10, 28, 14, 12, '#3f2713'); r(16, 28, 1, 12, '#2a190a'); r(9, 27, 16, 1, T.trim);
+        roofGable(P, 17, 10, 24, 5, 17, T.roofA, T.roofB, T.roofR); r(1, 24, 32, 1, T.main);
+        r(34, 28, 12, 1, T.main); r(34, 29, 12, 1, CREAM); r(35, 30, 1, 10, WOOD_D); r(44, 30, 1, 10, WOOD_D);    // canopy
+        crates(P, 36, 35); sacks(P, 2, 37, 1);
+        r(40, 32, 1, 3, STEEL_D); r(38, 32, 5, 1, STEEL_D);                                  // trade scales
+        banner(P, 42, 10, 18, T);
+      } else if (kind === 'menara') {
+        // Menara Kawal (Watchtower): tall braced timber tower, roofed lookout with an archer, team flag
+        posts(P, [7, 23], 26, 62, 2);
+        for (let y = 30; y < 60; y += 8) { for (let i = 0; i < 7; i++) { r(9 + i * 2, y + i, 2, 1, '#6b4a2a'); r(21 - i * 2, y + i, 2, 1, '#5a3a1e'); } }   // cross bracing
+        r(4, 20, 24, 6, '#8f6232'); planks(P, 5, 20, 22, 6, '#b88a52', '#9a6f3a'); r(4, 26, 24, 1, '#5a3a1e'); r(4, 20, 24, 1, T.main);
+        r(14, 15, 3, 5, SKIN); r(14, 14, 3, 1, T.main); r(18, 13, 1, 7, WOOD); r(17, 12, 1, 1, WOOD); r(17, 20, 1, 1, WOOD);   // archer with bow
+        r(5, 12, 1, 8, WOOD_D); r(26, 12, 1, 8, WOOD_D);
+        roofGable(P, 16, 3, 12, 2, 13, THATCH, THATCH_D, T.roofR); r(2, 12, 28, 1, T.main);
+        r(16, 0, 1, 4, WOOD_D); r(17, 0, 5, 3, T.main); r(17, 0, 5, 1, GOLD);
+      } else if (kind === 'istana') {
+        // Istana (Palace): long hall on stilts, three-tiered roof with gold finials, steps, royal banners
+        posts(P, [4, 12, 20, 28, 36, 44, 52, 59], 62, 75, 2); r(2, 60, 60, 3, '#8f6232'); r(2, 63, 60, 1, '#5a3a1e');
+        r(26, 64, 12, 2, '#a8773c'); r(27, 66, 10, 2, '#a8773c'); r(28, 68, 8, 2, '#a8773c'); r(29, 70, 6, 2, '#a8773c');   // steps
+        planks(P, 5, 44, 54, 16, '#c99b5d', '#a97d45');
+        r(26, 47, 12, 13, '#3f2713'); r(25, 46, 14, 1, GOLD); r(31, 50, 2, 10, '#2a190a');
+        for (const x of [8, 16, 42, 50]) { r(x, 48, 5, 6, '#2b1a0c'); r(x - 1, 47, 7, 1, GOLD); }
+        roofGable(P, 32, 34, 44, 20, 31, T.roofA, T.roofB, T.roofR); r(0, 44, 64, 1, T.main); r(0, 45, 64, 1, GOLD);
+        roofGable(P, 32, 21, 34, 10, 22, T.roofA, T.roofB, T.roofR); r(9, 34, 46, 1, T.main);
+        roofGable(P, 32, 10, 21, 3, 13, T.roofA, T.roofB, T.roofR); r(18, 21, 28, 1, T.main);
+        for (const [x, y] of [[31, 4], [9, 32], [54, 32], [18, 19], [45, 19]]) { r(x, y, 2, 4, GOLD); r(x, y - 1, 2, 1, '#fff2b0'); }   // gold finials
+        banner(P, 1, 26, 34, T); banner(P, 56, 26, 34, T);
+      }
+    });
+  }
+
+  // Neutral map sites. Pangkalan can only be built on a landing next to a settlement.
+  function neutralSite(kind) {
+    const N = { main: '#8a8070', trim: '#e9e3d0', roofA: THATCH, roofB: THATCH_D, roofR: '#6b5a3a' };
+    return sprite('ns|' + kind, 48, 44, 2, (P) => {
+      const r = P.r;
+      if (kind === 'village') {
+        // Orang Laut settlement: two stilt huts over the water, a moored perahu, a white neutral banner
+        for (const [x, s] of [[2, 18], [26, 16]]) {
+          posts(P, [x + 1, x + s - 3], 30, 42, 2); r(x, 28, s, 2, '#8f6232');
+          weave(P, x + 2, 20, s - 4, 8); r(x + (s >> 1) - 2, 22, 4, 6, '#3f2713');
+          roofGable(P, x + (s >> 1), 10, 20, 2, (s >> 1) + 1, N.roofA, N.roofB, N.roofR);
+        }
+        r(10, 38, 14, 2, '#7a4a24'); r(11, 40, 12, 1, '#5e3b1c'); r(16, 31, 1, 7, WOOD_D); r(17, 32, 4, 5, N.trim);   // perahu
+        r(44, 6, 1, 20, WOOD_D); r(45, 7, 3, 4, N.trim);
+      } else {
+        // empty landing: old pier stubs and a marker post where a Pangkalan can go
+        r(4, 30, 40, 6, '#a47a4566'); for (const x of [6, 14, 22, 30, 38]) { r(x, 28, 2, 12, '#6b4a2a'); r(x, 27, 2, 1, '#8f6232'); }
+        r(22, 10, 2, 18, WOOD_D); r(20, 10, 6, 2, N.trim); r(21, 12, 4, 1, GOLD);
+      }
+    });
+  }
+  /* Majapahit building mockups: the counterparts of buildings-melaka.js.
+     Majapahit style: red Trowulan brick, split gates (candi bentar), black ijuk-thatch tiered meru roofs,
+     open pendopo halls. Needs art.js helpers, GOLD from drawUnit.js and weave()/sacks()/banner() from buildings-melaka.js.
+     majapahitBuilding(kind, team): kind lumbung | bandar | kulkul | kraton */
+  const MJ_DIMS = { lumbung: [32, 50], bandar: [48, 54], kulkul: [32, 64], kraton: [64, 78] };
+  const BRICK = '#b0533a', BRICK_D = '#843a27', BRICK_L = '#c96d4f', IJUK = '#3a2e2a', IJUK_L = '#54443c';
+
+  function brick(P, x, y, w, h) { P.r(x, y, w, h, BRICK); for (let j = 1; j < h; j += 2) P.r(x, y + j, w, 1, BRICK_D); for (let j = 0; j < h; j += 2) for (let i = (j & 2) ? 1 : 3; i < w; i += 4) P.r(x + i, y + j, 1, 1, BRICK_D); P.r(x, y, w, 1, BRICK_L); }
+  // meru: stacked black thatch tiers, each narrower than the one below
+  function meru(P, cx, yBottom, tiers, w0, step) { for (let t = 0; t < tiers; t++) { const w = w0 - t * step, y = yBottom - t * 4; P.r(cx - (w >> 1), y - 2, w, 2, IJUK); P.r(cx - (w >> 1) + 1, y - 3, w - 2, 1, IJUK_L); if (t < tiers - 1) P.r(cx - 2, y - 4, 4, 1, '#5a3a1e'); } P.r(cx - 1, yBottom - tiers * 4 - 2, 2, 3, GOLD); }
+  // sun of Majapahit (Surya Majapahit) emblem
+  function surya(P, cx, cy) { P.r(cx - 1, cy - 1, 3, 3, GOLD); P.r(cx, cy - 3, 1, 7, GOLD); P.r(cx - 3, cy, 7, 1, GOLD); P.r(cx - 2, cy - 2, 1, 1, GOLD); P.r(cx + 2, cy - 2, 1, 1, GOLD); P.r(cx - 2, cy + 2, 1, 1, GOLD); P.r(cx + 2, cy + 2, 1, 1, GOLD); }
+  function mjBanner(P, x, y, h, T) { P.r(x, y, 1, h, WOOD_D); P.r(x + 1, y + 1, 7, 5, T.main); P.r(x + 1, y + 1, 7, 1, GOLD); surya({ r: P.r }, x + 4, y + 3); }
+
+  function majapahitBuilding(kind, team) {
+    const T = TEAMC[team] || TEAMC[1], d = MJ_DIMS[kind];
+    return sprite(`mj|${kind}|${team}`, d[0], d[1], 2, (P) => {
+      const r = P.r;
+      if (kind === 'lumbung') {
+        // Lumbung (Granary): Javanese rice barn, posts on a brick footing, a tall bulging black-thatch roof
+        brick(P, 3, 44, 26, 4);
+        posts(P, [6, 13, 19, 25], 32, 44, 2); for (const x of [6, 13, 19, 25]) r(x - 1, 36, 4, 1, '#5e5a52');
+        r(4, 30, 24, 2, '#8f6232');
+        planks(P, 8, 22, 16, 8, '#b88a52', '#9a6f3a'); r(14, 24, 4, 6, '#3f2713');
+        for (let y = 4; y <= 22; y++) { const t = (y - 4) / 18, hw = Math.round(3 + 12 * Math.sin(t * Math.PI * 0.6)); r(16 - hw, y, hw * 2, 1, (y % 3 === 1) ? IJUK_L : IJUK); }
+        r(2, 22, 28, 1, T.main); r(15, 1, 2, 3, GOLD);
+        sacks(P, 26, 41, 1); r(1, 40, 4, 3, '#a8803c'); r(1, 40, 4, 1, '#c9a05a');
+      } else if (kind === 'bandar') {
+        // Bandar (Tribute Post): open pendopo hall on a brick base over a pier, tribute baskets, sun banner
+        r(0, 40, 48, 12, '#a47a45'); for (let x = 0; x < 48; x += 4) r(x, 40, 1, 12, '#7d5b30'); r(0, 40, 48, 1, '#c99b5d'); r(0, 51, 48, 1, '#5a3a1e');
+        posts(P, [1, 12, 24, 36, 46], 48, 53, 2);
+        brick(P, 3, 34, 30, 6);
+        for (const x of [5, 13, 21, 29]) { r(x, 22, 2, 12, '#5a3a1e'); r(x, 22, 1, 12, '#40270f'); }            // open pillars
+        r(10, 30, 4, 4, '#a8803c'); r(16, 31, 4, 3, '#c9a05a'); r(22, 30, 4, 4, '#a8803c'); r(17, 29, 2, 2, GOLD);   // tribute
+        for (let i = 0; i < 6; i++) r(2 + i, 16 + i, 32 - i * 2, 1, i & 1 ? IJUK_L : IJUK);                      // joglo roof, wide eaves
+        for (let i = 0; i < 5; i++) r(12 + i, 11 + i, 12 - i * 2 + 2 * i, 1, IJUK);
+        r(13, 10, 10, 6, IJUK); r(12, 15, 12, 1, IJUK_L); r(1, 22, 34, 1, T.main);
+        r(38, 34, 6, 5, '#a8803c'); r(38, 34, 6, 1, '#c9a05a'); sacks(P, 37, 31, 1);
+        mjBanner(P, 40, 8, 20, T);
+      } else if (kind === 'kulkul') {
+        // Bale Kulkul (Watchtower): stepped brick tower, a timber lookout with the kulkul alarm drum, small meru roof
+        brick(P, 6, 34, 20, 28); r(5, 33, 22, 2, BRICK_L); r(4, 60, 24, 2, BRICK_D); r(8, 46, 16, 1, BRICK_L); r(8, 50, 16, 1, BRICK_L);
+        r(13, 52, 6, 10, '#2b1a0c'); r(12, 51, 8, 1, GOLD);                                                       // doorway
+        posts(P, [7, 23], 20, 33, 2); r(6, 30, 20, 3, '#8f6232'); r(6, 30, 20, 1, T.main);
+        r(9, 22, 1, 6, WOOD_D); r(8, 26, 3, 5, '#6b4a2a'); r(8, 26, 3, 1, '#8a5a2b');                             // hanging kulkul drum
+        r(15, 25, 3, 5, SKIN); r(15, 24, 3, 1, HAIR); r(19, 23, 1, 7, WOOD); r(18, 22, 1, 1, WOOD); r(18, 30, 1, 1, WOOD);   // archer
+        meru(P, 16, 20, 2, 28, 10);
+      } else if (kind === 'kraton') {
+        // Kraton (Palace): brick-walled compound, candi bentar split gate in front, five-tier meru hall behind
+        brick(P, 2, 52, 60, 22); r(2, 52, 60, 1, BRICK_L); r(2, 72, 60, 2, BRICK_D);
+        for (let x = 4; x < 60; x += 8) r(x, 50, 4, 2, BRICK_L);                                                  // wall crenels
+        // inner hall and meru behind the wall
+        r(14, 36, 36, 16, '#c99b5d'); for (const x of [16, 24, 39, 46]) r(x, 38, 2, 14, '#5a3a1e');
+        meru(P, 32, 36, 5, 40, 7);
+        r(6, 34, 10, 1, IJUK); r(48, 34, 10, 1, IJUK); r(7, 33, 8, 1, IJUK_L); r(49, 33, 8, 1, IJUK_L); r(9, 35, 4, 17, '#c99b5d'); r(51, 35, 4, 17, '#c99b5d');  // side pavilions
+        // candi bentar: one stepped tower split down the middle, the two halves either side of the gate
+        for (const [x, flip] of [[21, 0], [35, 1]]) {
+          brick(P, x, 46, 8, 28);
+          for (let i = 0; i < 4; i++) { const w = 8 - i * 2, ox = flip ? x : x + i * 2; brick(P, ox, 42 - i * 3, w, 4); }
+        }
+        r(30, 52, 4, 22, '#2b1a0c'); r(29, 74, 6, 2, '#a8773c');
+        mjBanner(P, 2, 28, 24, T); mjBanner(P, 54, 28, 24, T);
+      }
+    });
+  }
+
+  /* ---------- common buildings in Majapahit style ----------
+     majapahitBase(kind, team): kind towncentre | house | barracks | port, same canvas sizes as buildingSprite().
+     Needs pier() and rack() from buildings-mainland.js. */
+  const MJBASE_DIMS = { towncentre: [48, 62], house: [32, 46], barracks: [48, 58], port: [48, 54] };
+  // black ijuk gable roof with a thick dark edge
+  function ijukRoof(P, cx, y0, y1, hw0, hw1) { roofGable(P, cx, y0, y1, hw0, hw1, IJUK, IJUK_L, '#241c19'); }
+
+  function majapahitBase(kind, team) {
+    const T = TEAMC[team == null ? 1 : team], d = MJBASE_DIMS[kind];
+    return sprite(`mjbase|${kind}|${T.name}`, d[0], d[1], 2, (P) => {
+      const r = P.r;
+      if (kind === 'towncentre') {
+        // high brick platform (batur), an open pendopo hall on red pillars, two-tier black meru-style roof
+        brick(P, 2, 46, 44, 14); r(2, 46, 44, 1, BRICK_L); r(2, 59, 44, 2, BRICK_D);
+        r(19, 52, 10, 9, BRICK_D); r(20, 54, 8, 2, BRICK_L); r(21, 57, 6, 2, BRICK_L);   // front stair
+        for (const x of [6, 14, 22, 26, 33, 41]) { r(x, 32, 2, 14, '#8a2a1e'); r(x, 32, 1, 14, '#5e1c14'); }
+        r(10, 38, 6, 8, '#a8803c'); r(32, 38, 6, 8, '#a8803c'); r(20, 40, 8, 6, '#3f2713');
+        ijukRoof(P, 24, 20, 32, 8, 24); r(0, 32, 48, 1, T.main);
+        ijukRoof(P, 24, 8, 20, 3, 13); r(10, 20, 28, 1, T.main); r(23, 2, 2, 6, GOLD);
+        mjBanner(P, 38, 0, 18, T);
+      } else if (kind === 'house') {
+        // brick footing, timber walls, steep black thatch
+        brick(P, 3, 38, 26, 6);
+        planks(P, 6, 26, 20, 12, '#b88a52', '#9a6f3a'); r(13, 28, 6, 10, '#3f2713'); r(8, 29, 3, 3, '#2b1a0c'); r(21, 29, 3, 3, '#2b1a0c');
+        ijukRoof(P, 16, 8, 26, 2, 14); r(2, 26, 28, 1, T.main); r(15, 5, 2, 4, GOLD);
+      } else if (kind === 'barracks') {
+        // brick-walled hall with a long black roof, painted tameng shields and a weapon rack
+        brick(P, 2, 36, 44, 18); r(2, 36, 44, 1, BRICK_L); r(16, 40, 16, 14, '#2f1d0e'); rack(P, 18, 41);
+        for (const x of [5, 37]) { r(x, 38, 5, 12, T.main); r(x, 38, 5, 1, GOLD); r(x + 2, 40, 1, 8, GOLD); }
+        ijukRoof(P, 24, 16, 36, 8, 25); r(0, 36, 48, 1, T.main);
+        r(23, 6, 1, 10, WOOD_D); mjBanner(P, 23, 4, 12, T);
+      } else {
+        // brick-based pendopo on the pier, and a jong mast with a mat sail
+        pier(P); brick(P, 3, 34, 28, 6);
+        for (const x of [5, 12, 20, 27]) r(x, 24, 2, 10, '#8a2a1e');
+        r(10, 29, 5, 5, '#a8803c'); r(17, 30, 5, 4, '#c9a05a');
+        ijukRoof(P, 17, 12, 24, 4, 16); r(1, 24, 32, 1, T.main);
+        r(40, 12, 1, 28, WOOD_D); tanja(P, 33, 13, 8, 13, MAT, MAT_D, T, true); r(41, 10, 5, 3, T.main);
+      }
+    });
+  }
+  // pier() and rack() from buildings-mainland.js, used by the Majapahit port and barracks
+  function pier(P) { P.r(0, 40, 48, 12, '#a47a45'); for (let x = 0; x < 48; x += 4) P.r(x, 40, 1, 12, '#7d5b30'); P.r(0, 40, 48, 1, '#c99b5d'); P.r(0, 51, 48, 1, '#5a3a1e'); posts(P, [1, 14, 28, 44], 48, 53, 3); }
+  function rack(P, x, y) { for (let i = 0; i < 4; i++) { P.r(x + i * 3, y, 1, 10, '#8a5a2b'); P.r(x + i * 3, y - 1, 1, 1, STEEL); } P.r(x - 1, y + 4, 12, 1, WOOD_D); }
+  // healers.js: Tabib / Acaraki and their buildings
+  /* Healers: Melaka Tabib + Rumah Tabib, Majapahit Acaraki + Patirthan. Lore: lore/healers.md.
+     Same style and canvas as unitSprite() (16x18 at 2x) and the civ buildings. Needs art.js helpers,
+     GOLD/GOLD_D and LEGS from drawUnit.js, and weave()/sacks() from buildings-melaka.js, brick()/IJUK from buildings-majapahit.js.
+     healerSprite(team, anim, f): team 0 Tabib, 1 Acaraki; anim idle | walk (f 0-3) | heal (f 0-2)
+     healerBuilding(kind, team): kind rumahtabib | patirthan | perigi */
+  const HERB = '#4e9a3c', HERB_L = '#8fd06a', BRASS = '#c9973a', BRASS_D = '#8e6624', JAMU = '#d9a521';
+
+  function drawHealer(P, team, anim, f) {
+    const T = TEAMC[team] || TEAMC[0], r = P.r, mel = team === 0;
+    const walk = anim === 'walk', heal = anim === 'heal';
+    const bob = (walk && (f === 1 || f === 3)) ? -1 : 0;
+    const B = (x, y, w, h, c) => r(x, y + 2 + bob, w, h, c);
+    const S = (x, y, w, h, c) => r(x, y + 2, w, h, c);
+    const L = LEGS[walk ? f : 1];
+    if (mel) {
+      // Tabib: long white baju over a dark green sarong, herb bag on the hip
+      for (const l of L) { S(l[0], l[1], l[2], l[3], '#1f3a2a'); S(l[0], l[1] + l[3] - 1, l[2], 1, '#2b1d12'); }
+      B(5, 7, 6, 4, '#f4f0e2'); B(5, 10, 6, 1, '#d8d2bc'); B(7, 7, 2, 1, '#d8d2bc');
+      B(5, 11, 6, 1, T.main); B(5, 11, 6, 1, T.main);
+      B(3, 9, 2, 3, '#a8803c'); B(3, 9, 2, 1, '#c9a05a'); B(3, 8, 1, 1, HERB);                 // cloth herb bag
+      B(4, 8, 1, 3, '#f4f0e2');                                                                  // left sleeve
+      // head: short beard, black songkok
+      B(6, 3, 4, 4, SKIN); B(6, 6, 4, 1, '#3a2a1e'); B(9, 5, 1, 1, HAIR);
+      B(6, 1, 4, 2, '#1c1c1c'); B(6, 1, 4, 1, '#2e2e2e');
+    } else {
+      // Acaraki: jamu maker in a batik kain and kemben, hair in a bun, gendong sling of jamu bottles on the back
+      for (const l of L) { S(l[0], l[1], l[2], l[3], SKIN_D); S(l[0], l[1] + l[3] - 1, l[2], 1, '#2b1d12'); }
+      B(1, 5, 4, 7, '#b88a52'); B(1, 5, 4, 1, '#d6b072'); B(1, 8, 4, 1, '#8f6232');             // gendong basket on the back
+      B(1, 3, 1, 2, JAMU); B(2, 2, 1, 3, '#7a4a24'); B(3, 3, 1, 2, '#efe3c0'); B(4, 4, 1, 1, '#4e9a3c');   // bottle necks over the shoulder
+      B(5, 7, 6, 3, '#2f4a46'); B(5, 7, 6, 1, SKIN);                                              // dark kemben, bare shoulders
+      B(5, 8, 1, 1, T.main); B(6, 9, 1, 1, T.main); B(7, 10, 1, 1, T.main); B(8, 11, 1, 1, T.main); B(4, 7, 1, 1, T.main);   // selendang sling across the body
+      B(5, 10, 6, 2, '#6a3e22'); B(5, 10, 6, 1, '#c9a05a'); B(6, 11, 1, 1, '#c9a05a'); B(9, 11, 1, 1, '#c9a05a');   // batik kain
+      B(4, 8, 1, 3, SKIN);
+      B(6, 3, 4, 4, SKIN); B(6, 6, 4, 1, SKIN_D); B(9, 4, 1, 1, HAIR);
+      B(6, 2, 4, 1, HAIR); B(5, 2, 1, 3, HAIR); B(5, 1, 3, 1, HAIR); B(4, 3, 1, 2, HAIR);          // hair pulled back to a bun
+      B(8, 1, 1, 1, '#f4ecd4'); B(9, 2, 1, 1, '#e8c97a');                                         // jasmine in the hair
+    }
+    // right arm and hand: idle holds the mortar or a cup; heal raises it with green herb sparks
+    const sleeve = mel ? '#f4f0e2' : SKIN;
+    if (!heal) {
+      B(11, 8, 1, 3, sleeve);
+      if (mel) { B(11, 11, 2, 2, BRASS); B(11, 11, 2, 1, BRASS_D); B(12, 10, 1, 1, '#6b4a2a'); }  // brass mortar and pestle
+      else { B(11, 11, 2, 2, '#e8dcb8'); B(11, 11, 2, 1, JAMU); }                                  // cup of jamu
+    } else {
+      const up = f === 1 ? 1 : 0;
+      B(11, 7 - up, 1, 2, sleeve); B(12, 6 - up, 1, 2, sleeve);
+      if (mel) { B(12, 4 - up, 2, 2, BRASS); B(12, 4 - up, 2, 1, BRASS_D); }
+      else { B(12, 4 - up, 2, 2, '#e8dcb8'); B(12, 4 - up, 2, 1, JAMU); }
+      const sp = [[14, 1], [15, 4], [13, 0], [15, 2]];
+      for (let i = 0; i <= f; i++) { const [sx, sy] = sp[i]; r(sx, sy + 1, 1, 1, i & 1 ? HERB : HERB_L); }
+      if (f === 2) { r(14, -1 + 2, 1, 3, HERB_L); r(13, 0 + 2, 3, 1, HERB_L); }                     // small green cross: heal lands
+    }
+  }
+  function healerSprite(team, anim, f) {
+    return sprite(`heal|${team}|${anim}|${f}`, 16, 18, 2, (P) => drawHealer(P, team, anim, f));
+  }
+
+  const HB_DIMS = { rumahtabib: [48, 54], patirthan: [56, 50], perigi: [32, 34] };
+  const WATER = '#3d86a3', WATER_L = '#7fb7b8', WATER_D = '#2d6f8f';
+
+  function herbBed(P, x, y, w) { P.r(x, y, w, 3, '#6b4a2a'); for (let i = 0; i < w; i += 2) { P.r(x + i, y - 1, 1, 2, HERB); if (i % 4 === 0) P.r(x + i, y - 2, 1, 1, HERB_L); } }
+
+  function healerBuilding(kind, team) {
+    const T = TEAMC[team] || TEAMC[kind === 'patirthan' ? 1 : 0], d = HB_DIMS[kind];
+    return sprite(`hb|${kind}|${team}`, d[0], d[1], 2, (P) => {
+      const r = P.r;
+      if (kind === 'rumahtabib') {
+        // Rumah Tabib: Malay house on stilts, a serambi veranda with drying herbs, herb beds and a mortar out front
+        posts(P, [6, 14, 22, 30, 36], 36, 48, 2);
+        r(4, 34, 36, 2, '#8f6232'); r(4, 36, 36, 1, '#5a3a1e');
+        planks(P, 8, 22, 26, 12, '#b88a52', '#9a6f3a'); r(18, 25, 6, 9, '#3f2713'); r(11, 25, 4, 4, '#2b1a0c'); r(27, 25, 4, 4, '#2b1a0c');
+        r(34, 28, 8, 6, '#c99b5d'); r(34, 28, 8, 1, '#a8773c');                                    // serambi
+        for (const x of [35, 38, 41]) { r(x, 24, 1, 3, HERB); r(x, 27, 1, 1, HERB_L); }             // herb bundles hanging to dry
+        r(34, 23, 9, 1, WOOD_D);
+        roofGable(P, 21, 6, 22, 2, 18, '#c9ae5e', '#a98f48', T.roofR); r(2, 22, 38, 1, T.main);
+        r(36, 20, 8, 3, '#c9ae5e'); r(36, 20, 8, 1, '#a98f48');                                     // veranda roof
+        r(20, 3, 2, 3, WOOD_D);
+        for (let y = 37; y < 48; y += 3) r(16, y, 5, 1, WOOD); r(16, 36, 1, 12, WOOD); r(20, 36, 1, 12, WOOD);   // ladder
+        herbBed(P, 1, 49, 12); herbBed(P, 27, 49, 16);
+        r(40, 44, 4, 3, BRASS); r(40, 44, 4, 1, BRASS_D); r(42, 42, 1, 3, '#6b4a2a');                // big mortar
+        r(1, 40, 1, 9, WOOD_D); r(2, 41, 5, 3, '#f4f0e2'); r(3, 42, 3, 1, HERB);                     // white sign with a green leaf
+      } else if (kind === 'patirthan') {
+        // Patirthan: stepped red-brick bathing pool like Candi Tikus, a small shrine at the back, water spouts
+        const P0 = P; P = { r: (x, y, w, h, c) => P0.r(x, y + 6, w, h, c) }; const r = P.r;
+        brick(P, 2, 10, 52, 30); r(2, 10, 52, 1, BRICK_L);
+        brick(P, 6, 14, 44, 22); r(6, 14, 44, 1, BRICK_D);
+        r(10, 18, 36, 14, WATER_D); r(10, 18, 36, 1, BRICK_D);
+        r(12, 20, 32, 10, WATER); for (const [wx, wy] of [[15, 23], [28, 26], [36, 22], [20, 28]]) r(wx, wy, 4, 1, WATER_L);
+        for (let i = 0; i < 3; i++) r(24 + i, 32 + i, 8 - i * 2, 1, BRICK_L);                     // steps down into the water
+        brick(P, 22, 36, 12, 6);
+        // central shrine with a small meru roof
+        brick(P, 23, 4, 10, 10); r(26, 8, 4, 6, '#2b1a0c'); meru(P, 28, 4, 2, 14, 6);
+        for (const x of [14, 40]) { r(x, 16, 2, 2, '#843a27'); r(x, 18, 2, 1, WATER_L); r(x + 1, 19, 1, 3, WATER_L); }   // spouts
+        for (const x of [3, 50]) { brick(P, x, 4, 4, 8); r(x, 2, 4, 2, IJUK); r(x + 1, 0, 2, 2, GOLD); }               // corner posts
+        r(8, 40, 6, 3, '#d6c79a'); r(42, 40, 6, 3, '#d6c79a'); r(9, 39, 1, 1, '#e8c97a'); r(44, 39, 1, 1, '#d0392f'); // offerings
+        r(50, 13, 1, 12, WOOD_D); r(51, 14, 3, 3, T.main); r(51, 14, 3, 1, GOLD);
+      } else {
+        // Perigi Raja (optional): the royal well of Bukit Cina, brick-rimmed with a little roof
+        brick(P, 6, 20, 20, 10); r(6, 20, 20, 1, BRICK_L); r(9, 21, 14, 3, WATER_D); r(11, 22, 6, 1, WATER_L);
+        r(8, 8, 2, 13, WOOD_D); r(22, 8, 2, 13, WOOD_D); r(8, 12, 16, 1, WOOD);
+        r(15, 12, 1, 8, '#d8d0b0'); r(14, 18, 3, 3, '#8a5a2b');
+        roofGable(P, 16, 1, 9, 1, 11, '#c9ae5e', '#a98f48', T.roofR);
+        r(1, 29, 5, 3, '#d9c79a'); r(26, 30, 4, 2, '#a8803c');
+      }
+    });
+  }
+  return { melakaBuilding, majapahitBuilding, majapahitBase, neutralSite, healerSprite, healerBuilding };
+})();
+const CIVB_KIND = { granary: ['jelapang', 'lumbung'], tower: ['menara', 'kulkul'], palace: ['istana', 'kraton'], tradepost: ['pangkalan', 'bandar'] };
+/* where each ship sprite sits on the water: [hull centre x, waterline y] in sprite pixels (Majapahit fire ship differs) */
+const SHIP_ANCHOR = { trade: [35, 50], fire: [22, 40], light: [30, 40], galley: [37, 48], frigate: [43, 64], flagship: [53, 76] };
+function shipSprite(u) { return u.kind === 'boat' ? boatSprite(u.team) : NAVAL.navalSprite(UD[u.kind].slot, u.team); }
+function shipAnchor(kind) { return kind === 'boat' ? [20, 34] : kind === 'fireship' ? SHIP_ANCHOR.fire : SHIP_ANCHOR[UD[kind].slot]; }
+
 /* ------------------------------ buildings ------------------------------ */
 function buildingSprite(kind, team, level) {
+  if (CIVB_KIND[kind]) return team === 1 ? CIVB.majapahitBuilding(CIVB_KIND[kind][1], team) : CIVB.melakaBuilding(CIVB_KIND[kind][0], team);
+  if (kind === 'village') return CIVB.neutralSite('village');
+  if (kind === 'rumahtabib' || kind === 'patirthan') return CIVB.healerBuilding(kind, team);
+  if (team === 1 && ['towncentre', 'house', 'barracks', 'port'].includes(kind)) return CIVB.majapahitBase(kind, team);
   const T = TEAMC[team] || TEAMC[0], key = `b|${kind}|${team}|${level || 0}`;
   const dims = { towncentre: [48, 62], house: [32, 46], mill: [32, 46], goldmine: [32, 44], farm: [32, 32], barracks: [48, 58], port: [48, 54] }[kind];
   return sprite(key, dims[0], dims[1], 2, (P) => {
@@ -2096,9 +2834,9 @@ const cvs = $('view'), ctx = cvs.getContext('2d');
 const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
-const BUILD_ORDER = ['house', 'mill', 'goldmine', 'farm', 'barracks', 'port'];
-const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', farm: 'Farm', barracks: 'Barracks', port: 'Port' };
-const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', boat: 'Boat' };
+const BUILD_ORDER = ['house', 'farm', 'mill', 'goldmine', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'tradepost', 'palace'];
+const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool' };
+const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
 const FORMS = ['box', 'line', 'wedge'];
 
 let G = null, terrainC = null, miniBase = null, fogC = null, fogCtx = null, fogImg = null, fogSeen = -1;
@@ -2127,7 +2865,7 @@ function fitIcon(spr, size) {
   x.drawImage(spr, Math.floor((size - w) / 2), Math.floor((size - h) / 2), w, h);
   return c;
 }
-function unitIcon(kind, team) { return dataURL('ui|' + kind + team, () => fitIcon(kind === 'boat' ? boatSprite(team) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
+function unitIcon(kind, team) { return dataURL('ui|' + kind + team, () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
 function bldIcon(kind, team) { return dataURL('bi|' + kind + team, () => fitIcon(buildingSprite(kind, team, 2), 44)); }
 function resIcon(name) { return dataURL('ri|' + name, () => iconSprite(name)); }
 function nodeIcon(n) {
@@ -2196,15 +2934,15 @@ function toolFor(u) {
 function paintUnit(u) {
   const px = u.x * TILE, py = u.y * TILE;
   const selected = isSel(u);
-  if (u.kind === 'boat') {
-    const bob = Math.sin(nowS * 3 + u.id) * 1.4, spr = boatSprite(u.team);
-    ctx.strokeStyle = 'rgba(240,250,255,0.55)'; ctx.lineWidth = 1.5; ell(px, py + 1, 15, 5); ctx.stroke();
-    if (u.moving) { ctx.strokeStyle = 'rgba(240,250,255,0.35)'; ell(px - u.face * 9, py + 3, 12, 4); ctx.stroke(); }
-    if (selected) { ctx.strokeStyle = TEAMC[u.team].ring; ctx.lineWidth = 2; ell(px, py + 3, 17, 7); ctx.stroke(); }
-    ctx.save(); ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -20, -34); ctx.restore();
-    if (u.hit > 0) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(whiteOf(spr), -20, -34); ctx.restore(); }
-    if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px - 4, py - 42, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px - 3, py - 41, 6, 6); }
-    if (selected || u.hp < u.maxHp) hpBar(px - 10, py - 46, 20, u.hp / u.maxHp);
+  if (u.layer === 1) {
+    const bob = Math.sin(nowS * 3 + u.id) * 1.4, spr = shipSprite(u), an = shipAnchor(u.kind), rx = Math.max(15, spr.width * 0.34);
+    ctx.strokeStyle = 'rgba(240,250,255,0.55)'; ctx.lineWidth = 1.5; ell(px, py + 1, rx, 5); ctx.stroke();
+    if (u.moving) { ctx.strokeStyle = 'rgba(240,250,255,0.35)'; ell(px - u.face * rx * 0.6, py + 3, rx * 0.8, 4); ctx.stroke(); }
+    if (selected) { ctx.strokeStyle = TEAMC[u.team].ring; ctx.lineWidth = 2; ell(px, py + 3, rx + 2, 7); ctx.stroke(); }
+    ctx.save(); ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -an[0], -an[1]); ctx.restore();
+    if (u.hit > 0) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(whiteOf(spr), -an[0], -an[1]); ctx.restore(); }
+    if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px - 4, py - an[1] - 8, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px - 3, py - an[1] - 7, 6, 6); }
+    if (selected || u.hp < u.maxHp) { const hw = Math.max(20, rx * 1.2); hpBar(px - hw / 2, py - an[1] - 12, hw, u.hp / u.maxHp); }
     return;
   }
   if (u.kind === 'deer') {
@@ -2217,7 +2955,8 @@ function paintUnit(u) {
   }
   let anim = 'idle', f = 0, tool = '';
   const fighting = u.order.t === 'attack';
-  if (u.atkT > 0 && u.cls !== 'vil') { anim = 'attack'; f = u.ranged ? 1 : (u.atkT > 0.18 ? 1 : 2); }
+  if (u.atkT > 0 && u.cls === 'healer') { anim = 'attack'; f = u.atkT > 0.3 ? 0 : u.atkT > 0.15 ? 1 : 2; }
+  else if (u.atkT > 0 && u.cls !== 'vil') { anim = 'attack'; f = u.ranged ? 1 : (u.atkT > 0.18 ? 1 : 2); }
   else if (u.ranged && fighting && u.cd > 0 && u.cd < 0.35) { anim = 'attack'; f = 0; }
   else if (u.moving) { anim = 'walk'; f = Math.floor(u.anim * 9) % 4; }
   else if (u.working) { anim = 'work'; f = Math.floor(u.anim * 3.5) % 2; tool = toolFor(u); }
@@ -2279,6 +3018,12 @@ function paintBuilding(b) {
   if (b.done && (isSel(b) || b.hp < b.maxHp)) hpBar(px + w * 0.15, flat ? py - 4 : dy + 2, w * 0.7, b.hp / b.maxHp);
 }
 function paintFx(f) {
+  if (f.k === 'corpse' && UD[f.kind] && UD[f.kind].layer) {
+    const spr = shipSprite(f), an = shipAnchor(f.kind), p = 1 - f.t / f.max;
+    ctx.save(); ctx.globalAlpha = Math.min(1, f.t / 1.5) * 0.85; ctx.translate(f.x * TILE, f.y * TILE + p * 14); ctx.rotate((f.face || 1) * p * 0.35);
+    ctx.beginPath(); ctx.rect(-an[0], -an[1], spr.width, an[1] - p * an[1] * 0.6); ctx.clip(); ctx.drawImage(spr, -an[0], -an[1]); ctx.restore();
+    return;
+  }
   if (f.k === 'corpse') {
     if (f.kind === 'deer') return;
     const spr = unitSprite(f.kind, f.team, 'idle', 1, ''), a = Math.min(1, f.t / 1.2);
@@ -2293,6 +3038,13 @@ function paintTop(f) {
   if (f.k === 'spark') {
     const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE - 10;
     ctx.fillStyle = '#fff3b0'; for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.6; ctx.fillRect(x + Math.cos(a) * p * 10, y + Math.sin(a) * p * 10, 2, 2); }
+  } else if (f.k === 'heal') {
+    const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE - 6 - p * 14;
+    ctx.globalAlpha = 1 - p; ctx.fillStyle = '#8fd06a'; ctx.fillRect(x - 1, y - 4, 3, 9); ctx.fillRect(x - 4, y - 1, 9, 3); ctx.globalAlpha = 1;
+  } else if (f.k === 'fire') {
+    const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE - 6, s = 10 + p * 34;
+    ctx.fillStyle = 'rgba(246,179,58,' + (0.75 * (1 - p)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(x, y, s, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = 'rgba(226,86,44,' + (0.6 * (1 - p)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(x, y, s * 0.6, 0, 6.2832); ctx.fill();
   } else if (f.k === 'smoke') {
     const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE + f.vy * p * 40;
     ctx.fillStyle = 'rgba(80,76,70,' + (0.55 * (1 - p)).toFixed(2) + ')'; const s = 5 + p * 9; ctx.fillRect(x - s / 2, y - s / 2, s, s);
@@ -2402,6 +3154,7 @@ function render() {
     if (b.team !== 0 && !expl(b.x, b.y)) continue;
     if (b.kind === 'farm') paintBuilding(b); else tall.push({ y: (b.ty + b.size) * TILE, t: 0, o: b });
   }
+  for (const v of G.villages) if (!v.post && expl(v.site.tx + 1.5, v.site.ty + 1.5)) { const spr = CIVB.neutralSite('landing'); ctx.drawImage(spr, v.site.tx * TILE + (96 - spr.width) / 2, (v.site.ty + 3) * TILE - spr.height + 2); }
   for (const f of G.fx) if ((f.k === 'corpse' || f.k === 'rubble') && inView(f.x * TILE, f.y * TILE, 100)) paintFx(f);
   for (const n of G.nodes) {
     const px = n.tx * TILE, py = n.ty * TILE;
@@ -2412,7 +3165,7 @@ function render() {
     const px = u.x * TILE, py = u.y * TILE;
     if (!inView(px, py, 50)) continue;
     if (u.team !== 0 && !G.isVisible(u.x, u.y)) continue;
-    tall.push({ y: py + (u.kind === 'boat' ? 4 : 3), t: 2, o: u });
+    tall.push({ y: py + (u.layer === 1 ? 4 : 3), t: 2, o: u });
   }
   tall.sort((a, b) => a.y - b.y);
   for (const e of tall) { if (e.t === 0) paintBuilding(e.o); else if (e.t === 1) paintNode(e.o); else paintUnit(e.o); }
@@ -2427,7 +3180,7 @@ function render() {
   }
   paintPlacement(); paintMarkers();
   for (const a of G.arrows) drawArrow(a);
-  for (const f of G.fx) if ((f.k === 'spark' || f.k === 'smoke') && inView(f.x * TILE, f.y * TILE, 60)) paintTop(f);
+  for (const f of G.fx) if ((f.k === 'spark' || f.k === 'smoke' || f.k === 'fire' || f.k === 'heal') && inView(f.x * TILE, f.y * TILE, 60)) paintTop(f);
   ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
   for (const fl of G.floaters) {
     const p = 1 - fl.t / 1.1, x = fl.x * TILE, y = fl.y * TILE - p * 16;
@@ -2452,7 +3205,7 @@ function drawMini() {
   }
   for (const b of G.buildings) {
     if (b.team !== 0 && !G.explored[Math.floor(b.y) * W + Math.floor(b.x)]) continue;
-    mctx.fillStyle = b.team === 0 ? '#7dffa8' : '#ff5a4a'; mctx.fillRect(b.tx * S, b.ty * S, b.size * S, b.size * S);
+    mctx.fillStyle = b.team === 0 ? '#7dffa8' : b.team === 2 ? '#d8d0b8' : '#ff5a4a'; mctx.fillRect(b.tx * S, b.ty * S, b.size * S, b.size * S);
     mctx.strokeStyle = '#10201a'; mctx.lineWidth = 1; mctx.strokeRect(b.tx * S + 0.5, b.ty * S + 0.5, b.size * S - 1, b.size * S - 1);
   }
   for (const u of G.units) {
@@ -2481,6 +3234,7 @@ function issue(wx, wy, hit) {
   else if (hit && hit.isBld && hit.team === 1) addMarker(hit.x, hit.y, 'attack');
   else if (hit && (hit.isNode || (hit.isBld && hit.kind === 'farm'))) addMarker(hit.x, hit.y, 'gather', hit);
   else if (hit && hit.isBld && !hit.done) addMarker(hit.x, hit.y, 'build', hit);
+  else if (hit && hit.kind === 'tradepost' && hit.team === 0) addMarker(hit.x, hit.y, 'gather', hit);
   else addMarker(wx, wy, amove ? 'attack' : 'move');
   if (amove) mode = null;
   panelKey = '';
@@ -2488,8 +3242,9 @@ function issue(wx, wy, hit) {
 }
 function canRally(b) { return b && b.isBld && b.team === 0 && b.done && BD[b.kind].train; }
 function setRallyFor(b, wx, wy, hit) {
-  G.setRally(b, wx, wy, hit && hit.isNode ? hit : null);
-  addMarker(hit && hit.isNode ? hit.x : wx, hit && hit.isNode ? hit.y : wy, 'gather');
+  const t = hit && (hit.isNode || (hit.kind === 'tradepost' && hit.team === 0 && b.kind === 'port')) ? hit : null;
+  G.setRally(b, wx, wy, t);
+  addMarker(t ? t.x : wx, t ? t.y : wy, 'gather');
 }
 function contextCommand(wx, wy) {
   const hit = G.pick(wx, wy);
@@ -2503,6 +3258,15 @@ function selectSameKind(o) {
 function placeAt(wx, wy) {
   const d = BD[mode.bkind];
   mode.tx = Math.round(wx - d.size / 2); mode.ty = Math.round(wy - d.size / 2);
+  if (d.site) { const v = nearestSite(wx, wy, 4); if (v) { mode.tx = v.site.tx; mode.ty = v.site.ty; } }
+}
+function nearestSite(wx, wy, maxD) {
+  let best = null, bd = maxD;
+  for (const v of G.villages) {
+    if (v.post || !G.explored[(v.site.ty + 1) * W + v.site.tx + 1]) continue;
+    const d = Math.hypot(v.site.tx + 1.5 - wx, v.site.ty + 1.5 - wy); if (d < bd) { bd = d; best = v; }
+  }
+  return best;
 }
 function tryPlace(keep) {
   if (!mode || mode.kind !== 'place' || mode.tx == null) return false;
@@ -2517,6 +3281,14 @@ function startPlace(kind) {
   if (!selUnits().some(u => u.cls === 'vil')) { toast('Select a villager first.'); return; }
   const d = BD[kind];
   if (!G.canAfford(0, d.cost)) { toast('Not enough ' + (G.res[0].wood < (d.cost.wood || 0) ? 'wood' : 'resources') + '.'); return; }
+  if (d.needs && !G.buildings.some(b => b.team === 0 && b.kind === d.needs && b.done && b.hp > 0)) { toast('Build a ' + civName(d.needs, 0) + ' first.'); return; }
+  if (d.one && G.countOf(0, kind) > 0) { toast('You can only have one ' + civName(kind, 0) + '.'); return; }
+  if (d.site) {
+    const c = s2w(view.w / 2, view.h / 2), v = nearestSite(c.x, c.y, 999);
+    if (!v) { toast('Explore the coast to find a neutral village with a free landing.'); return; }
+    mode = { kind: 'place', bkind: kind, tx: v.site.tx, ty: v.site.ty, touch: !(hover && hover.mouse) };
+    centerOn(v.site.tx + 1.5, v.site.ty + 1.5); panelKey = ''; return;
+  }
   mode = { kind: 'place', bkind: kind, tx: null, ty: null, touch: !(hover && hover.mouse) };
   if (hover && hover.mouse) placeAt(hover.wx, hover.wy); else { const c = s2w(view.w / 2, view.h * 0.4); placeAt(c.x, c.y); }
   const spot = findSpot(kind, mode.tx, mode.ty); if (spot) { mode.tx = spot.tx; mode.ty = spot.ty; }
@@ -2557,7 +3329,8 @@ function handleTap(wx, wy, o) {
   if (us.length && !(single && single.isBld)) {
     if (hit && hit.isUnit && hit.team === 0) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
-    if (hit && hit.isBld && hit.team === 0 && !(hasVil && (!hit.done || hit.kind === 'farm'))) { select([hit]); return; }
+    const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
+    if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || hit.kind === 'farm'))) { select([hit]); return; }
     issue(wx, wy, hit); return;
   }
   if (single && canRally(single)) {
@@ -2589,8 +3362,14 @@ function cycleIdle() {
   idleIdx = (idleIdx + 1) % l.length; const u = l[idleIdx]; select([u]); centerOn(u.x, u.y);
 }
 function selectArmy() {
-  const l = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls !== 'vil' && u.cls !== 'boat');
+  const l = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls !== 'vil' && u.layer !== 1);
   if (!l.length) { toast('You have no warriors yet. Build a Barracks.'); return; }
+  select(l);
+}
+/* every warship (fishing boats and trade ships keep working) */
+function selectNavy() {
+  const l = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls === 'ship' && !UD[u.kind].trader);
+  if (!l.length) { toast('You have no warships yet. Build them at the Port.'); return; }
   select(l);
 }
 
@@ -2732,20 +3511,29 @@ function describeOrder(u) {
     default: return '';
   }
 }
+function bldNote(b) {
+  const own = b.team === 0;
+  if (b.kind === 'village') return b.post ? 'A trading post stands on its landing.' : 'Build a Trade Post on the landing beside it.';
+  if (b.kind === 'tradepost') return own ? 'Tap it with a Jong Dagang to start a trade route. Trade gold so far: ' + G.tradeGold + '.' : 'This village pays tribute to Majapahit.';
+  if (b.kind === 'granary' && own) return 'Villagers drop food here.';
+  if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
+  if (b.kind === 'patirthan') return 'Units resting by the pool heal slowly.';
+  return '';
+}
 function buildPanel() {
   const P = $('panel'); pdyn = [];
   let info = '', cmds = '', extra = '';
   const us = selUnits(), single = sel.length === 1 ? sel[0] : null;
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(mode.bkind, 0) + '"><div><div class="p-name">Place ' + d.name + '</div><div class="p-sub">' + costTitle(d.cost) + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(mode.bkind, 0) + '"><div><div class="p-name">Place ' + civName(mode.bkind, 0) + '</div><div class="p-sub">' + costTitle(d.cost) + '</div></div></div>' +
       '<div class="p-line">' + ((hover && hover.mouse) ? 'Click to place. Shift-click keeps building. Esc cancels.' : 'Drag the building (or tap the map) to move it, then tap the green tick to build.') + '</div>';
     cmds = '<button class="cmd ok" data-a="place-ok" title="Place building"><img alt="" src="' + resIcon('check') + '"><span class="nm">Place</span><span class="ct">&nbsp;</span></button>' +
       '<button class="cmd" data-a="place-cancel" title="Cancel"><img alt="" src="' + resIcon('x') + '"><span class="nm">Cancel</span><span class="ct">&nbsp;</span></button>';
   } else if (!sel.length) {
     info = '<div class="p-head"><img alt="" src="' + bldIcon('towncentre', 0) + '"><div><div class="p-name">Melaka Sultanate</div><div class="p-sub">Your settlement</div></div></div>' +
       '<div class="p-line">Tap a unit or building. Drag to scroll the map. Pinch to zoom. Hold, then drag to box-select.</div>';
-    cmds = cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your Town Centre') + cmdBtn('idle', 'idle', resIcon('idle'), 'Idle', null, 'Next idle villager') + cmdBtn('army', 'army', resIcon('army'), 'Army', null, 'Select all warriors');
+    cmds = cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your Town Centre') + cmdBtn('idle', 'idle', resIcon('idle'), 'Idle', null, 'Next idle villager') + cmdBtn('army', 'army', resIcon('army'), 'Army', null, 'Select all warriors (not ships)') + cmdBtn('navy', 'navy', unitIcon('light', 0), 'Navy', null, 'Select all warships');
   } else if (us.length) {
     const kinds = {}; us.forEach(u => { kinds[u.kind] = (kinds[u.kind] || 0) + 1; });
     const first = us[0], names = Object.keys(kinds);
@@ -2754,7 +3542,7 @@ function buildPanel() {
         '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
       pdyn.push(() => {
         const u = first; $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = describeOrder(u) + '  ' + Math.ceil(u.hp) + '/' + u.maxHp;
-        $('p-l1').textContent = u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : 'Tap an enemy to attack.');
+        $('p-l1').textContent = u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : UD[u.kind].trader ? 'Tap your Trade Post to start a trade route.' : u.cls === 'healer' ? 'Heals hurt allies nearby once they are out of the fight.' : 'Tap an enemy to attack.');
       });
     } else {
       info = '<div class="p-head"><div class="chips">' + names.map(k => '<button class="chip" data-a="selkind" data-k="' + k + '" title="Select only this type"><img alt="" src="' + unitIcon(k, 0) + '"><b>' + kinds[k] + '</b></button>').join('') + '</div>' +
@@ -2763,7 +3551,7 @@ function buildPanel() {
     const hasVil = us.some(u => u.cls === 'vil'), hasMil = us.some(u => u.cls !== 'vil' && u.cls !== 'boat');
     if (hasVil) {
       for (const k of BUILD_ORDER) {
-        const d = BD[k]; cmds += cmdBtn('build', k, bldIcon(k, 0), BUILD_SHORT[k], d.cost, d.name + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
+        const d = BD[k]; cmds += cmdBtn('build', k, bldIcon(k, 0), BUILD_SHORT[k], d.cost, civName(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
     }
     if (hasMil) {
@@ -2771,31 +3559,31 @@ function buildPanel() {
       cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
     cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
-    cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Clear</span><span class="ct">&nbsp;</span></button>';
+    cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + d.name + '</div><div class="p-sub">' + (own ? 'Melaka' : 'Majapahit') + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + civName(b.kind, b.team) + '</div><div class="p-sub">' + (own ? 'Melaka' : b.team === 2 ? 'Neutral' : 'Majapahit') + '</div></div></div>' +
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';
-      $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? ((hover && hover.mouse) ? 'Right-click the map to set a rally point.' : 'Double-tap the map to set a rally point.') : own && b.kind === 'farm' ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : own && d.trade ? 'Earns gold from trade.' : Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
+      $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? ((hover && hover.mouse) ? 'Right-click the map to set a rally point.' : 'Double-tap the map to set a rally point.') : own && b.kind === 'farm' ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : bldNote(b) || Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
     });
     if (own && b.done && d.train) {
-      for (const k of d.train) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), TRAIN_SHORT[k], c, G.unitName({ kind: k, team: 0 }) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
+      for (const k of G.trainable(b.kind, 0)) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), TRAIN_SHORT[k], c, G.unitName({ kind: k, team: 0 }) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
       extra = '<div class="queue" id="p-q">' + b.queue.map((q, i) => '<button class="qi" data-a="cancel" data-i="' + i + '" title="Cancel"><img alt="" src="' + unitIcon(q.kind, 0) + '"><i id="p-qb' + i + '"></i></button>').join('') + '</div>';
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
-    if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Clear</span><span class="ct">&nbsp;</span></button>';
+    if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isNode) {
     const n = single;
     info = '<div class="p-head"><img alt="" src="' + nodeIcon(n) + '"><div><div class="p-name">' + (NODE_NAME[n.kind] || 'Resource') + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="p-line">Send villagers here to gather ' + (n.kind === 'fish' ? '(needs a fishing boat).' : '.') + '</div>';
     pdyn.push(() => { $('p-s1').textContent = Math.max(0, n.amt) + ' ' + n.type + ' left'; });
-    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Clear</span><span class="ct">&nbsp;</span></button>';
+    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isUnit) {
     const u = single;
     info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? 'Majapahit ' : '') + G.unitName(u) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
     pdyn.push(() => { $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = Math.ceil(u.hp) + '/' + u.maxHp + ' HP'; });
-    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Clear</span><span class="ct">&nbsp;</span></button>';
+    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   }
   P.innerHTML = '<div class="p-info">' + info + extra + '</div><div class="p-cmds">' + cmds + '</div>';
 }
@@ -2812,9 +3600,11 @@ function updatePanel() {
   for (const f of pdyn) { try { f(); } catch (_) { /* element replaced */ } }
   const fm = $('p-fmt'); if (fm) fm.textContent = formation;
   const r = G.res[0];
-  document.querySelectorAll('#panel .cmd[data-bk]').forEach((el) => { const d = BD[el.dataset.bk]; el.classList.toggle('no', !G.canAfford(0, d.cost)); });
+  document.querySelectorAll('#panel .cmd[data-bk]').forEach((el) => { const d = BD[el.dataset.bk]; el.classList.toggle('no', !G.canAfford(0, d.cost) || !!(d.needs && !G.buildings.some(b => b.team === 0 && b.kind === d.needs && b.done && b.hp > 0))); });
   document.querySelectorAll('#panel .cmd[data-tk]').forEach((el) => { el.classList.toggle('no', !G.canAfford(0, G.costOf(el.dataset.tk, 0))); });
   const place = document.querySelector('#panel .cmd.ok'); if (place) place.classList.toggle('no', !(mode && mode.valid));
+  // a row of buttons wider than the panel scrolls sideways: fade its edge so the hidden ones are noticed
+  const pc = document.querySelector('#panel .p-cmds'); if (pc) pc.classList.toggle('more', pc.scrollWidth > pc.clientWidth + 2 && pc.scrollLeft + pc.clientWidth < pc.scrollWidth - 4);
 }
 function cycleFormation() { formation = FORMS[(FORMS.indexOf(formation) + 1) % 3]; toast('Formation: ' + formation); }
 function stopSel() { for (const u of selUnits()) G.idleOrder(u); }
@@ -2834,6 +3624,7 @@ $('panel').addEventListener('click', (e) => {
   else if (a === 'tc') { const tc = G.buildings.find(b => b.team === 0 && b.kind === 'towncentre'); if (tc) { centerOn(tc.x, tc.y); select([tc]); } }
   else if (a === 'idle') cycleIdle();
   else if (a === 'army') selectArmy();
+  else if (a === 'navy') selectNavy();
 });
 
 /* ---------------- HUD ---------------- */
@@ -2849,6 +3640,9 @@ function hintText() {
 function updateHud() {
   const r = G.res[0];
   $('v-food').textContent = Math.floor(r.food); $('v-wood').textContent = Math.floor(r.wood); $('v-gold').textContent = Math.floor(r.gold);
+  const gn = { food: 0, wood: 0, gold: 0 };
+  for (const u of G.units) if (u.team === 0 && u.hp > 0 && u.order.t === 'gather' && gn[u.order.type] != null) gn[u.order.type]++;
+  for (const k in gn) { const e = $('g-' + k), t = '(' + gn[k] + ')'; if (e.textContent !== t) e.textContent = t; e.classList.toggle('zero', gn[k] === 0); }
   const pop = G.popOf(0), cap = G.popCap(0); $('v-pop').textContent = pop + '/' + cap;
   $('pop-chip').classList.toggle('warn', pop >= cap);
   $('hint').textContent = hintText();
