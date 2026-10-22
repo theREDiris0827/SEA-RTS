@@ -203,9 +203,12 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
   .res { gap: 4px; }
   .chip-r { padding: 4px 5px; gap: 3px; font-size: 17px; }
   .chip-r img { width: 16px; height: 16px; }
-  /* no room beside the number: the villager count sits as a tag on the chip's lower edge */
-  .chip-r { position: relative; }
-  .chip-r .gn { position: absolute; right: 3px; bottom: -9px; font-size: 12px; line-height: 14px; padding: 0 3px; background: var(--panel); border: 1px solid var(--edge-dark); }
+  /* no room beside the number: the villager count sits on a small second line inside the chip */
+  .chip-r:not(#pop-chip) { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 3px; row-gap: 0; align-content: center; padding-top: 1px; padding-bottom: 1px; }
+  .chip-r:not(#pop-chip) img { grid-row: 1 / span 2; align-self: center; }
+  .chip-r:not(#pop-chip) span { line-height: 1; }
+  .chip-r .gn { font-size: 11px; line-height: 1; justify-self: center; }
+  .chip-r .gn.zero { opacity: .75; }
 }
 @media (max-height: 520px) {
   #mini { width: 96px; height: 72px; }
