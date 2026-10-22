@@ -370,7 +370,7 @@ body, button, .card, #hud { font-variant-ligatures: none; font-feature-settings:
         <li><b>The siege:</b> 1. burn the timber outer town and take the two face towers on the west causeway. 2. break a gate. 3. bring the king into the royal palace court and hold it for 20 s. The bar under the resources shows the next step; tap it for the full list.</li>
         <li><b>Fire arrows:</b> Phon Thanu archers set timber buildings alight. Laterite and sandstone only scorch. Each house you burn gives food and gold, and makes the Khmer sorties smaller.</li>
         <li><b>Chang Suek:</b> war elephants (3 population) from the Phaniat kraal. They are the only thing that breaks a gate, and an elephant that charges into a fight tramples the men around its target. Khmer spearmen and Ballista Elephants kill them: lead with Daab swordsmen and archers.</li>
-        <li><b>Households:</b> a Ruean house next to a paddy that a villager is working gives +15 fish every minute (up to 6). Houses take food, so the walk is short. Population cap 120.</li>
+        <li><b>Households:</b> a Ruean house next to a paddy that a village woman is working gives +15 fish every minute (up to 6). Build the same house on the water's edge and it becomes a raft house: send a woman to it and she fishes from its deck. Village women carry 25% more. Population cap 120.</li>
         <li><b>The king</b> rides a royal elephant and gives nearby troops +2 attack. If he falls he is carried to the camp and returns after 60 s.</li>
         <li><b>Lose</b> if the royal camp falls. Keys: A attack-move, S stop, F formation, . idle villager, H home, Space pause.</li>
       </ul>
@@ -5864,7 +5864,8 @@ const LAKE_Y = 44;
 
 /* ---------- units ---------- */
 Object.assign(UD, {
-  villager: Object.assign({}, UD.villager, { name: 'Phrai (Villager)', carry: 12, ayu: 'villager' }),
+  // Ayutthaya's village workers are women, who carry a quarter more (lore/civ-playbook.md)
+  villager: Object.assign({}, UD.villager, { name: 'Phrai Ying (Village woman)', carry: 12.5, ayu: 'villager' }),
   daab: { name: 'Daab Song Mue (Twin swords)', hp: 60, spd: 2.5, atk: 9, bonus: { archer: 4 }, rng: 0.85, rate: 1.0, ma: 1, pa: 2, sight: 6.5, cost: { food: 55, gold: 20 }, time: 9, cls: 'sword', ayu: 'sword' },
   hok: { name: 'Phon Hok (Spearman)', hp: 52, spd: 2.3, atk: 5, bonus: { sword: 4, eleph: 14, siege: 6 }, rng: 1.5, rate: 1.1, ma: 2, pa: 0, sight: 6.5, cost: { food: 40, wood: 25 }, time: 9, cls: 'spear', ayu: 'spear' },
   thanu: { name: 'Phon Thanu (Fire archer)', hp: 32, spd: 2.2, atk: 6, bonus: { spear: 3 }, rng: 6, rate: 1.6, ma: 0, pa: 0, sight: 7.5, cost: { wood: 30, gold: 30 }, time: 10, cls: 'archer', ranged: true, ayu: 'archer', fire: { dmg: 5, burn: 7 } },
@@ -5886,7 +5887,7 @@ Object.assign(UD, {
 TEAMMOD[1] = { hp: 1, spd: 1, cost: 1, arm: 0 };
 Object.assign(ORDER_CLS, { eleph: 0.4, siege: 3.8 });
 Object.assign(CIV_NAMES, {
-  villager: ['Phrai (Villager)', null], boat: ['Ruea Pramong (Fishing boat)', null], light: ['Ruea Chai (War boat)', null],
+  villager: ['Phrai Ying (Village woman)', null], boat: ['Ruea Pramong (Fishing boat)', null], light: ['Ruea Chai (War boat)', null],
   house: ['Ruean Thai (Stilt house)', null], farm: ['Na (Rice paddy)', 'Khmer rice field'], granary: ['Yung Khao (Granary)', null],
   barracks: ['Rong Thahan (Barracks)', null], port: ['Tha Ruea (Landing)', null], tower: ['Pom (Bastion)', null],
   towncentre: ['Khai Luang (Royal camp)', null]
@@ -5922,7 +5923,7 @@ BD.granary.cost = { wood: 80 };
 BD.farm.food = 600;
 for (const k of ['palace', 'tradepost', 'rumahtabib', 'patirthan', 'mill', 'goldmine']) delete BD[k];
 BUILD_ORDER.length = 0;
-for (const k of ['house', 'raft', 'farm', 'granary', 'rong', 'barracks', 'phaniat', 'wat', 'tower', 'wall', 'gate', 'port']) BUILD_ORDER.push(k);
+for (const k of ['house', 'farm', 'granary', 'rong', 'barracks', 'phaniat', 'wat', 'tower', 'wall', 'gate', 'port']) BUILD_ORDER.push(k);
 const TIMBER = (b) => !BD[b.kind].stone;
 
 /* ---------- Khmer sorties: who comes out of a gate, in order ---------- */
@@ -6147,9 +6148,52 @@ Game.prototype.households = function () {
   for (const h of houses) {
     if (out.length >= HOUSEHOLD.max) break;
     const f = farms.find(f => !usedF.has(f.id) && worked.has(f.id) && Math.max(Math.abs(f.x - h.x), Math.abs(f.y - h.y)) <= (f.size + h.size) / 2 + 1.01);
+    if (h.kind === 'raft') { if (this.units.some(u => u.team === 0 && u.hp > 0 && u.order.t === 'fishhouse' && u.order.id === h.id && u.working)) out.push({ house: h, fish: true }); continue; }
     if (f) { usedF.add(f.id); out.push({ house: h, farm: f }); }
   }
   return out;
+};
+
+/* ---------- one house, two forms: on the water's edge it is built as a raft house ---------- */
+Game.prototype.waterSide = function (tx, ty, size) {
+  let water = 0;
+  for (let y = ty - 1; y <= ty + size; y++) for (let x = tx - 1; x <= tx + size; x++) {
+    if (x >= tx && x < tx + size && y >= ty && y < ty + size) continue;
+    if (this.inb(x, y) && this.isWater(x, y) && !this.block[y * W + x]) water++;
+  }
+  return water >= 3;
+};
+Game.prototype.houseForm = function (kind, tx, ty, team) {
+  return kind === 'house' && team === 0 && this.waterSide(tx, ty, BD.house.size) ? 'raft' : kind;
+};
+const _placeBuilding = Game.prototype.placeBuilding;
+Game.prototype.placeBuilding = function (team, kind, tx, ty, builderIds) {
+  const k = this.houseForm(kind, tx, ty, team);
+  const r = _placeBuilding.call(this, team, k, tx, ty, builderIds);
+  if (r.ok && k === 'raft' && this.M && !this.M.raftTold) { this.M.raftTold = true; this.msg('On the water\'s edge the house is built as a Ruean Phae raft house. A woman fishes from its deck.'); }
+  return r;
+};
+// the raft house's builder stays on to fish from it
+const _finishRaft = Game.prototype.finishBuilding;
+Game.prototype.finishBuilding = function (b) {
+  const first = b.kind === 'raft' && b.team === 0 ? this.units.find(u => u.hp > 0 && u.cls === 'vil' && u.order.t === 'build' && u.order.id === b.id) : null;
+  _finishRaft.call(this, b);
+  if (first && !this.units.some(u => u.order.t === 'fishhouse' && u.order.id === b.id)) { first.order = { t: 'fishhouse', id: b.id }; first.path = null; first.wait = 0; }
+};
+// fishing from the deck: no walking to a drop-off, the catch goes straight into the store
+const FISH_RATE = 0.5;
+Game.prototype.doFishHouse = function (u, dt) {
+  const b = this.byId.get(u.order.id);
+  if (!b || b.hp <= 0 || !b.done) { this.idleOrder(u); return; }
+  if (rectDist(u.x, u.y, b.rect) <= 0.95) {
+    u.path = null; u.working = true;
+    const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
+    u.gt = (u.gt || 0) + dt * FISH_RATE;
+    if (u.gt >= 10) { u.gt -= 10; this.res[u.team].food += 10; if (u.team === 0) this.floaters.push({ x: b.x, y: b.y - 1.2, text: '+10 food', type: 'food', t: 1.2 }); }
+    return;
+  }
+  if (!u.path) { if (u.wait > 0) return; if (!this.setPath(u, this.pathToRect(u, b.rect, 0.85))) { u.wait = 0.8; return; } }
+  if (this.stepMove(u, dt)) u.path = null;
 };
 
 /* ---------- repair (villagers fix damaged buildings and put out fires) ---------- */
@@ -6161,6 +6205,17 @@ Game.prototype.command = function (ids, wx, wy, target, opts) {
     const movers = [];
     for (const u of us) { if (u.cls === 'vil') { u.order = { t: 'repair', id: target.id }; u.path = null; u.wait = 0; } else movers.push(u); }
     if (movers.length) this.groupMove(movers, target.x, target.y, opts);
+    return;
+  }
+  // a woman sent to a raft house fishes from it; one to a house
+  if (target && target.hp > 0 && us.length && target.isBld && target.kind === 'raft' && target.team === us[0].team && target.done && us.some(u => u.cls === 'vil')) {
+    const vils = us.filter(u => u.cls === 'vil'), rest = us.filter(u => u.cls !== 'vil');
+    const busy = this.units.find(u => u.hp > 0 && u.order.t === 'fishhouse' && u.order.id === target.id && !vils.includes(u));
+    const fisher = busy ? null : vils[0];
+    if (fisher) { fisher.order = { t: 'fishhouse', id: target.id }; fisher.path = null; fisher.wait = 0; fisher.carry = { type: null, amt: 0 }; }
+    else if (us[0].team === 0) this.msg('Someone already fishes from that raft house.');
+    const others = vils.filter(u => u !== fisher).concat(rest);
+    if (others.length) this.groupMove(others, target.x, target.y, opts);
     return;
   }
   _command.call(this, ids, wx, wy, target, opts);
@@ -6183,11 +6238,11 @@ Game.prototype.doRepair = function (u, dt) {
 const _updateUnit = Game.prototype.updateUnit;
 Game.prototype.updateUnit = function (u, dt) {
   const t = u.order.t, d = UD[u.kind];
-  if (t === 'repair' || t === 'refuge') {
+  if (t === 'repair' || t === 'refuge' || t === 'fishhouse') {
     u.cd = Math.max(0, u.cd - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
     u.wait = Math.max(0, u.wait - dt); u.rp = Math.max(0, u.rp - dt);
     u.anim += dt; u.moving = false; u.working = false;
-    if (t === 'repair') this.doRepair(u, dt); else this.doRefuge(u, dt);
+    if (t === 'repair') this.doRepair(u, dt); else if (t === 'fishhouse') this.doFishHouse(u, dt); else this.doRefuge(u, dt);
   } else _updateUnit.call(this, u, dt);
   if (u.moving && d.trample) u.runT = (u.runT || 0) + dt; else if (!u.moving && u.order.t !== 'attack') u.runT = 0;
 };
@@ -6484,6 +6539,7 @@ Object.assign(MAIN.KHC, { main: '#2f6fd0', dark: '#1c4590', ring: '#8ab8ff' });
 /* ---------- people ---------- */
 function unitSprite(kind, team, anim, f, tool) {
   const d = UD[kind], a = anim === 'work' ? 'idle' : anim, ff = anim === 'walk' ? f : Math.min(2, f);
+  if (d && d.ayu === 'villager') return womanSprite(anim, anim === 'walk' ? f : Math.min(2, f));
   if (d && d.ayu) return MAIN.civUnitSprite('ayu', d.ayu, a, ff);
   if (d && d.km) return MAIN.khmerUnitSprite(d.km, a, ff);
   if (d && d.healer != null) return HEAL.healerSprite(d.healer, anim === 'attack' ? 'heal' : anim === 'walk' ? 'walk' : 'idle', anim === 'walk' ? f : Math.min(2, f));
@@ -6492,6 +6548,30 @@ function unitSprite(kind, team, anim, f, tool) {
   if (d && d.big === 'kbal') return MAIN.ballistaElephantSprite(a, a === 'walk' ? f : Math.min(1, f));
   if (d && d.big === 'kcart') return cartBallistaSprite(a, a === 'walk' ? f : Math.min(1, f));
   return baseUnitSprite(kind, team, anim, f, tool);
+}
+/* Phrai Ying: a village woman of Ayutthaya. Short hair (as European visitors noted of Siamese
+   women), a sabai cloth across the chest, an ankle-length pha sin, a woven basket at the hip. 16x18 */
+function womanSprite(anim, f) {
+  return sprite('ayw|' + anim + '|' + f, 16, 18, 2, (P) => {
+    const r = P.r, walk = anim === 'walk', work = anim === 'work', atk = anim === 'attack';
+    const bob = (walk && (f === 1 || f === 3)) ? -1 : 0, low = work && f === 1 ? 1 : 0;
+    const B = (x, y, w, h, c) => r(x, y + 2 + bob, w, h, c);
+    const SIN = '#7a3b2e', SIN_L = '#a85a3a', SABAI = '#7b4bb3', SABAI_L = '#a77ad6';
+    // bare feet under the hem
+    const st = walk ? [[5, 9], [6, 8], [6, 9], [5, 8]][f] : [6, 8];
+    r(st[0], 16, 2, 1, SKIN_D); r(st[1], 16, 2, 1, SKIN_D);
+    // pha sin: a tube skirt to the ankle, a woven band at the hem
+    B(5, 10, 6, 5, SIN); B(5, 14, 6, 1, SIN_L); B(5, 12, 6, 1, SIN_L); B(4, 14, 1, 1, SIN);
+    // bare shoulders and arms, the sabai wrapped across the chest, one end over the left shoulder
+    B(5, 7, 6, 3, SKIN); B(5, 8, 6, 2, SABAI); B(5, 7, 2, 1, SABAI); B(6, 9, 5, 1, SABAI_L); B(5, 10, 6, 1, GOLD_D);
+    B(4, 8, 1, 3 + low, SKIN);
+    if (work) { B(11, 9 + low, 1, 3, SKIN); B(10, 12 + low, 3, 2, '#c9a35a'); B(10, 12 + low, 3, 1, '#e0c07a'); }
+    else if (atk && f === 1) { B(11, 8, 3, 1, SKIN); B(14, 7, 1, 2, WOOD_D); }
+    else { B(11, 8, 1, 3, SKIN); B(11, 10, 3, 3, '#c9a35a'); B(11, 10, 3, 1, '#e0c07a'); B(12, 11, 1, 1, '#9a7838'); }
+    // head: short cropped hair, a gold earring
+    B(6, 3, 4, 4, SKIN); B(6, 6, 4, 1, SKIN_D); B(9, 5, 1, 1, HAIR);
+    B(6, 2, 4, 1, HAIR); B(5, 3, 1, 2, HAIR); B(6, 3, 1, 1, HAIR); B(7, 1, 2, 1, HAIR); B(9, 6, 1, 1, GOLD);
+  });
 }
 /* the king on his royal elephant, under the white tiered umbrella of a Thai king */
 function kingSprite(anim, f) {
@@ -7078,7 +7158,7 @@ function sfxTick() {
   if (tc && tc.lastHit != null && tc.lastHit > (M.sndCit || -1) && G.t - tc.lastHit < 0.5) { M.sndCit = tc.lastHit; SFX.play('citadel'); }
 }
 /* ===== ay-ui.js ===== */
-Object.assign(TRAIN_SHORT, { villager: 'Phrai', daab: 'Daab', hok: 'Hok', thanu: 'Thanu', mo: 'Mo', chang: 'Chang Suek', boat: 'Pramong', light: 'Ruea Chai' });
+Object.assign(TRAIN_SHORT, { villager: 'Phrai Ying', daab: 'Daab', hok: 'Hok', thanu: 'Thanu', mo: 'Mo', chang: 'Chang Suek', boat: 'Pramong', light: 'Ruea Chai' });
 Object.assign(BUILD_SHORT, { house: 'Ruean', raft: 'Raft', farm: 'Na', granary: 'Granary', rong: 'Rong', barracks: 'Barracks', phaniat: 'Kraal', wat: 'Wat', tower: 'Pom', wall: 'Khai', gate: 'Gate', port: 'Landing' });
 const TIPS = [
   'Thai houses stand on stilts above the flood. A family\'s house, its rice paddy and the fish in that paddy fed it all year.',
@@ -7115,13 +7195,18 @@ function describeOrder(u) {
   const o = u.order;
   if (o.t === 'repair') return 'Repairing';
   if (o.t === 'refuge') return 'Fleeing into the city';
+  if (o.t === 'fishhouse') return u.working ? 'Fishing from the raft house' : 'Going to fish from the raft house';
   return baseDescribeOrder(u);
 }
 function bldNote(b) {
   const M = G.M;
-  if ((b.kind === 'house' || b.kind === 'raft') && b.team === 0) {
+  if (b.kind === 'raft' && b.team === 0) {
     const hh = G.households().some(h => h.house === b);
-    return (hh ? 'A household: its paddy is worked, so it brings in ' + HOUSEHOLD.food + ' fish every minute. ' : 'Put a worked paddy next to it to make a household (+' + HOUSEHOLD.food + ' fish a minute, up to 6). ') + 'Takes food.';
+    return (hh ? 'A fishing household: a woman fishes from its deck, about 30 food a minute, plus ' + HOUSEHOLD.food + ' a minute as a household. ' : 'Send a village woman to it and she will fish from its deck (+' + HOUSEHOLD.food + ' a minute as a household, up to 6). ') + 'Takes food.';
+  }
+  if (b.kind === 'house' && b.team === 0) {
+    const hh = G.households().some(h => h.house === b);
+    return (hh ? 'A household: its paddy is worked, so it brings in ' + HOUSEHOLD.food + ' fish every minute. ' : 'Put a worked paddy next to it to make a household (+' + HOUSEHOLD.food + ' fish a minute, up to 6). Build it on the water\'s edge and it becomes a raft house instead. ') + 'Takes food.';
   }
   if (b.kind === 'phaniat') return 'Trains Chang Suek war elephants: they break gates and trample infantry. Khmer spears are their bane.';
   if (b.kind === 'wat') return 'Trains the Mo, physicians who heal the wounded. Units resting beside it heal slowly.';
@@ -7238,14 +7323,14 @@ function hintText() {
   if (sortie) return sortie + ' Khmer from the sortie are out. Break them before they reach the camp.';
   if (M.phase === 1) {
     if (M.t < 45) return 'Select your Phon Thanu and attack the timber houses beyond the Baray: fire arrows set them alight.';
-    if (idle > 2) return idle + ' villagers are idle. Tap the idle button to put them to work.';
+    if (idle > 2) return idle + ' village women are idle. Tap the idle button to put them to work.';
     if (M.burned < BURN_GOAL) return 'Burn the outer town (' + M.burned + '/' + BURN_GOAL + '). Next sortie in ' + fmtTime(M.next - M.t) + '.';
     return 'Take the two face towers guarding the west causeway (' + M.outDown + '/2). Elephants and swords break towers.';
   }
   if (M.phase === 2) {
     const g = G.byId.get(M.gates.w), ch = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls === 'eleph').length;
     if (ch < 3) return 'Train more Chang Suek at the Phaniat. Elephants are the only way through a gate.';
-    if (idle > 2) return idle + ' villagers are idle. Tap the idle button to put them to work.';
+    if (idle > 2) return idle + ' village women are idle. Tap the idle button to put them to work.';
     return 'Send the elephants at a gate' + (g && g.hp > 0 ? ' (West Gate ' + Math.ceil(g.hp / g.maxHp * 100) + '%)' : '') + ', with spears and swords to screen them.';
   }
   if (M.heroBack.king) return 'The king is being carried back to the camp. Clear the palace guard while you wait.';
@@ -7431,6 +7516,16 @@ function setupFullscreen() {
   const begin = document.querySelector('#ov-start [data-do="start"]');
   if (begin) begin.addEventListener('click', () => { if (!fsEl() && matchMedia('(pointer: coarse)').matches) fsToggle(true); }, true);
 }
+
+/* the placement ghost shows the raft house when the spot is on the water's edge */
+const _ayPaintPlacement = paintPlacement;
+paintPlacement = function () {
+  if (mode && mode.kind === 'place' && mode.bkind === 'house' && mode.tx != null && G.houseForm('house', mode.tx, mode.ty, 0) === 'raft') {
+    mode.bkind = 'raft'; try { _ayPaintPlacement(); } finally { mode.bkind = 'house'; }
+    return;
+  }
+  _ayPaintPlacement();
+};
 
 ayBoot();
 
