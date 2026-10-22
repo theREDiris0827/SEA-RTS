@@ -16,6 +16,8 @@ You can jump straight to a part from the title screen, or with a link:
 
 ## Notes
 
+- Sound effects and music are generated in the browser, with no audio files. The music uses the Malay ghazal mode over rebana frame drums and a gong, with nobat-style drums in battle. You can turn sound and music on or off in the pause menu.
+
 - History follows the Sejarah Melayu. Loading tips give other sources, such as Tomé Pires. The Temenggung is an invented person holding a real title.
 - Ayutthaya appears only in teases: the scorched wall, a loading tip, Siamese sails in part 3, and the closing line.
 - The demo source is kept in the project files under `melaka-m1-demo/src/`. `build.py` there builds this file from the main game's `index.html`.
