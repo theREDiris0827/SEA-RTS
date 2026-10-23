@@ -370,11 +370,11 @@ body, button, .card, #hud { font-variant-ligatures: none; font-feature-settings:
       <ul class="help">
         <li><b>Scroll:</b> drag the map. <b>Zoom:</b> pinch (or the +/- buttons, or mouse wheel). <b>Select:</b> tap a unit or building; hold, then drag a box for a group. Double-tap a unit to pick all of its kind on screen. Tap it again to deselect.</li>
         <li><b>Command:</b> with units selected, tap the ground to move, a resource to gather, an enemy to attack. Mouse: right-click.</li>
-        <li><b>The Jong Raya</b> is your base. Select it (the Jong button, or H) to launch a boat: Kawula workers, Golok swords, Galah spears, Panah archers, Obor torches, fire ships, and later the messenger and Kelulus galleys. Each kind has a cooldown. She brings in a little food and wood, mends herself when no enemy is near, and patches boats beside her. If she sinks, the battle is lost; below 30% she cannot launch until mended above 60%.</li>
+        <li><b>The Jong Raya</b> is your base. Select it (the Jong button, or H) to launch a boat: Kawula workers, Golok swords, Galah spears, Panah archers, fire ships, and later the messenger and Kelulus galleys. Each kind has a cooldown. She brings in a little food and wood, mends herself when no enemy is near, and patches boats beside her. If she sinks, the battle is lost; below 30% she cannot launch until mended above 60%.</li>
         <li><b>Boats:</b> select a laden boat (it shows 3/4) and tap the shore: it sails to the nearest beach and puts its people ashore. Tap troops onto one of your boats to climb aboard.</li>
         <li><b>Batam</b> is the only place the fleet can build. Land Kawula there and build a Lumbung (supply hut) to drop food, wood and gold. Omah houses add room for 5 more.</li>
         <li><b>The Orang Laut</b> village on Batam is neutral. Give gifts, or drive off the Siamese raid on it, and they join you (Kelulus galleys, +20% wood). Strike them and they fight for Singapura.</li>
-        <li><b>Plunder:</b> burning the kampung, rice fields and the harbour outside the walls gives food and gold. Obor torches burn timber fast; earth walls barely scorch.</li>
+        <li><b>Plunder:</b> burning the kampung, rice fields and the harbour outside the walls gives food and gold. Every foot soldier throws an obor (torch) when attacking a building, and archers shoot fire arrows. Timber burns fast and keeps burning; gates burn slowly and earth walls barely scorch.</li>
         <li><b>The messenger</b> walks in at the south gate dressed as a trader and must talk with the treasurer. Keep soldiers away from him. Or break a gate by force.</li>
         <li><b>Win</b> by holding Bukit Larangan, the palace hill, for 20 s with no defenders near. <b>Lose</b> if the Jong Raya sinks or the Ayutthaya bar fills. Keys: A attack-move, S stop, F formation, . idle worker, H flagship, Space pause.</li>
       </ul>
@@ -4979,7 +4979,7 @@ function torchSprite(team, anim, f) {
   });
 }
 
-return { torchSprite, flamePx };
+return { torchSprite, fireArrowSprite, flamePx };
 })();
 
 /* ===== mj-sim.js ===== */
@@ -4995,7 +4995,7 @@ return { torchSprite, flamePx };
    ========================================================================== */
 
 const DMUL = { easy: 0.7, normal: 1, hard: 1.3 };
-const SIAM_CAP = { easy: 16, normal: 22, hard: 30 };          // most of Ayutthaya's army on the land at once
+const SIAM_CAP = { easy: 14, normal: 18, hard: 26 };          // most of Ayutthaya's army on the land at once
 const RACE_MIN = { easy: 28, normal: 24, hard: 21 };          // minutes until Ayutthaya takes the city on its own
 const TALK = { easy: 45, normal: 60, hard: 75 };              // seconds the messenger must talk with the treasurer
 const SPOT = { easy: 0.025, normal: 0.045, hard: 0.075 };     // chance every 4 s inside the walls that the messenger is found out
@@ -5013,14 +5013,14 @@ const FLAG_START = [55, 41];
 // the flagship's launches: what each boat carries, its cost and its cooldown group
 const LAUNCH = {
   workers: { boat: 'light', cargo: { villager: 4 }, cost: { food: 50, wood: 20 }, grp: 'jukung', label: 'Kawula', tip: 'A Jukung Perang with 4 Kawula workers' },
-  swords: { boat: 'light', cargo: { keris: 4 }, cost: { food: 70, wood: 30, gold: 20 }, grp: 'jukung', label: 'Golok', tip: 'A Jukung Perang with 4 Golok swordsmen' },
-  spears: { boat: 'light', cargo: { tombak: 4 }, cost: { food: 50, wood: 50 }, grp: 'jukung', label: 'Galah', tip: 'A Jukung Perang with 4 Galah spearmen' },
-  archers: { boat: 'light', cargo: { archer: 4 }, cost: { wood: 60, gold: 40 }, grp: 'jukung', label: 'Panah', tip: 'A Jukung Perang with 4 archers' },
-  torches: { boat: 'light', cargo: { obor: 4 }, cost: { food: 40, wood: 50 }, grp: 'jukung', label: 'Obor', tip: 'A Jukung Perang with 4 Obor torch bearers: they burn timber fast' },
+  swords: { boat: 'light', cargo: { keris: 4 }, cost: { food: 90, gold: 20 }, grp: 'jukung', label: 'Golok', tip: 'A Jukung Perang with 4 Golok swordsmen' },
+  spears: { boat: 'light', cargo: { tombak: 4 }, cost: { food: 70, wood: 30 }, grp: 'jukung', label: 'Galah', tip: 'A Jukung Perang with 4 Galah spearmen' },
+  archers: { boat: 'light', cargo: { archer: 4 }, cost: { food: 30, wood: 40, gold: 35 }, grp: 'jukung', label: 'Panah', tip: 'A Jukung Perang with 4 archers' },
   fire: { boat: 'fireship', cargo: {}, cost: { wood: 60, gold: 10 }, grp: 'fire', label: 'Perahu Api', tip: 'A fire ship: sail it into the enemy and it burns everything around' },
   kelulus: { boat: 'galley', cargo: { bhaya: 2, keris: 3, tombak: 3 }, cost: { food: 140, wood: 100, gold: 50 }, grp: 'kelulus', label: 'Kelulus', tip: 'A Kelulus galley with 2 Bhayangkara, 3 Golok and 3 Galah. Needs the Orang Laut' },
   messenger: { boat: 'msgboat', cargo: { utusan: 1 }, cost: {}, grp: 'msg', label: 'Utusan', tip: 'The messenger, dressed as a trader, in a small trading boat' }
 };
+const TORCH = { sword: 7, spear: 5, elite: 8, archer: 4 };   // fire damage a hit does to a building
 const COOLDOWN = { jukung: 22, fire: 40, kelulus: 70, msg: 0 };
 
 /* ---------- units ---------- */
@@ -5073,7 +5073,7 @@ Object.assign(BD, {
 Object.assign(BD.granary, { drop: ['food', 'wood', 'gold'], cost: { wood: 60 }, time: 16 });
 Object.assign(BD.house, { cost: { wood: 30 }, pop: 5 });
 Object.assign(BD.port, { train: ['boat', 'light'], cost: { wood: 110 }, time: 25 });
-Object.assign(BD.barracks, { train: ['keris', 'tombak', 'archer', 'obor'], cost: { wood: 140 } });
+Object.assign(BD.barracks, { train: ['keris', 'tombak', 'archer'], cost: { wood: 140 } });
 Object.assign(BD.patirthan, { cost: { wood: 120, gold: 30 }, time: 30 });
 Object.assign(BD.palace, { keep: true, train: [] });
 for (const k of ['tradepost', 'rumahtabib', 'mill', 'goldmine']) delete BD[k];
@@ -5567,11 +5567,14 @@ Game.prototype.damage = function (att, tgt) {
     if (att.team === 0 && this.t - (this.lastKeepMsg || -99) > 20) { this.lastKeepMsg = this.t; this.msg(tgt.kind === 'palace' ? 'Bukit Larangan is to be taken, not razed. Clear its guard and hold the hill.' : 'The treasurer\'s house is not to be touched.'); }
     return;
   }
-  if (tgt.isBld && ad && ad.fire) {
-    // a lit torch is thrown: earth banks barely catch, the stakes on top and the timber gates burn on
-    const mul = tgt.kind === 'cwall' ? 0.45 : tgt.kind === 'gate' ? 0.7 : 1;
-    this.arrows.push({ k: 'torch', x0: att.x, y0: att.y - 0.5, x1: tgt.x + (this.rng() - 0.5) * 0.6, y1: tgt.y - 0.2, t: 0, dur: 0.35 });
-    tgt.hp -= ad.fire * mul; tgt.hit = 0.15; tgt.lastHit = this.t; tgt.burn = this.t + 6; tgt.burnDps = 2.5 * mul; tgt.burnBy = att;
+  // the fleet's foot soldiers throw torches (obor) at buildings, its archers shoot fire arrows (panah api)
+  const fire = tgt.isBld && ad && att.team === 0 && att.isUnit ? (ad.fire || TORCH[ad.cls] || 0) : 0;
+  if (fire) {
+    // earth banks barely catch; the stakes on top and the timber gates burn on
+    const mul = tgt.kind === 'cwall' ? 0.45 : tgt.kind === 'gate' ? 0.7 : 1, arrow = ad.cls === 'archer';
+    if (arrow) { const last = this.arrows[this.arrows.length - 1]; if (last && last.x0 === att.x && last.y0 === att.y - 0.4) last.k = 'fire'; }
+    else this.arrows.push({ k: 'torch', x0: att.x, y0: att.y - 0.5, x1: tgt.x + (this.rng() - 0.5) * 0.6, y1: tgt.y - 0.2, t: 0, dur: 0.3 });
+    tgt.hp -= fire * mul; tgt.hit = 0.15; tgt.lastHit = this.t; tgt.burn = this.t + 6; tgt.burnDps = Math.max(tgt.burnDps && tgt.burn > this.t ? tgt.burnDps : 0, (arrow ? 1.5 : 2.5) * mul); tgt.burnBy = att;
     if (this.rng() < 0.5) this.fx.push({ k: 'smoke', x: tgt.x + (this.rng() - 0.5) * tgt.size * 0.6, y: tgt.y - 0.2, vy: -0.8 - this.rng() * 0.6, t: 1.4, max: 1.4 });
     if (!tgt._ign || this.t - tgt._ign > 3) { tgt._ign = this.t; this.sfx('ignite', tgt.x, tgt.y); }
     if (tgt.hp <= 0) this.onKilled(tgt, att);
@@ -5640,7 +5643,7 @@ Game.prototype.giftOL = function () {
 const _nearestEnemy = Game.prototype.nearestEnemy;
 Game.prototype.nearestEnemy = function (u, r) {
   const t = _nearestEnemy.call(this, u, r);
-  if (t && t.isBld && (BD[t.kind].keep || (t.kind === 'cwall' && u.kind !== 'obor'))) return null;
+  if (t && t.isBld && (BD[t.kind].keep || t.kind === 'cwall')) return null;
   return t;
 };
 
@@ -5882,7 +5885,7 @@ function startPhase3(g, how) {
   for (const u of g.units) if (u.team === 1 && u.post && (u.post.name === 'west' || u.post.name === 'south') && g.rng() < 0.5) u.post = { x: P.x + (g.rng() - 0.5) * 3, y: P.y + (g.rng() - 0.5) * 2, r: P.r, name: 'palace' };
   if (M.msgr && M.msgr.hp > 0) M.msgr.disguise = false;
   // the king's household guard musters on the hill for the last stand
-  const pal = g.byId.get(M.palace), HG = { sg_sword: 5, sg_spear: 4, sg_archer: 3, sg_sumpit: 2 };
+  const pal = g.byId.get(M.palace), HG = { sg_sword: 4, sg_spear: 3, sg_archer: 2, sg_sumpit: 2 };
   if (pal) for (const k in HG) for (let i = 0, n = Math.max(1, Math.round(HG[k] * DMUL[g.diff])); i < n; i++) {
     const sp = g.openSpot(pal.x + (g.rng() - 0.5) * 5, pal.y + 2.2 + g.rng() * 1.5, 0), u = g.addUnit(k, 1, sp.x, sp.y);
     u.post = { x: sp.x, y: sp.y, r: 6, name: 'palace' };
@@ -6090,6 +6093,14 @@ function paintMission() {
 /* ---------- a thrown torch: a spinning stick with a flame on its end ---------- */
 const _drawArrowBase = drawArrow;
 drawArrow = function (a) {
+  if (a.k === 'fire') {
+    const p = a.t / a.dur, lift = Math.sin(p * Math.PI) * 0.6;
+    const x = (a.x0 + (a.x1 - a.x0) * p) * TILE, y = (a.y0 + (a.y1 - a.y0) * p - lift) * TILE - 8;
+    const spr = SIEGE.fireArrowSprite(Math.floor(nowS * 12) & 1);
+    const ang = Math.atan2((a.y1 - a.y0) * TILE - Math.cos(p * Math.PI) * 0.6 * Math.PI * TILE, (a.x1 - a.x0) * TILE);
+    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(ang); ctx.drawImage(spr, -spr.width + 4, -spr.height / 2, spr.width * 0.75, spr.height * 0.75); ctx.restore();
+    return;
+  }
   if (a.k !== 'torch') return _drawArrowBase(a);
   const p = a.t / a.dur, lift = Math.sin(p * Math.PI) * 0.8;
   const x = (a.x0 + (a.x1 - a.x0) * p) * TILE, y = (a.y0 + (a.y1 - a.y0) * p - lift) * TILE - 8;
@@ -6188,7 +6199,7 @@ function drawScene(id) {
     putUnit(x, 'sg_archer', 1, 140, 98, 'attack', 1, true); putUnit(x, 'sg_spear', 1, 330, 98, 'idle', 0, true);
     ground(x, W2, 120, 150, '#c9b47c', '#a8925c');
     seaBand(x, W2, 150, H2, '#2a6a8a', '#79b8c8', 6);
-    putUnit(x, 'keris', 0, 110, 148, 'walk', 1); putUnit(x, 'tombak', 0, 140, 146, 'walk', 2); putUnit(x, 'obor', 0, 170, 150, 'walk', 0); putUnit(x, 'archer', 0, 80, 150, 'attack', 0);
+    putUnit(x, 'keris', 0, 110, 148, 'walk', 1); putUnit(x, 'tombak', 0, 140, 146, 'walk', 2); putUnit(x, 'keris', 0, 170, 150, 'walk', 0); putUnit(x, 'archer', 0, 80, 150, 'attack', 0);
     putShip(x, 'light', 0, 120, 194); putShip(x, 'msgboat', 0, 320, 186, true);
     putUnit(x, 'utusan', 0, 268, 146, 'walk', 1, true);
   } else if (id === 'siam') {
@@ -6229,7 +6240,7 @@ function drawScene(id) {
     glow(x, 240, 128, 26, 'rgba(255,170,80,.45)');
     x.fillStyle = 'rgba(0,0,0,.3)'; x.fillRect(0, 140, W2, 76);
     ground(x, W2, 142, H2, '#3a5030', '#2a3c24');
-    putUnit(x, 'keris', 0, 200, 186, 'walk', 1); putUnit(x, 'tombak', 0, 168, 196, 'walk', 2); putUnit(x, 'obor', 0, 230, 200, 'walk', 0); putUnit(x, 'bhaya', 0, 136, 204, 'walk', 3);
+    putUnit(x, 'keris', 0, 200, 186, 'walk', 1); putUnit(x, 'tombak', 0, 168, 196, 'walk', 2); putUnit(x, 'keris', 0, 230, 200, 'walk', 0); putUnit(x, 'bhaya', 0, 136, 204, 'walk', 3);
     putUnit(x, 'utusan', 0, 270, 170, 'idle', 0, true);
   } else if (id === 'breach') {
     skyBands(x, W2, 0, 120, ['#4a3a4a', '#a0705a', '#f0c090']);
@@ -6238,7 +6249,7 @@ function drawScene(id) {
     ground(x, W2, 150, H2, '#7a6a48', '#665a3c');
     x.fillStyle = 'rgba(170,140,100,.55)'; for (let i = 0; i < 7; i++) x.fillRect(206 + i * 9, 140 - i * 6, 22, 14);
     flames(x, [[214, 146, 7], [262, 150, 6]], 0);
-    putUnit(x, 'keris', 0, 200, 196, 'attack', 1); putUnit(x, 'tombak', 0, 236, 202, 'walk', 0); putUnit(x, 'obor', 0, 170, 200, 'attack', 0);
+    putUnit(x, 'keris', 0, 200, 196, 'attack', 1); putUnit(x, 'tombak', 0, 236, 202, 'walk', 0); putUnit(x, 'keris', 0, 170, 200, 'attack', 0);
     putUnit(x, 'sg_sword', 1, 300, 196, 'attack', 1, true); putUnit(x, 'sg_spear', 1, 330, 202, 'attack', 0, true);
   } else if (id === 'closing') {
     // dawn: the red and white banner flies on Bukit Larangan; a small boat slips away west along the coast
@@ -6548,7 +6559,7 @@ function mjPanelKey(us) {
 }
 function launchIcon(key) {
   const L = LAUNCH[key], k = Object.keys(L.cargo);
-  return key === 'workers' || key === 'swords' || key === 'spears' || key === 'archers' || key === 'torches' || key === 'messenger' ? unitIcon(k[0], 0) : unitIcon(L.boat, 0);
+  return key === 'workers' || key === 'swords' || key === 'spears' || key === 'archers' || key === 'messenger' ? unitIcon(k[0], 0) : unitIcon(L.boat, 0);
 }
 function mjUnitCmds(us) {
   const M = G.M; if (!M) return '';
@@ -6610,10 +6621,10 @@ function bldNote(b) {
   if (b.kind === 'village') return !M ? '' : M.ol === 'neutral' ? 'The Orang Laut, sworn to Singapura\'s kings. Give gifts, or drive off a raid on them, and they join you. Do not strike them.' : M.ol === 'ally' ? 'The Orang Laut sail with you: +20% wood at every drop, and the Kelulus galleys can launch.' : 'The Orang Laut fight for Singapura now.';
   if (b.kind === 'bendahari') return 'The house of Sang Rajuna Tapa, the king\'s treasurer. Send the messenger here. Not to be touched.';
   if (b.kind === 'cwall') return 'An earth rampart topped with stakes. Too thick to break: go through a gate.';
-  if (b.kind === 'gate') return b.open ? 'Open.' : 'Timber doors in the rampart. Obor torches burn them slowly; the treasurer can open the south one.';
+  if (b.kind === 'gate') return b.open ? 'Open.' : 'Timber doors in the rampart. Torches and fire arrows burn them slowly; the treasurer can open the south one.';
   if (b.kind === 'palace' && !own) return 'Bukit Larangan, the Forbidden Hill. Clear its guard and hold the hill to raise the banner.';
   if (b.kind === 'port' && !own) return 'Singapura\'s harbour. Burn it and its war boats have nowhere to come home to.';
-  if (b.outer) return 'Timber and thatch outside the walls: Obor torches burn it fast. Food and gold for the fleet.';
+  if (b.outer) return 'Timber and thatch outside the walls: your soldiers\' torches and fire arrows burn it fast. Food and gold for the fleet.';
   if (b.kind === 'granary' && own) return 'The Lumbung: the fleet\'s supply hut on Batam. Kawula drop food, wood and gold here.';
   if (b.kind === 'port' && own) return 'A jetty: Jukung fishing boats unload fish here.';
   if (b.kind === 'wall' && own) return 'A stake fence. Cheap, and it burns.';
@@ -6756,7 +6767,7 @@ function hintText() {
     if (!M.hut) return 'Select your Kawula and build a Lumbung (supply hut) on Batam.';
     if (idle > 2) return idle + ' Kawula are idle. Tap the idle button to put them to work.';
     if (M.ol === 'neutral') return 'Win over the Orang Laut: select their village and give gifts, or drive off the Siamese raid on it.';
-    if (!M.harbourDown) return 'Burn Singapura\'s harbour (east of the walls). Obor torches and fire ships burn timber fast.';
+    if (!M.harbourDown) return 'Burn Singapura\'s harbour (east of the walls). Your soldiers throw torches, archers shoot fire arrows, and fire ships burn timber fast.';
     return 'Plunder the kampung outside the walls for food and gold. The siege begins soon.';
   }
   if (M.phase === 2) {
@@ -6860,7 +6871,7 @@ function skipTo(stage) {
   for (const u of G.units) if (u.team === 0 && u.kind === 'villager') { const n = G.nearestNode(u.x, u.y, 'wood', 0, 10, 0); if (n) G.orderGather(u, n); }
   G.res[0] = { food: 700, wood: 500, gold: 350 };
   M.t = 240; M.hut = true; M.landed = 10; M.siam = 18; M.siamNext = M.t + 30; M.raidNext = M.t + 90; M.sgRaidNext = M.t + 200;
-  const army = { keris: 6, tombak: 6, archer: 5, obor: 4 };
+  const army = { keris: 8, tombak: 7, archer: 6 };
   let i = 0; for (const k in army) for (let j = 0; j < army[k]; j++, i++) put(k, 34 + (i % 7) * 1.1, 15.6 + Math.floor(i / 7) * 0.8);
   { const p = G.openSpot(33, 24, 1); M.flag.x = p.x; M.flag.y = p.y; M.flag.path = null; G.idleOrder(M.flag); }
   M.phase = 2; M.phaseAt = M.t;
