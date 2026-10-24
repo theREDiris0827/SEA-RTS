@@ -39,6 +39,7 @@ body {
 }
 button { font: inherit; color: inherit; touch-action: manipulation; cursor: pointer; }
 img { image-rendering: pixelated; image-rendering: crisp-edges; }
+body, button, input { font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0; }
 #app { position: fixed; inset: 0; background: var(--ink); overflow: hidden; }
 #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
 
@@ -6611,6 +6612,16 @@ const SFX = (() => {
     rout: () => { drum(0); drum(0.2); notes('square', [0, 0, 392, 523, 659, 784, 659, 784, 1047], 0.1, 0.3); },
     victory: () => { notes('square', [523, 523, 523, 659, 784, 0, 659, 784, 1047, 1047], 0.13, 0.3); notes('triangle', [262, 0, 262, 0, 392, 0, 330, 0, 523, 523], 0.13, 0.4); },
     defeat: () => { notes('triangle', [392, 370, 330, 294, 262, 0, 196], 0.22, 0.45); drum(0); drum(1.3, 0.7); },
+    // combat: what happens on screen, kept soft so it sits under the music
+    clash: () => { tone('square', 0, 0.05, 1760, 1320, 0.1); noise(0, 0.05, 0.18, 4000); },
+    thud: () => { tone('triangle', 0, 0.1, 130, 60, 0.35); noise(0, 0.07, 0.22, 500); },
+    twang: () => { tone('triangle', 0, 0.07, 620, 300, 0.22); noise(0.02, 0.05, 0.08, 5000); },
+    die: () => { tone('square', 0, 0.16, 330, 110, 0.12); },
+    collapse: () => { noise(0, 0.7, 0.55, 320); tone('triangle', 0, 0.6, 90, 30, 0.6); noise(0.25, 0.4, 0.3, 900); },
+    sink: () => { tone('triangle', 0, 0.8, 360, 70, 0.4); noise(0, 0.5, 0.3, 1500); noise(0.3, 0.6, 0.2, 700); },
+    splash: () => { noise(0, 0.18, 0.3, 1800); tone('sine', 0, 0.12, 500, 250, 0.15); },
+    raft: () => { noise(0, 0.5, 0.25, 1200); tone('sawtooth', 0.05, 0.3, 200, 400, 0.08); },
+    fire: () => { [0, 0.07, 0.16, 0.22].forEach(a => noise(a, 0.04, 0.25, 2500)); noise(0, 0.5, 0.12, 400); },
     click: () => { tone('square', 0, 0.04, 1200, 0, 0.12); },
     // selection: villagers chirp, soldiers grunt, heroes ring, buildings knock
     selVil: () => { tone('square', 0, 0.05, 988, 0, 0.14); tone('square', 0.05, 0.06, 1319, 0, 0.12); },
@@ -6635,7 +6646,7 @@ const SFX = (() => {
     nobat: () => { drum(0); drum(0.15); drum(0.3, 1); notes('sawtooth', [0, 0, 0, 440, 466, 554, 587, 0, 880], 0.12, 0.13); tone('triangle', 0.4, 2, 98, 92, 0.6); }
   };
   // minimum seconds between repeats of the same sound
-  const GAP = { attack: 9, citadel: 6, arm: 0.5, click: 0.05, ui: 0.04, selVil: 0.08, selMil: 0.08, selHero: 0.08, selBld: 0.08, move: 0.08, attackCmd: 0.08, work: 0.08, place: 0.1, train: 0.06, gun: 0.09, boom: 0.25 };
+  const GAP = { attack: 9, citadel: 6, arm: 0.5, click: 0.05, ui: 0.04, selVil: 0.08, selMil: 0.08, selHero: 0.08, selBld: 0.08, move: 0.08, attackCmd: 0.08, work: 0.08, place: 0.1, train: 0.06, gun: 0.09, boom: 0.25, clash: 0.16, thud: 0.25, twang: 0.18, die: 0.18, collapse: 0.6, sink: 0.6, splash: 0.3, raft: 1, fire: 1.5 };
   function play(name) {
     if (muted || !ctx || ctx.state !== 'running' || !BANK[name]) return;
     const now = ctx.currentTime;
@@ -6770,6 +6781,33 @@ function setupSound() {
   };
   // every button in the command panel gives a small tick
   $('panel').addEventListener('click', (e) => { if (e.target.closest('[data-a]')) SFX.play('ui'); }, true);
+  // combat sounds: the sim notes what happened and where, sfxTick plays the ones on screen
+  const ev = (g, k, o) => { if (o && o.x != null) (g.sfxEv || (g.sfxEv = [])).push({ k, x: o.x, y: o.y }); };
+  const _damage = Game.prototype.damage;
+  Game.prototype.damage = function (att, tgt, w) {
+    if (att && att.isUnit && tgt) {
+      const rg = w ? w.ranged : att.ranged, gun = att.isUnit && UD[att.kind] && UD[att.kind].gun;
+      if (w && w.wpn === 'cannon') { /* boom comes from the gun queue */ }
+      else if (rg) { if (!gun) ev(this, 'twang', att); }
+      else ev(this, tgt.isBld ? 'thud' : 'clash', tgt);
+    }
+    return _damage.call(this, att, tgt, w);
+  };
+  const _killed = Game.prototype.onKilled;
+  Game.prototype.onKilled = function (t, att) {
+    if (t.isBld) ev(this, 'collapse', t);
+    else if (t.layer === 1 || t.cls === 'ship' || t.cls === 'boat') ev(this, t.kind === 'raft' ? 'fire' : 'sink', t);
+    else if (t.cls !== 'animal') ev(this, 'die', t);
+    return _killed.call(this, t, att);
+  };
+  if (Game.prototype.launchRaft) {
+    const _raft = Game.prototype.launchRaft;
+    Game.prototype.launchRaft = function (b) { const r = _raft.apply(this, arguments); ev(this, 'raft', b); return r; };
+  }
+  if (Game.prototype.ignite) {
+    const _ign = Game.prototype.ignite;
+    Game.prototype.ignite = function (t) { const was = t && t.burn; const r = _ign.apply(this, arguments); if (t && t.burn && !was) ev(this, 'fire', t); return r; };
+  }
 }
 
 // called from updateHud: the music mood and sounds that are not tied to a message
@@ -6785,6 +6823,15 @@ function sfxTick() {
     const vx0 = cam.x / TILE, vy0 = cam.y / TILE, vx1 = vx0 + view.w / view.zoom / TILE, vy1 = vy0 + view.h / view.zoom / TILE;
     for (const s of G.sfxShots) if (s.x >= vx0 - 2 && s.x <= vx1 + 2 && s.y >= vy0 - 2 && s.y <= vy1 + 2) SFX.play(s.big ? 'boom' : 'gun');
     G.sfxShots.length = 0;
+  }
+  // combat sounds on screen, plus troops climbing on or off a galley
+  const vx0 = cam.x / TILE - 2, vy0 = cam.y / TILE - 2, vx1 = vx0 + view.w / view.zoom / TILE + 4, vy1 = vy0 + view.h / view.zoom / TILE + 4;
+  if (G.sfxEv && G.sfxEv.length) {
+    for (const e of G.sfxEv) if (e.x >= vx0 && e.x <= vx1 && e.y >= vy0 && e.y <= vy1) SFX.play(e.k);
+    G.sfxEv.length = 0;
+  }
+  for (const u of G.units) if (u.cargo) {
+    const n = u.cargo.length; if (u.sndN != null && n !== u.sndN && u.hp > 0 && u.x >= vx0 && u.x <= vx1 && u.y >= vy0 && u.y <= vy1) SFX.play('splash'); u.sndN = n;
   }
 }
 /* ===== mr-ui.js ===== */
