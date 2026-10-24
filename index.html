@@ -361,17 +361,23 @@ const UD = {
   acaraki: { name: 'Acaraki', hp: 25, spd: 2.4, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 7, cost: { food: 35, gold: 15 }, time: 8, cls: 'healer', civ: 1, heal: { amt: 2, rate: 1.5, rng: 2.5, area: true, max: 6 } },
   boat: { name: 'Fishing Boat', hp: 40, spd: 3.0, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 50 }, time: 10, cls: 'boat', carry: 14, layer: 1, slot: 'fishing' },
   // navy (Melaka numbers; Majapahit ships get NAVMOD on top: cheaper, faster, weaker)
-  trade: { name: 'Armed Trade Ship', hp: 150, spd: 2.6, atk: 4, rng: 4.5, rate: 2.0, ma: 1, pa: 2, sight: 7, cost: { wood: 100, gold: 60 }, time: 18, cls: 'ship', ranged: true, layer: 1, slot: 'trade', civ: 0, trader: true },
-  fireship: { name: 'Fire Ship', hp: 55, spd: 3.5, atk: 0, rng: 0.7, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 70, gold: 10 }, time: 10, cls: 'ship', layer: 1, slot: 'trade', civ: 1, boom: { dmg: 105, r: 1.7 } },
-  light: { name: 'Sloop', hp: 90, spd: 3.4, atk: 5, rng: 5, rate: 1.6, ma: 1, pa: 1, sight: 7.5, cost: { wood: 70, gold: 20 }, time: 14, cls: 'ship', ranged: true, layer: 1, slot: 'light' },
-  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 7, rng: 5.5, rate: 1.8, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', ranged: true, layer: 1, slot: 'galley' },
-  frigate: { name: 'Frigate', hp: 300, spd: 2.4, atk: 12, rng: 6.5, rate: 2.5, ma: 2, pa: 3, sight: 8, cost: { wood: 200, gold: 120 }, time: 30, cls: 'ship', ranged: true, layer: 1, slot: 'frigate' },
-  flagship: { name: 'Flagship', hp: 650, spd: 2.0, atk: 16, rng: 7, rate: 2.6, ma: 3, pa: 4, sight: 9, cost: { wood: 450, gold: 300 }, time: 45, cls: 'ship', ranged: true, layer: 1, slot: 'flagship', one: true, civHp: [650, 1100] },
+  trade: { name: 'Armed Trade Ship', hp: 150, spd: 2.6, atk: 4, rng: 4.5, rate: 2.0, ma: 1, pa: 2, sight: 7, cost: { wood: 100, gold: 60 }, time: 18, cls: 'ship', ranged: true, layer: 1, slot: 'trade', civ: 0, trader: true, wpn: 'arrow', swivel: true, kb: { boat: 4 } },
+  fireship: { name: 'Fire Ship', hp: 55, spd: 3.5, atk: 0, rng: 0.7, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 70, gold: 10 }, time: 10, cls: 'ship', layer: 1, slot: 'trade', civ: 1, boom: { dmg: 105, r: 1.7, big: 1.8 } },
+  light: { name: 'Sloop', hp: 90, spd: 3.4, atk: 7, rng: 5.5, rate: 1.2, ma: 1, pa: 1, sight: 7.5, cost: { wood: 70, gold: 20 }, time: 14, cls: 'ship', ranged: true, layer: 1, slot: 'light', wpn: 'arrow', fireA: true, swivel: true, kb: { fireship: 40, trade: 6, boat: 6 } },
+  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 22, rng: 1.2, rate: 2.0, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', layer: 1, slot: 'galley', wpn: 'board', scan: 5.5, sec: { atk: 4, rng: 4, rate: 1.5 }, swivel: true, kb: { light: 8, trade: 8, boat: 8 } },
+  frigate: { name: 'Frigate', hp: 300, spd: 2.4, atk: 30, rng: 7, rate: 4.0, ma: 2, pa: 3, sight: 8, cost: { wood: 200, gold: 120 }, time: 30, cls: 'ship', ranged: true, layer: 1, slot: 'frigate', wpn: 'cannon', kb: { galley: 10 }, miss: { light: 0.35, fireship: 0.35 } },
+  flagship: { name: 'Flagship', hp: 650, spd: 2.0, atk: 24, rng: 7, rate: 3.5, ma: 3, pa: 4, sight: 9, cost: { wood: 450, gold: 300 }, time: 45, cls: 'ship', ranged: true, layer: 1, slot: 'flagship', one: true, civHp: [650, 1100], wpn: 'cannon', sec: { atk: 6, rng: 7, rate: 1.5 }, fireA: true },
   deer: { name: 'Deer', hp: 14, spd: 1.3, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 3, cost: {}, time: 0, cls: 'animal' }
 };
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
 /* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
 const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };
+/* naval weapons (lore/naval-combat.md). navTier per team is the age at sea: 0 arrows and boarding,
+   1 adds fire arrows and swivel guns (lela/rentaka, cetbang) or crossbow volleys, 2 adds cannon.
+   Burning ignores armour; buildings burn by material (timber, brick, stone), demos can change BURNMAT. */
+const NAVWPN = { tierDefault: 2, swivelArmCut: 0.5, swivelCrew: 2, cannonBld: 1.5, noCannonAtk: 0.45 };
+const BURN = { bld: 3, ship: 1, dur: 15, max: 3, portR: 4, portHeal: 2 };
+const BURNMAT = [1, 0.5, 1];
 /* civ names: [Melaka, Majapahit]; English class in brackets where the name is local */
 const CIV_NAMES = {
   keris: [null, 'Golok Warrior'], tombak: [null, 'Galah Warrior'],
@@ -437,6 +443,7 @@ class Game {
     this.visible = new Uint8Array(W * H); this.explored = new Uint8Array(W * H);
     this.units = []; this.buildings = []; this.nodes = []; this.byId = new Map();
     this.fx = []; this.arrows = []; this.floaters = []; this.msgs = []; this.alerts = [];
+    this.navTier = [NAVWPN.tierDefault, NAVWPN.tierDefault]; this.burning = new Set();
     this.res = [{ food: 200, wood: 200, gold: 100 }, { food: 200, wood: 200, gold: 100 }];
     this.stats = { deposited: 0, kills: 0, lost: 0, built: 0, trained: 0, wood: 0 };
     this.pStamp = 0; this.pSeen = new Int32Array(W * H); this.pClosed = new Int32Array(W * H);
@@ -937,11 +944,11 @@ class Game {
   nearestEnemy(u, r) {
     let best = null, bs = 1e9;
     const team = u.team, sea = u.layer === 1;
-    if (sea) r = Math.min(r, u.rng + 1.5);
+    if (sea) r = Math.min(r, (UD[u.kind].scan || u.rng) + 1.5);
     this.unitsNear(u.x, u.y, r, (o) => {
       if (o.hp <= 0 || o.team === team || o.team === 2) return;
       if (o.layer === 1 && !u.ranged && !sea) return;
-      if (u.kind === 'fireship' && o.layer !== 1) return;
+      if ((u.kind === 'fireship' || (UD[u.kind].wpn === 'board' && !UD[u.kind].sec)) && o.layer !== 1) return;
       const d = Math.hypot(o.x - u.x, o.y - u.y); if (d > r) return;
       if (team === 0 && !this.isVisible(o.x, o.y)) return;
       const s = d + (o.cls === 'vil' || o.cls === 'boat' ? 3 : 0);
@@ -1192,6 +1199,7 @@ class Game {
     for (const b of this.buildings) this.updateBuilding(b, dt);
     for (const u of this.units) if (u.hp > 0) this.updateUnit(u, dt);
     this.separate();
+    this.updateBurning(dt);
     this.cleanup();
     this.updateFx(dt);
     this.aiAcc += dt; if (this.aiAcc >= 1) { this.aiAcc -= 1; this.aiTick(); }
@@ -1274,7 +1282,7 @@ class Game {
   }
 
   updateUnit(u, dt) {
-    u.cd = Math.max(0, u.cd - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
+    u.cd = Math.max(0, u.cd - dt); if (u.cd2) u.cd2 = Math.max(0, u.cd2 - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
     u.wait = Math.max(0, u.wait - dt); u.rp = Math.max(0, u.rp - dt);
     u.anim += dt; u.moving = false; u.working = false;
     const o = u.order;
@@ -1345,14 +1353,18 @@ class Game {
     if (u.team === 0 && t.isUnit && t.team !== 2 && !this.isVisible(t.x, t.y)) { done(); return; }
     if (o.leash && Math.hypot(u.x - o.leash.x, u.y - o.leash.y) > o.leash.r) { this.orderMove(u, o.leash.x, o.leash.y); return; }
     const rect = t.isUnit ? { ax: t.x, ay: t.y, bx: t.x, by: t.y } : t.rect;
-    const reach = u.rng + (t.isUnit ? 0.35 : 0);
+    const D = UD[u.kind], board = D.wpn === 'board', secOnly = board && D.sec && (t.isBld || t.layer !== 1);
+    const reach = (secOnly ? D.sec.rng : u.rng) + (t.isUnit ? 0.35 : 0);
     const dist = rectDist(u.x, u.y, rect);
+    if (D.sec && !secOnly && dist <= D.sec.rng + 0.35) this.secShot(u, t, dist);
     if (dist <= reach) {
       u.path = null; u.moving = false;
       if (Math.abs(t.x - u.x) > 0.05) u.face = t.x > u.x ? 1 : -1;
-      if (UD[u.kind].boom) { this.explode(u); return; }
+      if (D.boom) { this.explode(u); return; }
+      if (secOnly) { this.secShot(u, t, dist); return; }
       if (u.cd <= 0) {
         u.cd = u.rate; u.atkT = Math.min(0.28, u.rate * 0.6);
+        if (D.wpn) { this.shipShot(u, t, dist); return; }
         if (u.ranged) this.arrows.push({ x0: u.x, y0: u.y - 0.4, x1: t.x, y1: t.isBld ? t.y : t.y - 0.3, t: 0, dur: 0.12 + dist * 0.035 });
         this.damage(u, t);
       }
@@ -1448,14 +1460,73 @@ class Game {
     if (this.stepMove(u, dt)) u.path = null;
   }
 
+  /* a ship's main weapon: arrows (fire arrows from tier 1), boarding, or cannon (tier 2) */
+  shipShot(u, t, dist) {
+    const D = UD[u.kind], tier = this.navTier[u.team] != null ? this.navTier[u.team] : NAVWPN.tierDefault;
+    const w = { wpn: D.wpn, atk: u.atk, ranged: D.wpn !== 'board', kb: D.kb, swv: D.swivel && tier >= 1, fire: D.fireA && tier >= 1 };
+    if (D.wpn === 'cannon' && tier < 2) { w.wpn = 'shot'; w.atk = Math.round(u.atk * NAVWPN.noCannonAtk); w.swv = true; }
+    const y1 = t.isBld ? t.y : t.y - 0.3, dur = 0.12 + dist * 0.035;
+    if (w.wpn === 'board') { this.fx.push({ k: 'spark', x: t.x, y: t.y - 0.4, t: 0.35, max: 0.35 }); }
+    else if (w.wpn === 'cannon') {
+      this.arrows.push({ k: 'ball', x0: u.x, y0: u.y - 0.4, x1: t.x, y1, t: 0, dur: dur * 1.3 });
+      this.fx.push({ k: 'smoke', x: u.x + u.face * 0.4, y: u.y - 0.5, vy: -0.4, t: 0.9, max: 0.9 });
+      if (D.miss && D.miss[t.kind] && this.rng() < D.miss[t.kind]) { this.fx.push({ k: 'splash', x: t.x + (this.rng() - 0.5), y: t.y + 0.4, t: 0.5, max: 0.5 }); return; }
+    } else this.arrows.push({ k: w.fire ? 'fire' : (w.swv ? 'shot' : null), x0: u.x, y0: u.y - 0.4, x1: t.x, y1, t: 0, dur });
+    this.damage(u, t, w);
+  }
+  /* secondary weapon (galley archers, flagship arrows) on its own reload */
+  secShot(u, t, dist) {
+    const D = UD[u.kind], S = D.sec;
+    if ((u.cd2 || 0) > 0) return;
+    u.cd2 = S.rate;
+    const tier = this.navTier[u.team] != null ? this.navTier[u.team] : NAVWPN.tierDefault;
+    const fire = tier >= 1 && (D.fireA || D.wpn === 'board'), swv = D.swivel && tier >= 1;
+    this.arrows.push({ k: fire ? 'fire' : (swv ? 'shot' : null), x0: u.x, y0: u.y - 0.4, x1: t.x, y1: t.isBld ? t.y : t.y - 0.3, t: 0, dur: 0.12 + dist * 0.035 });
+    this.damage(u, t, { wpn: 'arrow', atk: S.atk, ranged: true, swv, fire: fire && D.wpn !== 'board' });
+  }
+  /* set a building or wooden ship burning; stacks up to BURN.max */
+  ignite(t, team) {
+    if (t.hp <= 0 || t.team === 2) return;
+    if (t.isUnit && t.cls !== 'ship' && t.cls !== 'boat') return;
+    if (!t.burn) t.burn = { n: 0, t: 0, by: team, tick: 0 };
+    t.burn.n = Math.min(BURN.max, t.burn.n + 1); t.burn.t = BURN.dur; t.burn.by = team;
+    this.burning.add(t);
+  }
+  updateBurning(dt) {
+    for (const t of this.burning) {
+      const B = t.burn;
+      if (!B || t.hp <= 0) { this.burning.delete(t); continue; }
+      B.t -= dt;
+      if (t.isUnit) {
+        const port = this.buildings.find(b => b.kind === 'port' && b.done && b.team === t.team && rectDist(t.x, t.y, b.rect) <= BURN.portR);
+        if (port) B.t = 0;
+      } else {
+        let vil = false;
+        this.unitsNear(t.x, t.y, t.size + 2, (o) => { if (!vil && o.hp > 0 && o.team === t.team && o.cls === 'vil' && rectDist(o.x, o.y, t.rect) <= 1.6) vil = true; });
+        if (vil) B.t -= dt * 3;
+      }
+      if (B.t <= 0) { t.burn = null; this.burning.delete(t); continue; }
+      const rate = (t.isUnit ? BURN.ship : BURN.bld * (BURNMAT[t.team] != null ? BURNMAT[t.team] : 1)) * B.n;
+      t.hp -= rate * dt; t.lastHit = this.t;
+      B.tick -= dt;
+      if (B.tick <= 0) { B.tick = 0.5; this.fx.push({ k: 'flame', x: t.x + (this.rng() - 0.5) * (t.isBld ? t.size * 0.6 : 0.5), y: t.y - (t.isBld ? 0.2 : 0.5), n: B.n, t: 0.7, max: 0.7 }); }
+      if (t.hp <= 0) { t.burn = null; this.burning.delete(t); this.onKilled(t, { team: B.by, isUnit: false }); }
+    }
+    // ships next to their own port are repaired slowly
+    if (this.tickN % 15 === 0) for (const u of this.units) {
+      if (u.layer !== 1 || u.hp <= 0 || u.hp >= u.maxHp || this.t - (u.lastHit == null ? -99 : u.lastHit) < HEAL_CALM) continue;
+      if (this.buildings.some(b => b.kind === 'port' && b.done && b.team === u.team && rectDist(u.x, u.y, b.rect) <= BURN.portR)) u.hp = Math.min(u.maxHp, u.hp + BURN.portHeal * 0.5);
+    }
+  }
   /* fire ship: burns everything hostile around it and sinks itself */
   explode(u) {
     const B = UD[u.kind].boom;
     this.unitsNear(u.x, u.y, B.r + 0.5, (o) => {
       if (o.hp <= 0 || o.team === u.team || o.team === 2 || o.layer !== 1 || Math.hypot(o.x - u.x, o.y - u.y) > B.r) return;
-      this.damage({ atk: B.dmg, team: u.team, x: u.x, y: u.y, isUnit: true, kind: u.kind }, o);
+      this.damage({ atk: B.dmg * (o.kind === 'frigate' || o.kind === 'flagship' ? B.big || 1 : 1), team: u.team, x: u.x, y: u.y, isUnit: true, kind: u.kind }, o);
+      this.ignite(o, u.team); if (o.kind === 'frigate' || o.kind === 'flagship') this.ignite(o, u.team);
     });
-    for (const b of this.buildings) if (b.hp > 0 && b.team !== u.team && b.team !== 2 && rectDist(u.x, u.y, b.rect) <= B.r * 0.8) this.damage({ atk: B.dmg * 0.6, team: u.team, isUnit: true, kind: u.kind }, b);
+    for (const b of this.buildings) if (b.hp > 0 && b.team !== u.team && b.team !== 2 && rectDist(u.x, u.y, b.rect) <= B.r * 0.8) { this.damage({ atk: B.dmg * 0.6, team: u.team, isUnit: true, kind: u.kind }, b); this.ignite(b, u.team); }
     for (let i = 0; i < 10; i++) this.fx.push({ k: 'smoke', x: u.x + (this.rng() - 0.5) * 1.6, y: u.y + (this.rng() - 0.5) * 1.2, vy: -0.7 - this.rng() * 0.8, t: 1.2 + this.rng(), max: 2.2 });
     this.fx.push({ k: 'fire', x: u.x, y: u.y, t: 0.9, max: 0.9 });
     u.hp = 0; this.onKilled(u, null);
@@ -1636,11 +1707,16 @@ class Game {
     if (this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; }
   }
 
-  damage(att, tgt) {
-    let dmg = att.atk + ((att.bonus && att.bonus[tgt.cls]) || 0);
+  damage(att, tgt, w) {
+    let dmg = (w ? w.atk : att.atk) + ((att.bonus && att.bonus[tgt.cls]) || 0);
+    if (w && w.kb && tgt.isUnit) dmg += w.kb[tgt.kind] || 0;
+    if (w && w.swv && tgt.isUnit && (tgt.cls === 'ship' || tgt.cls === 'boat')) dmg += NAVWPN.swivelCrew;
     if (att.isUnit && att.cls === 'ship' && att.team === 0 && att.kind !== 'flagship' && this.units.some(f => f.kind === 'flagship' && f.team === 0 && f.hp > 0 && Math.hypot(f.x - att.x, f.y - att.y) < 5)) dmg += 2;
-    const arm = tgt.isBld ? (att.ranged ? BARM.pa : BARM.ma) : (att.ranged ? tgt.pa : tgt.ma);
+    const rg = w ? w.ranged : att.ranged;
+    let arm = tgt.isBld ? (rg ? BARM.pa : BARM.ma) : (rg ? tgt.pa : tgt.ma);
+    if (w && tgt.isBld) { if (w.wpn === 'cannon') { arm = 0; dmg *= NAVWPN.cannonBld; } else if (w.swv) arm = Math.floor(arm * NAVWPN.swivelArmCut); }
     dmg = Math.max(1, dmg - arm);
+    if (w && w.fire) this.ignite(tgt, att.team);
     tgt.hp -= dmg; tgt.hit = 0.15; tgt.lastHit = this.t;
     if (tgt.isUnit && tgt.cls === 'animal') { tgt.order = { t: 'flee', t0: 3, fx: att.x != null ? att.x : tgt.x, fy: att.y != null ? att.y : tgt.y }; tgt.path = null; }
     if (tgt.team === 0 && att.team === 1 && this.t - this.lastAlert > 5) {
@@ -3048,6 +3124,15 @@ function paintTop(f) {
     const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE - 6, s = 10 + p * 34;
     ctx.fillStyle = 'rgba(246,179,58,' + (0.75 * (1 - p)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(x, y, s, 0, 6.2832); ctx.fill();
     ctx.fillStyle = 'rgba(226,86,44,' + (0.6 * (1 - p)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(x, y, s * 0.6, 0, 6.2832); ctx.fill();
+  } else if (f.k === 'flame') {
+    // a building or ship on fire: small flickering tongues, more of them per stacked fire
+    const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE - 4 - p * 10;
+    ctx.globalAlpha = 1 - p;
+    for (let i = 0; i < f.n; i++) { const ox = (i - (f.n - 1) / 2) * 7; ctx.fillStyle = '#e2562c'; ctx.fillRect(x + ox - 3, y - 6, 6, 8); ctx.fillStyle = '#f6b33a'; ctx.fillRect(x + ox - 2, y - 3, 4, 5); }
+    ctx.globalAlpha = 1;
+  } else if (f.k === 'splash') {
+    const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE;
+    ctx.globalAlpha = 1 - p; ctx.fillStyle = '#e8f4fb'; ctx.fillRect(x - 2, y - 4 - p * 10, 4, 6 + p * 6); ctx.fillRect(x - 7, y - p * 5, 3, 3); ctx.fillRect(x + 5, y - p * 5, 3, 3); ctx.globalAlpha = 1;
   } else if (f.k === 'smoke') {
     const p = 1 - f.t / f.max, x = f.x * TILE, y = f.y * TILE + f.vy * p * 40;
     ctx.fillStyle = 'rgba(80,76,70,' + (0.55 * (1 - p)).toFixed(2) + ')'; const s = 5 + p * 9; ctx.fillRect(x - s / 2, y - s / 2, s, s);
@@ -3057,7 +3142,10 @@ function drawArrow(a) {
   const p = a.t / a.dur, x = a.x0 + (a.x1 - a.x0) * p, y = a.y0 + (a.y1 - a.y0) * p - Math.sin(p * Math.PI) * 0.9;
   const ang = Math.atan2((a.y1 - a.y0) - Math.cos(p * Math.PI) * 0.9 * Math.PI * 0.3, a.x1 - a.x0);
   ctx.save(); ctx.translate(x * TILE, y * TILE - 8); ctx.rotate(ang);
-  ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-5, -1, 10, 2); ctx.fillStyle = '#e8eef4'; ctx.fillRect(5, -1, 2, 2); ctx.restore();
+  if (a.k === 'ball') { ctx.fillStyle = '#1c1a18'; ctx.fillRect(-3, -3, 6, 6); ctx.fillStyle = '#6a625a'; ctx.fillRect(-2, -2, 2, 2); }
+  else if (a.k === 'shot') { ctx.fillStyle = '#2a2622'; ctx.fillRect(-2, -1, 3, 3); ctx.fillStyle = 'rgba(200,196,188,.6)'; ctx.fillRect(-7, 0, 5, 1); }
+  else { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-5, -1, 10, 2); ctx.fillStyle = a.k === 'fire' ? '#f6b33a' : '#e8eef4'; ctx.fillRect(5, -1, 2, 2); if (a.k === 'fire') { ctx.fillStyle = '#e2562c'; ctx.fillRect(6, -2, 3, 4); } }
+  ctx.restore();
 }
 /* where a unit is headed for its job (gather / build / hunt target), if anywhere */
 function jobTarget(u) {
@@ -3183,7 +3271,7 @@ function render() {
   }
   paintPlacement(); paintMarkers();
   for (const a of G.arrows) drawArrow(a);
-  for (const f of G.fx) if ((f.k === 'spark' || f.k === 'smoke' || f.k === 'fire' || f.k === 'heal') && inView(f.x * TILE, f.y * TILE, 60)) paintTop(f);
+  for (const f of G.fx) if ((f.k === 'spark' || f.k === 'smoke' || f.k === 'fire' || f.k === 'heal' || f.k === 'flame' || f.k === 'splash') && inView(f.x * TILE, f.y * TILE, 60)) paintTop(f);
   ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
   for (const fl of G.floaters) {
     const p = 1 - fl.t / 1.1, x = fl.x * TILE, y = fl.y * TILE - p * 16;
