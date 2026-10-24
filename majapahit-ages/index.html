@@ -461,7 +461,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       <div class="tag">Majapahit &middot; Village to Kingdom</div>
       <h1>Rise of Majapahit<small>East Java, 1293&ndash;1336</small></h1>
       <div class="waves"></div>
-      <p class="lead">Grow Raden Wijaya's clearing in the Tarik forest into the kingdom of the Palapa oath. Kediri, the Yuan fleet and rebel lords come for you while you build. Become the Kingdom of Majapahit, hold out against every raid, then break the rising of Sadeng and Keta. About 25 minutes.</p>
+      <p class="lead">Grow Raden Wijaya's clearing in the Tarik forest into the kingdom of the Palapa oath. Kediri, the Yuan fleet and rebel lords come for you while you build. Become the Kingdom of Majapahit, hold out against every raid, then break the rising of Sadeng and Keta. Kediri's war camp lies on the far side of the forest. About 30 minutes.</p>
       <div class="lbl">Difficulty</div>
       <div class="seg">
         <button data-do="diff" data-v="easy" aria-pressed="false">Easy</button>
@@ -506,7 +506,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       <ul class="help">
         <li><b>Scroll:</b> drag the map. <b>Zoom:</b> pinch (or the +/- buttons, or mouse wheel). <b>Select:</b> tap a unit or building; hold, then drag a box for a group. Double-tap a unit to pick all of its kind on screen. Tap it again to deselect.</li>
         <li><b>Command:</b> with units selected, tap the ground to move, a resource to gather, an enemy to attack. Mouse: right-click.</li>
-        <li><b>Ages:</b> select the Town Centre and tap the <b>Age</b> button. This mission has two ages: the Village Age and the Kingdom Age. The Kingdom Age costs food and needs two of the buildings listed. It opens new buildings, units and ships and toughens your soldiers, but it also brings the next raid closer.</li>
+        <li><b>Ages:</b> select the Town Centre and tap the <b>Age</b> button. This mission has two ages: the Village Age and the Kingdom Age. The Kingdom Age costs food and needs two of the buildings listed. The Bandar (trading post) can be built from the start on the landing beside a coast village; it brings in tribute gold. It opens new buildings, units and ships and toughens your soldiers, but it also brings the next raid closer.</li>
         <li><b>Raids:</b> raiders come down the two roads in the east and land from the river and the sea in the south. Arrows on the map edge show where, 25 s before. The bar under the resources says what is coming. Between raids you can call the next one early for bonus gold.</li>
         <li><b>Fire:</b> rebel fire arrows set buildings alight. Majapahit's red brick burns at half the usual rate. Villagers next to a burning building put it out and repair damage.</li>
         <li><b>Army:</b> Galah spears beat swordsmen. Golok swords break archers and crossbowmen. Bhayangkara (Kraton) are the royal guard. Panah archers shoot from behind the spears. Perahu Api fire ships burn enemy boats. Acaraki heal. Gajah Mada (Kingdom Age, Kraton) gives nearby troops +2 attack and returns 60 s after he falls.</li>
@@ -1023,6 +1023,13 @@ class Game {
     }
   }
 
+  /* an own gate: open lets your own people through and stops enemies, closed stops everyone */
+  setGateLock(b, locked) {
+    if (!b || !BD[b.kind].gate) return;
+    b.locked = !!locked;
+    for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) this.gate[y * W + x] = locked ? 255 : b.team + 1;
+    if (locked) this.evict(b);
+  }
   walkable(x, y, layer) {
     if (x < 0 || y < 0 || x >= W || y >= H) return false;
     const i = y * W + x; if (this.block[i]) return false;
@@ -3680,7 +3687,7 @@ function buildWallGrid() {
 function wallMask(b) {
   const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && wallGrid[y * W + x] === b.team + 1;
   let m = (at(b.tx, b.ty - 1) ? 1 : 0) | (at(b.tx + 1, b.ty) ? 2 : 0) | (at(b.tx, b.ty + 1) ? 4 : 0) | (at(b.tx - 1, b.ty) ? 8 : 0);
-  if (BD[b.kind].gate && b.done && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
+  if (BD[b.kind].gate && b.done && !b.locked && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
   return m;
 }
 function basePaintBuilding(b) {
@@ -4031,13 +4038,21 @@ function startPlace(kind) {
   }
   mode = { kind: 'place', bkind: kind, tx: null, ty: null, touch: !(hover && hover.mouse), line: !!d.line };
   if (hover && hover.mouse) placeAt(hover.wx, hover.wy); else { const c = s2w(view.w / 2, view.h * 0.4); placeAt(c.x, c.y); }
-  const spot = findSpot(kind, mode.tx, mode.ty); if (spot) { mode.tx = spot.tx; mode.ty = spot.ty; }
+  // a gate starts on the nearest piece of your wall, where it is set into the line
+  const wp = d.gate && nearWallPiece(mode.tx, mode.ty, 12);
+  if (wp) { mode.tx = wp.tx; mode.ty = wp.ty; toast('Drag the gate onto any piece of your wall to set it in.'); }
+  else { const spot = findSpot(kind, mode.tx, mode.ty); if (spot) { mode.tx = spot.tx; mode.ty = spot.ty; } }
   if (mode.line) {
     // start as a short line on touch screens so both ends show; with a mouse the first click sets the start
     mode.ax = mode.tx; mode.ay = mode.ty; mode.anchored = false;
     if (mode.touch) { let k = 0; while (k < 4 && G.canPlace(kind, mode.ax + k + 1, mode.ay, 0)) k++; mode.tx = mode.ax + k; }
   }
   panelKey = '';
+}
+function nearWallPiece(cx, cy, maxD) {
+  let best = null, bd = maxD;
+  for (const b of G.buildings) if (b.team === 0 && b.hp > 0 && BD[b.kind].wall && !BD[b.kind].gate && G.canPlace('gate', b.tx, b.ty, 0)) { const dd = Math.hypot(b.tx - cx, b.ty - cy); if (dd < bd) { bd = dd; best = b; } }
+  return best;
 }
 function findSpot(kind, cx, cy) {
   const lim = kind === 'port' ? 26 : 10;
@@ -4282,6 +4297,7 @@ function baseBldNote(b) {
   if (b.kind === 'granary' && own) return 'Villagers drop food here.';
   if (b.kind === 'store' && own) return 'Villagers drop wood and gold here.';
   if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
+  if (b.kind === 'gate' && own) return b.locked ? 'Closed: no one passes. Tap Open to let your people through.' : 'Open to your own people, shut to enemies. Tap Close to bar it.';
   if (b.kind === 'patirthan') return 'Units resting by the pool heal slowly.';
   return '';
 }
@@ -4343,6 +4359,7 @@ function buildPanel() {
       if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), 'Fire Raft', UD.raft.cost, 'Rakit Api: push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
+    if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
     cmds += mrBldCmds(b);
     if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isNode) {
@@ -4383,6 +4400,7 @@ $('panel').addEventListener('click', (e) => {
   const el = e.target.closest('[data-a]'); if (!el || !started || paused) return;
   const a = el.dataset.a, k = el.dataset.k;
   if (a === 'build') startPlace(k);
+  else if (a === 'gatelock') { const b = sel[0]; if (b && b.isBld && b.team === 0) { G.setGateLock(b, !b.locked); toast(b.locked ? 'Gate closed. No one passes.' : 'Gate open. Your people can pass, enemies cannot.'); } panelKey = ''; }
   else if (a === 'raft') { const b = sel[0]; const err = b && b.isBld ? G.launchRaft(b) : 'Not available.'; if (err) toast(err); }
   else if (a === 'unload') { for (const g of selUnits()) if (g.cargo && g.cargo.length) G.orderLand(g, g.x, g.y); }
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
@@ -6165,7 +6183,7 @@ function CV(team) { return team === 0 ? 1 : 0; }
 const AGES = [null,
   { n: 1, name: 'Village Age', local: 'Wanua', tc: 1200 },
   { n: 2, name: 'Kingdom Age', local: 'Kadatwan', cost: { food: 500 }, time: 60, tc: 1700,
-    need: { any: ['barracks', 'store', 'granary', 'port'], n: 2, text: '2 of: Barracks, Gudang, Lumbung, Port' } },
+    need: { any: ['barracks', 'store', 'granary', 'port', 'tradepost'], n: 2, text: '2 of: Barracks, Gudang, Lumbung, Port, Bandar' } },
   { n: 3, name: 'Age of Commerce', local: 'Bandar', cost: { food: 800, gold: 200 }, time: 90, tc: 2200,
     need: { any: ['palace', 'patirthan', 'tower', 'tradepost'], n: 2, text: '2 of: Kraton, Patirthan, Bale Kulkul, Bandar' } },
   { n: 4, name: 'Golden Age', local: 'Nusantara', cost: { food: 1000, gold: 800 }, time: 120, tc: 2800,
@@ -6219,7 +6237,8 @@ Object.assign(CIV_NAMES, {
 });
 
 /* ---------- buildings ---------- */
-for (const k of ['patirthan', 'tower', 'palace', 'tradepost']) BD[k].age = 2;
+// the Bandar trades with the coast villages from the start; the Kingdom Age brings the rest
+for (const k of ['patirthan', 'tower', 'palace']) BD[k].age = 2;
 BD.palace.train = ['bhaya', 'tuah'];
 BD.barracks.train = ['keris', 'tombak', 'archer', 'sumpit', 'lembing'];
 delete BD.rumahtabib;
@@ -6238,21 +6257,21 @@ const LANDINGS = { bay: { x: 15.5, y: 35.5, name: 'the river landing' }, kuala: 
 const WHO = { kd: ['Kediri\'s soldiers', 'Kediri troops'], yu: ['the Yuan army', 'Yuan troops'], rb: ['rebels', 'rebel troops'], sd: ['the army of Sadeng and Keta', 'the rebel army'] };
 const RAIDS = [
   // 1293: Jayakatwang of Kediri, who killed the last king of Singhasari, sends men against Raden Wijaya's clearing
-  { at: 150, land: { ne: { kd_sword: 3, kd_archer: 2 } }, who: 'kd', note: 'Jayakatwang of Kediri sends men to burn the new clearing.' },
-  { at: 100, land: { e: { kd_sword: 3, kd_spear: 2, kd_archer: 2 } }, who: 'kd', note: 'Kediri comes again, by the eastern road.' },
-  { at: 100, land: { ne: { kd_sword: 3, kd_spear: 2, kd_archer: 2 }, e: { kd_sword: 2, kd_archer: 2 } }, who: 'kd', note: 'Kediri tries both roads at once.' },
+  { at: 210, land: { ne: { kd_sword: 3, kd_archer: 2 } }, who: 'kd', note: 'Jayakatwang of Kediri sends men from his war camp to burn the new clearing.' },
+  { at: 160, land: { e: { kd_sword: 3, kd_spear: 2, kd_archer: 2 } }, who: 'kd', note: 'Kediri comes again, by the eastern road.' },
   // 1293: the Yuan fleet. Wijaya used it to bring down Kediri, then turned on it
-  { at: 105, sea: { boats: { yu_junk: 1 }, land: [{ at: 'bay', k: 'yu_lander', u: { yu_shield: 4, yu_xbow: 3 } }] }, who: 'yu', note: 'Yuan junks are coming up the river.', story: 'yuan' },
-  { at: 105, land: { e: { yu_shield: 4, yu_spear: 3, yu_xbow: 4 } }, sea: { boats: { yu_junk: 2 } }, who: 'yu', note: 'A Yuan column marches inland, and junks guard the river.' },
-  { at: 110, sea: { boats: { yu_junk: 2 }, land: [{ at: 'bay', k: 'yu_lander', u: { yu_shield: 4, yu_xbow: 3 } }, { at: 'kuala', k: 'yu_lander', u: { yu_spear: 4, yu_shield: 3 } }] }, who: 'yu', note: 'The last of the Yuan army comes ashore. Drive them back to their ships!' },
+  { at: 160, sea: { boats: { yu_junk: 1 }, land: [{ at: 'bay', k: 'yu_lander', u: { yu_shield: 4, yu_xbow: 3 } }] }, who: 'yu', note: 'Yuan junks are coming up the river.', story: 'yuan' },
+  { at: 165, land: { e: { yu_shield: 4, yu_spear: 3, yu_xbow: 4 } }, sea: { boats: { yu_junk: 2 } }, who: 'yu', note: 'A Yuan column marches inland, and junks guard the river.' },
+  { at: 170, sea: { boats: { yu_junk: 2 }, land: [{ at: 'bay', k: 'yu_lander', u: { yu_shield: 4, yu_xbow: 3 } }, { at: 'kuala', k: 'yu_lander', u: { yu_spear: 4, yu_shield: 3 } }] }, who: 'yu', note: 'The last of the Yuan army comes ashore. Drive them back to their ships!' },
   // 1295 to 1319: the old companions of Wijaya rise one after another
-  { at: 110, land: { ne: { rb_sword: 5, rb_spear: 4, rb_archer: 4 } }, who: 'rb', note: 'Ranggalawe of Tuban has risen against the king. His archers shoot fire.', story: 'rebels' },
-  { at: 110, land: { ne: { rb_sword: 4, rb_spear: 3, rb_archer: 3 }, e: { rb_sword: 3, rb_spear: 3, rb_archer: 3 } }, who: 'rb', note: 'Lembu Sora\'s men come by both roads.' },
-  { at: 115, land: { e: { rb_sword: 5, rb_archer: 5, rb_guard: 2 } }, sea: { boats: { rb_boat: 3 }, land: [{ at: 'kuala', k: 'rb_galley', u: { rb_spear: 5, rb_sword: 3 } }] }, who: 'rb', note: 'Nambi\'s rebellion comes by land and from the coast.' },
-  { at: 115, land: { ne: { rb_sword: 7, rb_spear: 6, rb_archer: 6, rb_guard: 3 } }, who: 'rb', note: 'Ra Kuti marches on the capital itself.' },
-  { at: 115, land: { ne: { rb_sword: 4, rb_spear: 4, rb_archer: 3, rb_guard: 2 }, e: { rb_sword: 4, rb_spear: 4, rb_archer: 3 } }, sea: { boats: { rb_boat: 4 } }, who: 'rb', note: 'Rebels on every road at once.' },
-  { at: 120, land: { ne: { rb_sword: 5, rb_spear: 4, rb_archer: 4, rb_guard: 2 }, e: { rb_sword: 5, rb_spear: 4, rb_archer: 4, rb_guard: 2 } }, sea: { boats: { rb_boat: 4 }, land: [{ at: 'bay', k: 'rb_galley', u: { rb_sword: 4, rb_archer: 4 } }] }, who: 'rb', note: 'The biggest rising yet.' }
+  { at: 170, land: { ne: { rb_sword: 5, rb_spear: 4, rb_archer: 4 } }, who: 'rb', note: 'Ranggalawe of Tuban has risen against the king. His archers shoot fire.', story: 'rebels' },
+  { at: 175, land: { ne: { rb_sword: 4, rb_spear: 3, rb_archer: 3 }, e: { rb_sword: 3, rb_spear: 3, rb_archer: 3 } }, who: 'rb', note: 'Lembu Sora\'s men come by both roads.' },
+  { at: 180, land: { e: { rb_sword: 5, rb_archer: 5, rb_guard: 2 } }, sea: { boats: { rb_boat: 3 }, land: [{ at: 'kuala', k: 'rb_galley', u: { rb_spear: 5, rb_sword: 3 } }] }, who: 'rb', note: 'Nambi\'s rebellion comes by land and from the coast.' },
+  { at: 185, land: { ne: { rb_sword: 7, rb_spear: 6, rb_archer: 6, rb_guard: 3 } }, who: 'rb', note: 'Ra Kuti marches on the capital itself.' }
 ];
+// Kediri's war camp on the far side of the map, where the old enemy town stood. Burning it is optional:
+// it pays well, and Kediri sends no more raids once it is gone
+const CAMP = { tx: 49, ty: 10, guards: { kd_sword: 3, kd_spear: 2, kd_archer: 2 }, spoils: { gold: 250, food: 200 } };
 // 1331: Sadeng and Keta rise together; Gajah Mada breaks them, and the queen comes to the field
 const FINAL = { land: { ne: { cmdr: 1, rb_guard: 2, rb_sword: 6, rb_spear: 5, rb_archer: 5 }, e: { rb_guard: 1, rb_sword: 4, rb_spear: 4, rb_archer: 4 } },
   sea: { boats: { rb_boat: 4 }, land: [{ at: 'bay', k: 'rb_galley', u: { rb_sword: 3, rb_archer: 3 } }, { at: 'kuala', k: 'rb_galley', u: { rb_spear: 3, rb_sword: 3 } }] }, who: 'sd', final: true };
@@ -6287,9 +6306,23 @@ Game.prototype.populate = function () {
   if (g.canPlace('house', tc.tx - 3, tc.ty + 1, 0)) g.addBuilding('house', 0, tc.tx - 3, tc.ty + 1, true);
   else { const s = g.nearestFree(tc.tx - 3, tc.ty + 3, 0, 6); g.addBuilding('house', 0, s.x, s.y, true); }
   g.res[0] = { food: 300, wood: 300, gold: 150 };
+  buildCamp(g);
   g.age = [1, 1]; g.navTier = [0, 1];
 };
 
+function buildCamp(g) {
+  const M = g.M, c = CAMP, ids = [];
+  const put = (kind, dx, dy) => { const tx = c.tx + dx, ty = c.ty + dy; if (!g.canPlace(kind, tx, ty, 1)) return; const b = g.addBuilding(kind, 1, tx, ty, true); b.camp = true; ids.push(b.id); };
+  // clear the ground first: the camp stands in a felled clearing
+  for (const n of g.nodes.slice()) if (n.kind === 'tree' && n.tx >= c.tx - 4 && n.tx <= c.tx + 7 && n.ty >= c.ty - 3 && n.ty <= c.ty + 6) g.removeNode(n);
+  g.cleanup();
+  put('barracks', 0, 0); put('house', 4, -1); put('house', -3, 1); put('tower', 4, 3);
+  M.camp = { x: c.tx + 1.5, y: c.ty + 1.5, ids };
+  for (const k in c.guards) for (let i = 0, n = Math.max(1, Math.round(c.guards[k] * DMUL[g.diff])); i < n; i++) {
+    const p = g.openSpot(c.tx + 1 + (i % 3), c.ty + 4 + Math.floor(i / 3), 0), u = g.addUnit(k, 1, p.x, p.y);
+    u.guard = { x: p.x, y: p.y };
+  }
+}
 /* ---------- mission state ---------- */
 function newMission(g) {
   return { t: 0, raid: 0, next: RAIDS[0].at, active: false, cols: [], cardQ: [], cards: {}, warned: -1, broken: 0, spoils: 0,
@@ -6571,6 +6604,15 @@ function missionAI(g) {
     if (u.team !== 1 || u.hp <= 0) continue;
     const o = u.order, d = UD[u.kind];
     if (o.t === 'flee2' || o.t === 'land') continue;
+    // the war camp's guards hold their ground and chase off anyone who comes close
+    if (u.guard) {
+      if (o.t === 'attack' && g.byId.get(o.id) && Math.hypot(u.x - u.guard.x, u.y - u.guard.y) < 10) continue;
+      let foe = null, fd = 8;
+      for (const v of g.units) if (v.team === 0 && v.hp > 0 && v.layer === 0) { const dd = Math.hypot(v.x - M_CAMP(g).x, v.y - M_CAMP(g).y); if (dd < fd) { fd = dd; foe = v; } }
+      if (foe) g.orderAttack(u, foe);
+      else if (Math.hypot(u.x - u.guard.x, u.y - u.guard.y) > 1.5 && o.t !== 'move') g.orderMove(u, u.guard.x, u.guard.y);
+      continue;
+    }
     if (u.layer === 1) {
       // war boats sweep the coast: ships and boats first, then anything near the water
       if (o.t === 'attack' && g.byId.get(o.id)) continue;
@@ -6596,6 +6638,7 @@ function missionAI(g) {
     if (wl) g.orderAttack(u, wl); else { g.orderAMove(u, goal.x, goal.y); u._amT = g.t; }
   }
 }
+function M_CAMP(g) { return g.M.camp || CAMP; }
 // an enemy that can't reach what it wants marks itself so the AI can send it at the wall instead
 const _ptr = Game.prototype.pathToRect, _ptp = Game.prototype.pathToPoint;
 Game.prototype.pathToRect = function (u, rect, reach) { const r = _ptr.call(this, u, rect, reach); if (u.team === 1 && u.layer === 0 && (!r || !r.reached)) u._blocked = true; return r; };
@@ -6604,7 +6647,7 @@ Game.prototype.pathToPoint = function (u, gx, gy) { const r = _ptp.call(this, u,
 /* ---------- the raid director ---------- */
 function launchRaid(g, R, idx) {
   const M = g.M, goal = homeGoal(g), ids = new Set(), n = (k, v) => k === 'cmdr' ? 1 : Math.max(1, Math.round(v * DMUL[g.diff]));
-  const vet = idx >= 9 ? 1.15 : idx >= 6 ? 1.08 : 1;
+  const vet = idx >= 8 ? 1.15 : idx >= 5 ? 1.08 : 1;
   const mk = (k, x, y, layer) => {
     const p = g.openSpot(x, y, layer || 0), u = g.addUnit(k, 1, p.x, p.y);
     if (vet !== 1 && !UD[k].layer) { u.maxHp = Math.round(u.maxHp * vet); u.hp = u.maxHp; }
@@ -6658,10 +6701,17 @@ function missionTick(g, dt) {
     g.msg('Scouts: ' + WHO[R.who][1] + ' coming by ' + where.join(' and by ') + '.');
     for (const e in R.land || {}) g.alerts.push({ x: ENTRY[e].x, y: ENTRY[e].y, t: 3 });
   }
+  if (M.camp && !M.campDown && !g.buildings.some(b => b.camp && b.hp > 0)) {
+    M.campDown = true;
+    g.res[0].gold += CAMP.spoils.gold; g.res[0].food += CAMP.spoils.food; M.spoils += CAMP.spoils.gold;
+    g.msg('Kediri\'s war camp burns! Spoils: +' + CAMP.spoils.gold + ' gold, +' + CAMP.spoils.food + ' food. Kediri sends no more raids.');
+    g.alerts.push({ x: M.camp.x, y: M.camp.y, t: 3 });
+  }
   if (!M.finalOn && M.t >= M.next) {
     const idx = M.raid, R = RAIDS[Math.min(idx, RAIDS.length - 1)];
     if (idx >= RAIDS.length) M.repeats++;
-    launchRaid(g, R, idx);
+    if (M.campDown && R.who === 'kd') { M.broken++; g.msg('No raid comes from Kediri: its war camp is ash.'); }
+    else launchRaid(g, R, idx);
     M.raid++;
     M.next = M.raid < RAIDS.length ? M.t + RAIDS[M.raid].at : M.t + REPEAT_GAP;
   }
@@ -6713,7 +6763,7 @@ function missionTick(g, dt) {
   if (M.cmdrDead && !M.routed) {
     M.routed = true; M.cardQ.push('rout');
     for (const c of M.cols) if (!c.done) { c.done = true; M.broken++; }
-    for (const u of g.units) if (u.team === 1 && u.hp > 0) {
+    for (const u of g.units) if (u.team === 1 && u.hp > 0 && !u.guard) {
       if (u.layer === 1) { u.order = { t: 'land', x: SEA.x, y: SEA.y, sx: SEA.x, sy: SEA.y, troops: [], s: 'out' }; u.path = null; continue; }
       const E = Math.abs(u.y - ENTRY.ne.y) < Math.abs(u.y - ENTRY.e.y) ? ENTRY.ne : ENTRY.e;
       u.order = { t: 'flee2', x: E.x, y: E.y }; u.path = null;
@@ -6765,20 +6815,20 @@ function unitSprite(kind, team, anim, f, tool) {
   if (kind === 'pembedil' || kind === 'bediraja') return mpGunner(a, ff, kind === 'bediraja');
   if (kind === 'meriam') return XU.xUnit('cetbang', a === 'attack' ? 'attack' : 'idle', a === 'attack' ? Math.min(2, f) : 0);
   if (d && d.art) return HEROART.heroSprite(d.art, a, f);
-  if (team === 0 && (kind === 'keris' || kind === 'tombak' || kind === 'archer')) { const age = curAge(); if (age !== 2) return mpAge(kind, Math.min(4, age), a, ff); }
+  if (team === 0 && (kind === 'keris' || kind === 'tombak' || kind === 'archer')) return mpAge(kind, Math.min(4, curAge()), a, ff);
   if (team === 0) return baseUnitSprite(kind, 1, anim, f, tool);
   if (team === 1) return baseUnitSprite(kind, 0, anim, f, tool);
   return baseUnitSprite(kind, team, anim, f, tool);
 }
 /* Majapahit soldiers by age, on the game's own Majapahit drawUnit:
-   age 1 plain village levy, age 3 a kere (mail coat), age 4 mail with gold, like the palace guard */
+   age 1 plain village levy, age 2 on a kere (mail coat), age 4 mail with gold, like the palace guard */
 function mpAge(kind, age, anim, f) {
   return sprite(`mpage|${kind}|${age}|${anim}|${f}`, 16, 18, 2, (P) => {
     const T = TEAMC[1], bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0;
     const B = (x, y, w, h, c) => P.r(x, y + 2 + bob, w, h, c);
     drawUnit(P, kind, 1, anim, f);
     if (age === 1) MELAGE.recolor(P, { [GOLD]: T.main, [GOLD_D]: WOOD_D, [CREAM]: '#d8c9a0' });
-    if (age >= 3) {
+    if (age >= 2) {
       for (let y = 7; y < 9; y++) for (let x = 5; x < 11; x++) B(x, y, 1, 1, (x + y) % 2 ? MELAGE.MAIL : MELAGE.MAIL_D);
       B(4, 8, 1, 2, MELAGE.MAIL); if (!(anim === 'attack' && f === 1 && kind === 'keris')) B(11, 8, 1, 2, MELAGE.MAIL);
       B(6, 7, 4, 1, age === 4 ? GOLD : MELAGE.MAIL_D);
@@ -6839,7 +6889,8 @@ function shipAnchor(kind) {
 /* ---------- buildings (walls, palisades and gates are the main game's own) ---------- */
 function buildingSprite(kind, team, level) {
   if (team === 0) return baseBuildingSprite(kind, 1, level);
-  if (team === 1) return baseBuildingSprite(kind, 0, level);
+  // the raiders' only buildings are Kediri's war camp: Javanese timber in Kediri brown
+  if (team === 1) return baseBuildingSprite(kind, 3, level);
   return baseBuildingSprite(kind, team, level);
 }
 
@@ -7338,7 +7389,7 @@ function setupSound() {
 // called from updateHud: the music mood and sounds that are not tied to a message
 function sfxTick() {
   const M = G && G.M; if (!M) return;
-  const foes = G.units.some(u => u.team === 1 && u.hp > 0 && (u.layer === 0 || u.order.t !== 'land'));
+  const foes = G.units.some(u => u.team === 1 && u.hp > 0 && !u.guard && (u.layer === 0 || u.order.t !== 'land'));
   SFX.setMood(!G.over && (M.active || foes), paused || !!storyOpen, G.age ? G.age[0] : 1);
   if (G.over) return;
   const home = G.buildings.find(b => b.team === 0 && b.kind === 'towncentre' && b.hp > 0);
@@ -7443,7 +7494,7 @@ function storyFor(id) {
     body: [P('Kediri has fallen and the Yuan have sailed home. Raden Wijaya is crowned Kertarajasa Jayawardhana, first king of Majapahit. A kraton of red brick rises at the heart of the town.'),
       P('The Bhayangkara guard the king, and the acaraki, healers who know the jamu herbs, tend the wounded.'),
       P('In the Bhayangkara a young guard named Gajah Mada will one day save a king, and then command the queen\'s armies.'),
-      '<p class="goal">New: Kraton (Bhayangkara, Gajah Mada), Patirthan (Acaraki healers), Bale Kulkul watchtower, Bandar tribute post, stone Wall, Kelulus galleys and Jong traders. Fire arrows at sea. Soldiers +1 armour. This is the last age in this mission.</p>',
+      '<p class="goal">New: Kraton (Bhayangkara, Gajah Mada), Patirthan (Acaraki healers), Bale Kulkul watchtower, stone Wall, Kelulus galleys and Jong traders. Fire arrows at sea. Soldiers +1 armour. This is the last age in this mission.</p>',
       '<p class="lead tipline">' + TIPS[4] + '</p>'],
     btn: 'Onward'
   };
@@ -7464,14 +7515,14 @@ function storyFor(id) {
     btn: 'Make ready'
   };
   if (id === 'yuan') return {
-    tag: 'Raid 4 · 1293', title: 'The Yuan fleet',
+    tag: 'Raid 3 · 1293', title: 'The Yuan fleet',
     body: [P('The Yuan fleet has come to punish Kertanegara and found him dead. Wijaya used it against Kediri. Now he has turned on it, and the Yuan army is coming for him.'),
       P('Their troops land from big war junks. Shield soldiers lead, and crossbowmen shoot from behind them.'),
       '<p class="goal">Keep spears and archers near the river landing. Break each landing party as it comes ashore.</p>'],
     btn: 'Defend Majapahit'
   };
   if (id === 'rebels') return {
-    tag: 'Raid 7 · 1295', title: 'Old comrades',
+    tag: 'Raid 6 · 1295', title: 'Old comrades',
     body: [P('Ranggalawe of Tuban fought beside Wijaya against Kediri and the Yuan. Now he thinks the king has passed him over, and he has taken up arms.'),
       P('Other old comrades will rise after him: Lembu Sora, Nambi, Ra Kuti. Their archers shoot fire.'),
       '<p class="goal">Fire: villagers standing next to a burning building put it out. Red brick burns at half the usual rate.</p>'],
@@ -7554,6 +7605,7 @@ function objList() {
   const a = G.age[0], items = [];
   for (let n = 2; n <= MAX_AGE; n++) items.push({ t: 'Reach the ' + AGES[n].name + ' (' + AGES[n].local + ')' + (M.aging && M.aging.to === n ? ': ' + Math.floor((1 - M.aging.left / M.aging.tot) * 100) + '%' : ''), ok: a >= n });
   items.push({ t: 'Break the raids (' + Math.min(M.broken, RAIDS.length) + ' of ' + RAIDS.length + ')', ok: M.broken >= RAIDS.length });
+  if (M.camp) items.push({ t: 'Optional: burn Kediri\'s war camp in the north-east', ok: !!M.campDown, opt: !M.campDown });
   items.push({ t: 'Break the rising of Sadeng and Keta' + (M.finalOn && M.cmdr && M.cmdr.hp > 0 ? ' (lord ' + pct(M.cmdr) + ')' : ''), ok: !!M.routed });
   items.push({ t: 'Keep the Town Centre standing (' + pct(tc) + ')', ok: false });
   const heroes = [];
@@ -7562,7 +7614,7 @@ function objList() {
   if (heroes.length) items.push({ t: heroes.join(' · '), opt: true });
   if (!M.active && !M.finalAt) items.push({ t: 'Raid ' + (M.raid + 1) + ' in ' + fmtTime(M.next - M.t) + ': ' + raidPreview(M.raid), tip: true });
   if (M.finalAt && !M.finalOn) items.push({ t: 'Sadeng and Keta march in ' + fmtTime(M.finalAt - M.t), tip: true });
-  items.push({ t: a < 2 ? 'Ages: select the Town Centre. The Kingdom Age needs 2 of Barracks, Gudang, Lumbung or Port.' : 'Gajah Mada trains at the Kraton.', tip: true });
+  items.push({ t: a < 2 ? 'Ages: select the Town Centre. The Kingdom Age needs 2 of Barracks, Gudang, Lumbung, Port or Bandar. A Bandar stands on a village landing.' : 'Gajah Mada trains at the Kraton.', tip: true });
   return { title: 'Rise of Majapahit · ' + AGES[a].local, items };
 }
 function updateObj() {
@@ -7644,7 +7696,7 @@ function skipTo(which) {
   const age = MAX_AGE;
   for (let n = 2; n <= age; n++) { G.applyAge(0, n); }
   M.cardQ.length = 0;
-  M.raid = late ? 11 : 6; M.broken = M.raid; M.warned = M.raid - 1; M.next = M.t + 40;
+  M.raid = late ? RAIDS.length : 5; M.broken = M.raid; M.warned = M.raid - 1; M.next = M.t + 40;
   if (late) { M.raid = RAIDS.length; M.finalAt = M.t + 30; M.next = 1e9; }
   G.res[0] = late ? { food: 1000, wood: 1000, gold: 600 } : { food: 800, wood: 800, gold: 400 };
   const spot = (kind, dx, dy) => { const p = G.nearestFree(tc.tx + dx, tc.ty + dy, 0, 8); for (let r = 0; r < 6; r++) for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) if (G.canPlace(kind, p.x + xx, p.y + yy, 0)) return G.addBuilding(kind, 0, p.x + xx, p.y + yy, true); return null; };

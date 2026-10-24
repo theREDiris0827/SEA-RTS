@@ -1023,6 +1023,13 @@ class Game {
     }
   }
 
+  /* an own gate: open lets your own people through and stops enemies, closed stops everyone */
+  setGateLock(b, locked) {
+    if (!b || !BD[b.kind].gate) return;
+    b.locked = !!locked;
+    for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) this.gate[y * W + x] = locked ? 255 : b.team + 1;
+    if (locked) this.evict(b);
+  }
   walkable(x, y, layer) {
     if (x < 0 || y < 0 || x >= W || y >= H) return false;
     const i = y * W + x; if (this.block[i]) return false;
@@ -3680,7 +3687,7 @@ function buildWallGrid() {
 function wallMask(b) {
   const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && wallGrid[y * W + x] === b.team + 1;
   let m = (at(b.tx, b.ty - 1) ? 1 : 0) | (at(b.tx + 1, b.ty) ? 2 : 0) | (at(b.tx, b.ty + 1) ? 4 : 0) | (at(b.tx - 1, b.ty) ? 8 : 0);
-  if (BD[b.kind].gate && b.done && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
+  if (BD[b.kind].gate && b.done && !b.locked && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
   return m;
 }
 function basePaintBuilding(b) {
@@ -4031,13 +4038,21 @@ function startPlace(kind) {
   }
   mode = { kind: 'place', bkind: kind, tx: null, ty: null, touch: !(hover && hover.mouse), line: !!d.line };
   if (hover && hover.mouse) placeAt(hover.wx, hover.wy); else { const c = s2w(view.w / 2, view.h * 0.4); placeAt(c.x, c.y); }
-  const spot = findSpot(kind, mode.tx, mode.ty); if (spot) { mode.tx = spot.tx; mode.ty = spot.ty; }
+  // a gate starts on the nearest piece of your wall, where it is set into the line
+  const wp = d.gate && nearWallPiece(mode.tx, mode.ty, 12);
+  if (wp) { mode.tx = wp.tx; mode.ty = wp.ty; toast('Drag the gate onto any piece of your wall to set it in.'); }
+  else { const spot = findSpot(kind, mode.tx, mode.ty); if (spot) { mode.tx = spot.tx; mode.ty = spot.ty; } }
   if (mode.line) {
     // start as a short line on touch screens so both ends show; with a mouse the first click sets the start
     mode.ax = mode.tx; mode.ay = mode.ty; mode.anchored = false;
     if (mode.touch) { let k = 0; while (k < 4 && G.canPlace(kind, mode.ax + k + 1, mode.ay, 0)) k++; mode.tx = mode.ax + k; }
   }
   panelKey = '';
+}
+function nearWallPiece(cx, cy, maxD) {
+  let best = null, bd = maxD;
+  for (const b of G.buildings) if (b.team === 0 && b.hp > 0 && BD[b.kind].wall && !BD[b.kind].gate && G.canPlace('gate', b.tx, b.ty, 0)) { const dd = Math.hypot(b.tx - cx, b.ty - cy); if (dd < bd) { bd = dd; best = b; } }
+  return best;
 }
 function findSpot(kind, cx, cy) {
   const lim = kind === 'port' ? 26 : 10;
@@ -4282,6 +4297,7 @@ function baseBldNote(b) {
   if (b.kind === 'granary' && own) return 'Villagers drop food here.';
   if (b.kind === 'store' && own) return 'Villagers drop wood and gold here.';
   if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
+  if (b.kind === 'gate' && own) return b.locked ? 'Closed: no one passes. Tap Open to let your people through.' : 'Open to your own people, shut to enemies. Tap Close to bar it.';
   if (b.kind === 'patirthan') return 'Units resting by the pool heal slowly.';
   return '';
 }
@@ -4343,6 +4359,7 @@ function buildPanel() {
       if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), 'Fire Raft', UD.raft.cost, 'Rakit Api: push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
+    if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
     cmds += mrBldCmds(b);
     if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isNode) {
@@ -4383,6 +4400,7 @@ $('panel').addEventListener('click', (e) => {
   const el = e.target.closest('[data-a]'); if (!el || !started || paused) return;
   const a = el.dataset.a, k = el.dataset.k;
   if (a === 'build') startPlace(k);
+  else if (a === 'gatelock') { const b = sel[0]; if (b && b.isBld && b.team === 0) { G.setGateLock(b, !b.locked); toast(b.locked ? 'Gate closed. No one passes.' : 'Gate open. Your people can pass, enemies cannot.'); } panelKey = ''; }
   else if (a === 'raft') { const b = sel[0]; const err = b && b.isBld ? G.launchRaft(b) : 'Not available.'; if (err) toast(err); }
   else if (a === 'unload') { for (const g of selUnits()) if (g.cargo && g.cargo.length) G.orderLand(g, g.x, g.y); }
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
