@@ -647,7 +647,7 @@ const BURNMAT = [1, 0.5, 1, 0.8];
    [Melaka, Majapahit, Ayutthaya], each [local name, short button label]. A missing entry falls back to the
    English role, which is the `name` in UD/BD; civRole() gives that role, shown under the local name. */
 const CIV_NAMES = {
-  villager: [['Villager'], ['Villager'], ['Phrai Ying']],
+  villager: [['Rakyat'], ['Kawula'], ['Phrai Ying']], archer: [['Pemanah'], ['Pamanah'], ['Phon Thanu', 'Thanu']],
   keris: [['Keris Warrior', 'Keris'], ['Golok Warrior', 'Golok'], ['Daab Song Mue', 'Daab']],
   tombak: [['Tombak Warrior', 'Tombak'], ['Galah Warrior', 'Galah'], ['Hok Warrior', 'Hok']],
   sumpit: [['Penyumpit', 'Sumpit']], lembing: [null, ['Lembing']], namai: [null, null, ['Na Mai']],
@@ -5540,7 +5540,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.13 \u00b7 24 Oct 2026';
+const BUILD = '0.9.14 \u00b7 24 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
