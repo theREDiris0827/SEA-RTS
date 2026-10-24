@@ -596,7 +596,7 @@ const UD = {
   trade: { name: 'Armed Trade Ship', hp: 150, spd: 2.6, atk: 4, rng: 4.5, rate: 2.0, ma: 1, pa: 2, sight: 7, cost: { wood: 100, gold: 60 }, time: 18, cls: 'ship', ranged: true, layer: 1, slot: 'trade', civ: 0, trader: true, wpn: 'arrow', swivel: true, kb: { boat: 4 } },
   fireship: { name: 'Fire Ship', hp: 55, spd: 3.5, atk: 0, rng: 0.7, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 70, gold: 10 }, time: 10, cls: 'ship', layer: 1, slot: 'trade', civ: 1, boom: { dmg: 105, r: 1.7, big: 1.8 } },
   light: { name: 'Sloop', hp: 90, spd: 3.4, atk: 7, rng: 5.5, rate: 1.2, ma: 1, pa: 1, sight: 7.5, cost: { wood: 70, gold: 20 }, time: 14, cls: 'ship', ranged: true, layer: 1, slot: 'light', wpn: 'arrow', fireA: true, swivel: true, kb: { fireship: 40, trade: 6, boat: 6 } },
-  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 22, rng: 1.2, rate: 2.0, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', layer: 1, slot: 'galley', wpn: 'board', scan: 5.5, sec: { atk: 4, rng: 4, rate: 1.5 }, swivel: true, kb: { light: 8, trade: 8, boat: 8 }, carry: 5 },
+  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 22, rng: 1.2, rate: 2.0, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', layer: 1, slot: 'galley', wpn: 'board', scan: 5.5, sec: { atk: 4, rng: 4, rate: 1.5 }, swivel: true, kb: { light: 8, trade: 8, boat: 8 }, troops: 5 },
   // a burning raft a Port pushes out at enemy ships; it can't be steered and burns out on its own
   raft: { name: 'Fire Raft', hp: 60, spd: 1.7, atk: 0, rng: 0.6, rate: 1, ma: 0, pa: 3, sight: 6, cost: { wood: 40 }, time: 0, cls: 'ship', layer: 1, scan: 8, boom: { dmg: 35, r: 1.4 }, life: 30, nosel: true },
   frigate: { name: 'Frigate', hp: 300, spd: 2.4, atk: 30, rng: 7, rate: 4.0, ma: 2, pa: 3, sight: 8, cost: { wood: 200, gold: 120 }, time: 30, cls: 'ship', ranged: true, layer: 1, slot: 'frigate', wpn: 'cannon', kb: { galley: 10 }, miss: { light: 0.35, fireship: 0.35, raft: 0.5 } },
@@ -752,6 +752,10 @@ class Game {
     if (!g.gate) { g.gate = new Uint8Array(W * H); g.wt = -1; }
     g.byId = new Map(); for (const e of g.units.concat(g.buildings, g.nodes)) g.byId.set(e.id, e);
     g.burning = new Set(); for (const e of g.units.concat(g.buildings)) if (e.burn) g.burning.add(e);
+    for (const c of g.units.slice()) if (c.cargo && c.cargo.length && !UD[c.kind].troops) {
+      for (const u of c.cargo) { const p = g.openSpot(c.x, c.y, 0); u.x = p.x; u.y = p.y; u.aboard = null; u.order = { t: 'idle', hx: u.x, hy: u.y }; g.units.push(u); g.byId.set(u.id, u); }
+      c.cargo = [];
+    }
     g.rebuildHash(); g.updateFog();
     return g;
   }
@@ -1277,7 +1281,7 @@ class Game {
   doBoard(u, dt) {
     const g = this.byId.get(u.order.id);
     if (!g || g.hp <= 0 || g.team !== u.team) { this.idleOrder(u); return; }
-    if ((g.cargo || []).length >= UD[g.kind].carry) { if (u.team === 0) this.msg('The ' + civName(g.kind, g.team).split(' (')[0] + ' is full.'); this.idleOrder(u); return; }
+    if ((g.cargo || []).length >= UD[g.kind].troops) { if (u.team === 0) this.msg('The ' + civName(g.kind, g.team).split(' (')[0] + ' is full.'); this.idleOrder(u); return; }
     if (Math.hypot(g.x - u.x, g.y - u.y) <= 1.9) {
       (g.cargo = g.cargo || []).push(u); u.aboard = g.id; u.order = { t: 'idle' }; u.path = null; u.carry = u.carry || { type: null, amt: 0 };
       return;
@@ -1354,7 +1358,7 @@ class Game {
     if (target && target.hp > 0) {
       const team = us[0].team;
       // land units tapped onto their own galley go aboard; the galley comes to the nearest beach
-      if (target.isUnit && target.team === team && UD[target.kind].carry && us.some(u => u.layer === 0)) {
+      if (target.isUnit && target.team === team && UD[target.kind].troops && us.some(u => u.layer === 0)) {
         const land = us.filter(u => u.layer === 0 && u.cls !== 'animal');
         for (const u of land) this.orderBoard(u, target);
         if (target.order.t === 'idle' || target.order.t === 'move') {
@@ -4072,7 +4076,7 @@ function handleTap(wx, wy, o) {
   }
   const us = selUnits(), single = sel.length === 1 ? sel[0] : null;
   if (us.length && !(single && single.isBld)) {
-    if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].carry && us.some(u => u.layer === 0))) { select([hit]); return; }
+    if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].troops && us.some(u => u.layer === 0))) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
     const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
     if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || FIELD[hit.kind] || hit.hp < hit.maxHp))) { select([hit]); return; }
@@ -4301,7 +4305,7 @@ function buildPanel() {
         '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
       pdyn.push(() => {
         const u = first; $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = describeOrder(u) + '  ' + Math.ceil(u.hp) + '/' + u.maxHp;
-        $('p-l1').textContent = UD[u.kind].carry ? ((u.cargo && u.cargo.length) ? u.cargo.length + '/' + UD[u.kind].carry + ' aboard. Tap a beach to land them.' : 'Select soldiers, then tap this ship to take up to ' + UD[u.kind].carry + ' aboard.') : u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : UD[u.kind].trader ? 'Tap your Trade Post to start a trade route.' : u.cls === 'healer' ? 'Heals hurt allies nearby once they are out of the fight.' : 'Tap an enemy to attack.');
+        $('p-l1').textContent = UD[u.kind].troops ? ((u.cargo && u.cargo.length) ? u.cargo.length + '/' + UD[u.kind].troops + ' aboard. Tap a beach to land them.' : 'Select soldiers, then tap this ship to take up to ' + UD[u.kind].troops + ' aboard.') : u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : UD[u.kind].trader ? 'Tap your Trade Post to start a trade route.' : u.cls === 'healer' ? 'Heals hurt allies nearby once they are out of the fight.' : 'Tap an enemy to attack.');
       });
     } else {
       info = '<div class="p-head"><div class="chips">' + names.map(k => '<button class="chip" data-a="selkind" data-k="' + k + '" title="Select only this type"><img alt="" src="' + unitIcon(k, 0) + '"><b>' + kinds[k] + '</b></button>').join('') + '</div>' +
@@ -4317,7 +4321,7 @@ function buildPanel() {
       cmds += '<button class="cmd" data-a="fmt" title="Formation (F)"><img alt="" src="' + resIcon('form') + '"><span class="nm" id="p-fmt">' + formation + '</span><span class="ct">&nbsp;</span></button>';
       cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
-    if (us.some(u => UD[u.kind].carry)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
+    if (us.some(u => UD[u.kind].troops)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
     cmds += mrUnitCmds(us);
     cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
     cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
