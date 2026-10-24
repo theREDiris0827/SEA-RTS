@@ -323,6 +323,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-pick b { font-size: 20px; line-height: 22px; margin-top: 4px; overflow: hidden; white-space: nowrap; }
 .m-pick small { margin-top: 0; }
 .m-pick:disabled { opacity: .6; cursor: default; }
+.m-pick.sel { outline: 2px solid var(--p-trim); }
 .m-map { padding: 4px 4px 6px; text-align: left; }
 .m-map img, .m-map .q { display: block; width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; background: var(--sea); }
 .m-map .q { display: grid; place-items: center; font-size: 30px; color: var(--foot); }
@@ -426,9 +427,9 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
       <div class="m-sky"><img class="m-strip" alt="" data-art="strip"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Skirmish</h2></div>
       <div class="m-body">
         <div class="m-lbl">Your civ</div>
-        <div class="m-seg">
-          <button class="px m-pick cv-mel sel" aria-pressed="false"><svg width="20" height="30" viewBox="0 0 10 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h8v9l-4-2l-4 2z" fill="#e8c020"></path></svg><b>Melaka</b><small>Ports</small></button>
-          <button class="px m-pick cv-maj" disabled><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v2h-11zM1 4h11v2h-11z" fill="#f4f0e8"></path><path d="M1 2h11v2h-11zM1 6h11v2h-11z" fill="#c8281e"></path></svg><b>Majapahit</b><small>Soon</small></button>
+        <div class="m-seg" id="m-civpick">
+          <button class="px m-pick cv-mel sel" data-m="civ" data-v="0"><svg width="20" height="30" viewBox="0 0 10 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h8v9l-4-2l-4 2z" fill="#e8c020"></path></svg><b>Melaka</b><small>Ports</small></button>
+          <button class="px m-pick cv-maj" data-m="civ" data-v="1"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v2h-11zM1 4h11v2h-11z" fill="#f4f0e8"></path><path d="M1 2h11v2h-11zM1 6h11v2h-11z" fill="#c8281e"></path></svg><b>Majapahit</b><small>Farms</small></button>
           <button class="px m-pick cv-ayu" disabled><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v8h-11z" fill="#c8281e"></path></svg><b>Ayutthaya</b><small>Soon</small></button>
         </div>
         <div class="m-lbl">Map</div>
@@ -437,7 +438,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
         <div class="m-lbl">Layout</div>
         <div class="m-seg two" id="m-map"><button class="px" data-m="map" data-v="same">Classic</button><button class="px" data-m="map" data-v="new">New each game</button></div>
         <div class="m-lbl">Opponent</div>
-        <div class="px m-opp"><i></i><b>Majapahit AI</b><small id="m-opp-diff"></small></div>
+        <div class="px m-opp"><i id="m-opp-sq"></i><b id="m-opp-name">Majapahit AI</b><small id="m-opp-diff"></small></div>
         <div class="m-lbl">Difficulty</div>
         <div class="m-seg" id="m-diff"><button class="px" data-m="diff" data-v="easy">Easy</button><button class="px" data-m="diff" data-v="normal">Normal</button><button class="px" data-m="diff" data-v="hard">Hard</button></div>
         <button class="px px-p m-start" data-m="start">Start battle</button>
@@ -611,6 +612,11 @@ const UD = {
   flagship: { name: 'Flagship', hp: 650, spd: 2.0, atk: 24, rng: 7, rate: 3.5, ma: 3, pa: 4, sight: 9, cost: { wood: 450, gold: 300 }, time: 45, cls: 'ship', ranged: true, layer: 1, slot: 'flagship', one: true, civHp: [650, 1100], wpn: 'cannon', sec: { atk: 6, rng: 7, rate: 1.5 }, fireA: true },
   deer: { name: 'Deer', hp: 14, spd: 1.3, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 3, cost: {}, time: 0, cls: 'animal' }
 };
+/* which civ each side plays: team 0 is always you and team 1 the AI, but either can be Melaka (civ 0)
+   or Majapahit (civ 1). Set by the Game; read by stats, names and art through CV(team). */
+let CIVMAP = [0, 1];
+function CV(team) { return team === 0 || team === 1 ? CIVMAP[team] : team; }
+const CIV_TITLE = ['Melaka', 'Majapahit'];
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
 /* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
 const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };
@@ -631,7 +637,7 @@ const CIV_NAMES = {
   store: ['Gudang (Storehouse)', 'Gudang (Storehouse)'], sawah: [null, 'Sawah (Rice Terrace)'], palisade: ['Pagar Kayu (Palisade)', 'Pagar Kayu (Palisade)'],
   wall: ['Kubu (Timber Wall)', 'Benteng Bata (Brick Wall)'], gate: ['Pintu Kota (Gate)', 'Gapura (Split Gate)'], sumpit: ['Penyumpit (Blowpipe)', null], lembing: [null, 'Lembing (Javelin Thrower)']
 };
-function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[team === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
+function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[CV(team) === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
 
 const BD = {
   towncentre: { name: 'Town Centre', size: 3, hp: 1200, pop: 8, drop: ['food', 'wood', 'gold'], train: ['villager'], atk: { dmg: 5, range: 7, rate: 2 }, sight: 10, cost: {}, time: 0 },
@@ -705,6 +711,7 @@ class Game {
     this.seed = opts.seed == null ? 20241020 : opts.seed;
     this.diff = opts.diff || 'normal';
     this.map = MAPDEF[opts.map] ? opts.map : 'strait';
+    this.civs = opts.civ === 1 ? [1, 0] : [0, 1]; CIVMAP = this.civs.slice();
     this.init();
   }
 
@@ -803,7 +810,7 @@ class Game {
   }
   static restore(o) {
     if (!o || o.v !== SAVE_VERSION) return null;
-    const g = new Game({ seed: o.seed, diff: o.diff, map: o.map });
+    const g = new Game({ seed: o.seed, diff: o.diff, map: o.map, civ: o.civs ? o.civs[0] : 0 });
     o = JSON.parse(JSON.stringify(o), snapDec);
     for (const k of Object.keys(o)) if (k !== 'v' && k !== 'rngA') g[k] = o[k];
     g.rng.set(o.rngA);
@@ -1076,10 +1083,10 @@ class Game {
 
   /* ======================= entities ======================= */
   addUnit(kind, team, x, y) {
-    const d = UD[kind], m0 = TEAMMOD[team] || TEAMMOD[0], nv = d.layer && team === 1 ? NAVMOD : null;
+    const d = UD[kind], m0 = TEAMMOD[CV(team)] || TEAMMOD[0], nv = d.layer && CV(team) === 1 ? NAVMOD : null;
     const m = nv ? { hp: m0.hp * nv.hp, spd: m0.spd * nv.spd, arm: m0.arm } : m0;
     const arm = d.cls === 'vil' || d.cls === 'animal' || d.cls === 'boat' || d.cls === 'ship' ? 0 : m.arm;
-    const hp0 = d.civHp ? d.civHp[team === 1 ? 1 : 0] : d.hp;
+    const hp0 = d.civHp ? d.civHp[CV(team) === 1 ? 1 : 0] : d.hp;
     const u = {
       id: this.nextId++, isUnit: true, kind, team, x, y, layer: d.layer || 0, cls: d.cls,
       hp: Math.round(hp0 * m.hp), maxHp: Math.round(hp0 * m.hp), spd: d.spd * m.spd * (team === 2 ? 1 : 1),
@@ -1095,12 +1102,12 @@ class Game {
   unitName(u) { return civName(u.kind, u.team); }
   costOf(kind, team) {
     const base = UD[kind] ? UD[kind].cost : BD[kind].cost, o = {};
-    const m = UD[kind] && team === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1) : 1;
+    const m = UD[kind] && CV(team) === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1) : 1;
     for (const k in base) o[k] = m !== 1 ? Math.ceil(base[k] * m) : base[k];
     return o;
   }
   /* what a building can train for this team (unique units and ships belong to one civ) */
-  trainable(kind, team) { const t = BD[kind].train; return t ? t.filter(k => UD[k].civ == null || UD[k].civ === (team === 1 ? 1 : 0)) : null; }
+  trainable(kind, team) { const t = BD[kind].train; return t ? t.filter(k => UD[k].civ == null || UD[k].civ === (CV(team) === 1 ? 1 : 0)) : null; }
   countOf(team, kind) {
     let n = 0;
     for (const u of this.units) if (u.team === team && u.hp > 0 && u.kind === kind) n++;
@@ -1112,7 +1119,7 @@ class Game {
   refund(team, cost) { const r = this.res[team]; for (const k in cost) r[k] += cost[k]; }
 
   addBuilding(kind, team, tx, ty, done) {
-    const d = BD[kind], hp = d.civHp ? d.civHp[team === 1 ? 1 : 0] : d.hp;
+    const d = BD[kind], hp = d.civHp ? d.civHp[CV(team) === 1 ? 1 : 0] : d.hp;
     const b = {
       id: this.nextId++, isBld: true, kind, team, tx, ty, size: d.size, x: tx + d.size / 2, y: ty + d.size / 2,
       maxHp: hp, hp: done ? hp : Math.round(hp * 0.1), done: !!done, progress: done ? 1 : 0,
@@ -1755,7 +1762,7 @@ class Game {
       }
     }
     // Majapahit Bandar: the village pays tribute, no ships needed
-    if (b.kind === 'tradepost' && b.team === 1) this.res[1].gold += TRIBUTE * dt;
+    if (b.kind === 'tradepost' && CV(b.team) === 1) this.res[b.team].gold += TRIBUTE * dt;
     // production
     if (b.queue.length) {
       const q = b.queue[0], need = UD[q.kind].time;
@@ -1976,7 +1983,7 @@ class Game {
       if (o.s === 'out') { o.s = 'back'; o.from = { x: post.x, y: post.y }; u.carry = { type: 'gold', amt: 1 }; }
       else {
         const d = Math.hypot(o.from.x - home.x, o.from.y - home.y);
-        const gold = Math.max(1, Math.round(d * d * TRADE.k * (u.team === 0 ? TRADE.melaka : 1)));
+        const gold = Math.max(1, Math.round(d * d * TRADE.k * (CV(u.team) === 0 ? TRADE.melaka : 1)));
         this.res[u.team].gold += gold; u.carry = { type: null, amt: 0 }; o.s = 'out';
         if (u.team === 0) { this.tradeGold += gold; this.floaters.push({ x: u.x, y: u.y - 0.8, text: '+' + gold, type: 'gold', t: 1.4 }); }
       }
@@ -2069,7 +2076,7 @@ class Game {
         if (vil) B.t -= dt * 3;
       }
       if (B.t <= 0) { t.burn = null; this.burning.delete(t); continue; }
-      const rate = (t.isUnit ? BURN.ship : BURN.bld * (BURNMAT[t.team] != null ? BURNMAT[t.team] : 1) * (BD[t.kind].burn || 1)) * B.n;
+      const rate = (t.isUnit ? BURN.ship : BURN.bld * (BURNMAT[CV(t.team)] != null ? BURNMAT[CV(t.team)] : 1) * (BD[t.kind].burn || 1)) * B.n;
       t.hp -= rate * dt; t.lastHit = this.t;
       B.tick -= dt;
       if (B.tick <= 0) { B.tick = 0.5; this.fx.push({ k: 'flame', x: t.x + (this.rng() - 0.5) * (t.isBld ? t.size * 0.6 : 0.5), y: t.y - (t.isBld ? 0.2 : 0.5), n: B.n, t: 0.7, max: 0.7 }); }
@@ -2274,7 +2281,7 @@ class Game {
     let dmg = (w ? w.atk : att.atk) + ((att.bonus && att.bonus[tgt.cls]) || 0);
     if (w && w.kb && tgt.isUnit) dmg += w.kb[tgt.kind] || 0;
     if (w && w.swv && tgt.isUnit && (tgt.cls === 'ship' || tgt.cls === 'boat')) dmg += NAVWPN.swivelCrew;
-    if (att.isUnit && att.cls === 'ship' && att.team === 0 && att.kind !== 'flagship' && this.units.some(f => f.kind === 'flagship' && f.team === 0 && f.hp > 0 && Math.hypot(f.x - att.x, f.y - att.y) < 5)) dmg += 2;
+    if (att.isUnit && att.cls === 'ship' && CV(att.team) === 0 && att.kind !== 'flagship' && this.units.some(f => f.kind === 'flagship' && f.team === att.team && f.hp > 0 && Math.hypot(f.x - att.x, f.y - att.y) < 5)) dmg += 2;
     const rg = w ? w.ranged : att.ranged;
     let arm = tgt.isBld ? (rg ? BARM.pa : BARM.ma) : (rg ? tgt.pa : tgt.ma);
     if (w && tgt.isBld) { if (w.wpn === 'cannon') { arm = 0; dmg *= NAVWPN.cannonBld; } else if (w.swv) arm = Math.floor(arm * NAVWPN.swivelArmCut); }
@@ -2391,7 +2398,9 @@ class Game {
 
   /* ======================= enemy AI (Majapahit) ======================= */
   aiTick() {
-    const D = DIFF[this.diff], ai = this.ai, r = this.res[1];
+    const D = DIFF[this.diff], ai = this.ai, r = this.res[1], mj = CV(1) === 1;
+    const K = mj ? { field: 'sawah', heal: 'patirthan', healer: 'acaraki', elite: 'bhaya', skirm: 'lembing', fire: 'fireship' }
+      : { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'pahlawan', skirm: 'sumpit', fire: 'frigate' };
     const tc = this.buildings.find(b => b.team === 1 && b.kind === 'towncentre' && b.done && b.hp > 0);
     if (!tc) return;
     const vils = this.units.filter(u => u.team === 1 && u.kind === 'villager' && u.hp > 0);
@@ -2421,7 +2430,7 @@ class Game {
     // 4. economy: idle villagers
     const counts = { food: 0, wood: 0, gold: 0 };
     for (const v of vils) { if (v.order.t === 'gather') counts[v.order.type]++; }
-    const farms = myB('sawah');
+    const farms = myB(K.field);
     for (const v of vils) {
       if (v.order.t !== 'idle') continue;
       const w = { food: 0.4, wood: 0.38, gold: 0.22 };
@@ -2432,7 +2441,7 @@ class Game {
       if (pick === 'food' && (!n || Math.hypot(n.x - tc.x, n.y - tc.y) > 16 || n.kind === 'carcass')) {
         const fm = farms.find(f => f.done && f.food > 0);
         if (fm) n = fm;
-        else if (!building.some(b => FIELD[b.kind]) && r.wood >= BD.sawah.cost.wood && farms.length < 5) { this.aiBuild('sawah', tc, [v], 1, 3.5, 8); counts.food++; continue; }
+        else if (!building.some(b => FIELD[b.kind]) && r.wood >= BD[K.field].cost.wood && farms.length < 5) { this.aiBuild(K.field, tc, [v], 1, 3.5, 8); counts.food++; continue; }
       }
       if (!n) { pick = 'wood'; n = this.nearestNode(tc.x, tc.y, 'wood', 0, 40, 1); }
       if (!n) continue;
@@ -2453,27 +2462,27 @@ class Game {
     if (farms.length >= 2 && !has('granary') && r.wood >= 100 && !building.length) this.aiBuildNear('granary', farms[0], vils.slice(0, 1));
     if (this.t > 200 * late && !has('tower') && r.wood >= 75 && r.gold >= 25 && !building.length) this.aiBuild('tower', tc, vils, 2, 4, 7);
     if (this.t > 300 * late && !has('palace') && r.wood >= 400 && r.gold >= 200) this.aiBuild('palace', tc, vils, 4, 6, 12);
-    if (this.t > 360 * late && !has('tradepost') && r.wood >= 150 && r.gold >= 50) {
+    if (mj && this.t > 360 * late && !has('tradepost') && r.wood >= 150 && r.gold >= 50) {
       const v = this.villages.filter(v => !v.post && v.hp > 0 && (!isl || this.regionAt(v.site.tx + 1, v.site.ty + 1) === home)).sort((a, b) => Math.hypot(a.x - tc.x, a.y - tc.y) - Math.hypot(b.x - tc.x, b.y - tc.y))[0];
       if (v) { const near = vils.slice().sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y)).slice(0, 2); this.placeBuilding(1, 'tradepost', v.site.tx, v.site.ty, near.map(u => u.id)); }
     }
 
-    if (barracks.length && this.t > 240 * late && !has('patirthan') && r.wood >= 150 && r.gold >= 50 && !building.length) this.aiBuild('patirthan', tc, vils, 2, 5, 10);
-    const pool = myB('patirthan').find(b => b.done);
+    if (barracks.length && this.t > 240 * late && !has(K.heal) && r.wood >= BD[K.heal].cost.wood && r.gold >= 50 && !building.length) this.aiBuild(K.heal, tc, vils, 2, 5, 10);
+    const pool = myB(K.heal).find(b => b.done);
     if (pool) {
       const heal = mil.filter(m => m.cls === 'healer').length + pool.queue.length;
-      if (heal < Math.floor(mil.length / 8) && pop < cap) this.queueUnit(pool, 'acaraki', 1);
+      if (heal < Math.floor(mil.length / 8) && pop < cap) this.queueUnit(pool, K.healer, 1);
       if (!pool.rally) pool.rally = { x: tc.x - 6, y: tc.y + 2 };
     }
 
     // 5. train military (Bhayangkara come from the Kraton)
     const milCap = D.milBase + Math.floor(this.t / D.milRate);
     const palace = myB('palace').find(b => b.done);
-    if (palace && palace.queue.length < 1 && mil.length < milCap && pop < cap && this.rng() < 0.5) this.queueUnit(palace, 'bhaya', 1);
+    if (palace && palace.queue.length < 1 && mil.length < milCap && pop < cap && this.rng() < 0.5) this.queueUnit(palace, K.elite, 1);
     if (palace && !palace.rally) palace.rally = { x: tc.x - 6, y: tc.y + 2 };
     for (const b of barracks) {
       if (b.queue.length >= 2 || mil.length + b.queue.length >= milCap) continue;
-      const roll = this.rng(), kind = roll < 0.35 ? 'keris' : roll < 0.6 ? 'lembing' : roll < 0.82 ? 'tombak' : 'archer';
+      const roll = this.rng(), kind = roll < 0.35 ? 'keris' : roll < 0.6 ? K.skirm : roll < 0.82 ? 'tombak' : 'archer';
       if (pop + b.queue.length < cap) this.queueUnit(b, kind, 1);
       if (!b.rally) b.rally = { x: tc.x - 6, y: tc.y + 2 };
     }
@@ -2487,7 +2496,7 @@ class Game {
     if (port) {
       const navy = this.units.filter(u => u.team === 1 && u.hp > 0 && u.cls === 'ship' && u.kind !== 'galley');
       const navCap = Math.min(this.diff === 'easy' ? 4 : 9, 2 + Math.floor((this.t - 300) / 80)) - (isl ? 1 : 0);
-      if (port.queue.length < 2 && navy.length + port.queue.length < navCap && pop + port.queue.length < cap) this.queueUnit(port, this.rng() < 0.45 ? 'fireship' : 'light', 1);
+      if (port.queue.length < 2 && navy.length + port.queue.length < navCap && pop + port.queue.length < cap) this.queueUnit(port, this.rng() < 0.45 ? K.fire : 'light', 1);
       const idle = navy.filter(u => u.order.t === 'idle' || u.order.t === 'move');
       if (idle.length >= 3 && this.t >= (ai.navyNext || 0)) {
         const foes = this.buildings.filter(b => b.team === 0 && b.hp > 0 && b.kind === 'port');
@@ -2795,7 +2804,8 @@ function drawUnit(P, kind, team, anim, f, tool) {
   }
 }
 
-function unitSprite(kind, team, anim, f, tool) {
+function unitSprite(kind, team, anim, f, tool) { return civUnitSprite(kind, CV(team), anim, f, tool); }
+function civUnitSprite(kind, team, anim, f, tool) {
   if (UD[kind] && UD[kind].cls === 'healer') return CIVB.healerSprite(UD[kind].civ, anim === 'attack' ? 'heal' : anim === 'work' ? 'idle' : anim, anim === 'attack' ? f : anim === 'walk' ? f : 0);
   return sprite(`u|${kind}|${team}|${anim}|${f}|${tool || ''}`, 16, 18, 2, (P) => drawUnit(P, kind, team, anim, f, tool));
 }
@@ -3353,7 +3363,7 @@ const CIVB = (() => {
 const CIVB_KIND = { granary: ['jelapang', 'lumbung'], tower: ['menara', 'kulkul'], palace: ['istana', 'kraton'], tradepost: ['pangkalan', 'bandar'] };
 /* where each ship sprite sits on the water: [hull centre x, waterline y] in sprite pixels (Majapahit fire ship differs) */
 const SHIP_ANCHOR = { trade: [35, 50], fire: [22, 40], light: [30, 40], galley: [37, 48], frigate: [43, 64], flagship: [53, 76] };
-function shipSprite(u) { return u.kind === 'boat' ? boatSprite(u.team) : u.kind === 'raft' ? raftSprite(u.team) : NAVAL.navalSprite(UD[u.kind].slot, u.team); }
+function shipSprite(u) { const tm = CV(u.team); return u.kind === 'boat' ? boatSprite(tm) : u.kind === 'raft' ? raftSprite(tm) : NAVAL.navalSprite(UD[u.kind].slot, tm); }
 /* rakit api: a bamboo raft heaped with dry fronds and husks, already alight */
 function raftSprite(team) {
   const T = TEAMC[team] || TEAMC[0];
@@ -3462,7 +3472,8 @@ function sawahSprite(team) {
     r(42, 7, 2, 3, SKIN); r(42, 6, 2, 1, '#c9ae5e'); r(47, 0, 1, 9, WOOD_D); r(46, 1, 1, 3, T.main);
   }, false);
 }
-function buildingSprite(kind, team, level) {
+function buildingSprite(kind, team, level) { return civBuildingSprite(kind, CV(team), level); }
+function civBuildingSprite(kind, team, level) {
   if (kind === 'sawah') return sawahSprite(team);
   if (BD[kind] && BD[kind].wall) { const m = level >= 100 ? level - 100 : 10; return wallSprite(kind, team, m & 15, m & 16); }
   if (CIVB_KIND[kind]) return team === 1 ? CIVB.majapahitBuilding(CIVB_KIND[kind][1], team) : CIVB.melakaBuilding(CIVB_KIND[kind][0], team);
@@ -3660,7 +3671,7 @@ const cvs = $('view'), ctx = cvs.getContext('2d');
 const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
-const BUILD_ORDER = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'palisade', 'wall', 'gate', 'tradepost', 'palace'];
+const BUILD_ORDER = ['house', 'farm', 'sawah', 'store', 'granary', 'barracks', 'rumahtabib', 'patirthan', 'port', 'tower', 'palisade', 'wall', 'gate', 'tradepost', 'palace'];
 const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool', palisade: 'Palisade', wall: 'Wall', gate: 'Gate', sawah: 'Sawah' };
 const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', sumpit: 'Sumpit', lembing: 'Lembing', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
 const FORMS = ['box', 'line', 'wedge'];
@@ -3691,8 +3702,8 @@ function fitIcon(spr, size) {
   x.drawImage(spr, Math.floor((size - w) / 2), Math.floor((size - h) / 2), w, h);
   return c;
 }
-function unitIcon(kind, team) { return dataURL('ui|' + kind + team, () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
-function bldIcon(kind, team) { return dataURL('bi|' + kind + team, () => fitIcon(buildingSprite(kind, team, 2), 44)); }
+function unitIcon(kind, team) { return dataURL('ui|' + kind + CV(team), () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
+function bldIcon(kind, team) { return dataURL('bi|' + kind + CV(team), () => fitIcon(buildingSprite(kind, team, 2), 44)); }
 function resIcon(name) { return dataURL('ri|' + name, () => iconSprite(name)); }
 function nodeIcon(n) {
   const k = n.kind;
@@ -3764,12 +3775,12 @@ function paintUnit(u) {
     const bob = Math.sin(nowS * 3 + u.id) * 1.4, spr = shipSprite(u), an = shipAnchor(u.kind), rx = Math.max(15, spr.width * 0.34);
     ctx.strokeStyle = 'rgba(240,250,255,0.55)'; ctx.lineWidth = 1.5; ell(px, py + 1, rx, 5); ctx.stroke();
     if (u.moving) { ctx.strokeStyle = 'rgba(240,250,255,0.35)'; ell(px - u.face * rx * 0.6, py + 3, rx * 0.8, 4); ctx.stroke(); }
-    if (selected) { ctx.strokeStyle = TEAMC[u.team].ring; ctx.lineWidth = 2; ell(px, py + 3, rx + 2, 7); ctx.stroke(); }
+    if (selected) { ctx.strokeStyle = TEAMC[CV(u.team)].ring; ctx.lineWidth = 2; ell(px, py + 3, rx + 2, 7); ctx.stroke(); }
     ctx.save(); ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -an[0], -an[1]); ctx.restore();
     if (u.hit > 0) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(whiteOf(spr), -an[0], -an[1]); ctx.restore(); }
     if (u.cargo && u.cargo.length) {
       const n = u.cargo.length, x0 = px - n * 4;
-      for (let i = 0; i < n; i++) { ctx.fillStyle = '#17110c'; ctx.fillRect(x0 + i * 8, py - an[1] - 6, 7, 8); ctx.fillStyle = SKIN; ctx.fillRect(x0 + i * 8 + 1, py - an[1] - 3, 5, 4); ctx.fillStyle = TEAMC[u.team].main; ctx.fillRect(x0 + i * 8 + 1, py - an[1] - 5, 5, 2); }
+      for (let i = 0; i < n; i++) { ctx.fillStyle = '#17110c'; ctx.fillRect(x0 + i * 8, py - an[1] - 6, 7, 8); ctx.fillStyle = SKIN; ctx.fillRect(x0 + i * 8 + 1, py - an[1] - 3, 5, 4); ctx.fillStyle = TEAMC[CV(u.team)].main; ctx.fillRect(x0 + i * 8 + 1, py - an[1] - 5, 5, 2); }
     }
     if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px - 4, py - an[1] - 8, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px - 3, py - an[1] - 7, 6, 6); }
     if (selected || u.hp < u.maxHp || settings.bars === 'always') { const hw = Math.max(20, rx * 1.2); hpBar(px - hw / 2, py - an[1] - 12, hw, u.hp / u.maxHp); }
@@ -3792,7 +3803,7 @@ function paintUnit(u) {
   else if (u.working) { anim = 'work'; f = Math.floor(u.anim * 3.5) % 2; tool = toolFor(u); }
   const spr = unitSprite(u.kind, u.team, anim, f, tool);
   shadow(px, py + 3, 7, 3);
-  if (selected) { ctx.strokeStyle = TEAMC[u.team].ring; ctx.lineWidth = 1.6; ell(px, py + 3, 10, 5); ctx.stroke(); }
+  if (selected) { ctx.strokeStyle = TEAMC[CV(u.team)].ring; ctx.lineWidth = 1.6; ell(px, py + 3, 10, 5); ctx.stroke(); }
   ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -16, -31);
   if (u.hit > 0) { ctx.globalAlpha = 0.55; ctx.drawImage(whiteOf(spr), -16, -31); }
   ctx.restore();
@@ -3857,7 +3868,7 @@ function paintBuilding(b) {
     hpBar(px + 4, py + w + 2, w - 8, b.progress);
   }
   if (isSel(b)) {
-    ctx.strokeStyle = TEAMC[b.team].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, py - 1, w + 2, w + 2); ctx.setLineDash([]);
+    ctx.strokeStyle = TEAMC[CV(b.team)].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, py - 1, w + 2, w + 2); ctx.setLineDash([]);
   }
   if (b.done && (isSel(b) || b.hp < b.maxHp)) hpBar(px + w * 0.15, flat ? py - 4 : dy + 2, w * 0.7, b.hp / b.maxHp);
 }
@@ -4087,12 +4098,12 @@ function drawMini() {
   }
   for (const b of G.buildings) {
     if (b.team !== 0 && !G.explored[Math.floor(b.y) * W + Math.floor(b.x)]) continue;
-    mctx.fillStyle = b.team === 0 ? '#7dffa8' : b.team === 2 ? '#d8d0b8' : '#ff5a4a'; mctx.fillRect(b.tx * S, b.ty * S, b.size * S, b.size * S);
+    mctx.fillStyle = b.team === 2 ? '#d8d0b8' : CV(b.team) === 0 ? '#7dffa8' : '#ff5a4a'; mctx.fillRect(b.tx * S, b.ty * S, b.size * S, b.size * S);
     mctx.strokeStyle = '#10201a'; mctx.lineWidth = 1; mctx.strokeRect(b.tx * S + 0.5, b.ty * S + 0.5, b.size * S - 1, b.size * S - 1);
   }
   for (const u of G.units) {
     if (u.team === 2) continue; if (u.team === 1 && !G.isVisible(u.x, u.y)) continue;
-    mctx.fillStyle = u.team === 0 ? '#c8ffd9' : '#ff8a7a'; mctx.fillRect(Math.floor(u.x * S) - 1, Math.floor(u.y * S) - 1, 3, 3);
+    mctx.fillStyle = CV(u.team) === 0 ? '#c8ffd9' : '#ff8a7a'; mctx.fillRect(Math.floor(u.x * S) - 1, Math.floor(u.y * S) - 1, 3, 3);
   }
   mctx.globalAlpha = 0.9; mctx.imageSmoothingEnabled = true; mctx.drawImage(fogC, 0, 0, W * S, H * S); mctx.globalAlpha = 1;
   mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 1;
@@ -4424,7 +4435,7 @@ function describeOrder(u) {
 function bldNote(b) {
   const own = b.team === 0;
   if (b.kind === 'village') return b.post ? 'A trading post stands on its landing.' : 'Build a Trade Post on the landing beside it.';
-  if (b.kind === 'tradepost') return own ? 'Tap it with a Jong Dagang to start a trade route. Trade gold so far: ' + G.tradeGold + '.' : 'This village pays tribute to Majapahit.';
+  if (b.kind === 'tradepost') return own ? 'Tap it with a Jong Dagang to start a trade route. Trade gold so far: ' + G.tradeGold + '.' : 'This village pays tribute to ' + CIV_TITLE[CV(b.team)] + '.';
   if (b.kind === 'granary' && own) return 'Villagers drop food here.';
   if (b.kind === 'store' && own) return 'Villagers drop wood and gold here.';
   if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
@@ -4444,7 +4455,7 @@ function buildPanel() {
     cmds = '<button class="cmd ok" data-a="place-ok" title="Place building"><img alt="" src="' + resIcon('check') + '"><span class="nm">Place</span><span class="ct">&nbsp;</span></button>' +
       '<button class="cmd" data-a="place-cancel" title="Cancel"><img alt="" src="' + resIcon('x') + '"><span class="nm">Cancel</span><span class="ct">&nbsp;</span></button>';
   } else if (!sel.length) {
-    info = '<div class="p-head"><img alt="" src="' + bldIcon('towncentre', 0) + '"><div><div class="p-name">Melaka Sultanate</div><div class="p-sub">Your settlement</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon('towncentre', 0) + '"><div><div class="p-name">' + (CV(0) === 1 ? 'Majapahit Empire' : 'Melaka Sultanate') + '</div><div class="p-sub">Your settlement</div></div></div>' +
       '<div class="p-line">Tap a unit or building. Drag to scroll the map. Pinch to zoom. Hold, then drag to box-select.</div>';
     cmds = cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your Town Centre') + cmdBtn('idle', 'idle', resIcon('idle'), 'Idle', null, 'Next idle villager') + cmdBtn('army', 'army', resIcon('army'), 'Army', null, 'Select all warriors (not ships)') + cmdBtn('navy', 'navy', unitIcon('light', 0), 'Navy', null, 'Select all warships');
   } else if (us.length) {
@@ -4464,7 +4475,7 @@ function buildPanel() {
     const hasVil = us.some(u => u.cls === 'vil'), hasMil = us.some(u => u.cls !== 'vil' && u.cls !== 'boat');
     if (hasVil) {
       for (const k of BUILD_ORDER) {
-        const d = BD[k]; cmds += cmdBtn('build', k, bldIcon(k, 0), BUILD_SHORT[k], d.cost, civName(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
+        const d = BD[k]; if (d.civ != null && d.civ !== CV(0)) continue; cmds += cmdBtn('build', k, bldIcon(k, 0), BUILD_SHORT[k], d.cost, civName(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
     }
     if (hasMil) {
@@ -4476,7 +4487,7 @@ function buildPanel() {
     cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + civName(b.kind, b.team) + '</div><div class="p-sub">' + (own ? 'Melaka' : b.team === 2 ? 'Neutral' : 'Majapahit') + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + civName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : CIV_TITLE[CV(b.team)]) + '</div></div></div>' +
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';
@@ -4496,7 +4507,7 @@ function buildPanel() {
     cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isUnit) {
     const u = single;
-    info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? 'Majapahit ' : '') + G.unitName(u) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
+    info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? CIV_TITLE[CV(1)] + ' ' : '') + G.unitName(u) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
     pdyn.push(() => { $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = Math.ceil(u.hp) + '/' + u.maxHp + ' HP'; });
     cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   }
@@ -4576,7 +4587,7 @@ function showOv(name) {
   for (const n of ['pause', 'end', 'help']) $('ov-' + n).hidden = n !== name;
 }
 function startGame(seed) {
-  seedUsed = seed; G = new Game({ seed, diff, map: mapKind });
+  seedUsed = seed; G = new Game({ seed, diff, map: mapKind, civ: pciv });
   enterGame();
   const tc = G.buildings.find(b => b.team === 0 && b.kind === 'towncentre');
   view.zoom = view.w > 700 ? 1.5 : 1; resize(); centerOn(tc.x, tc.y + 1);
@@ -4610,7 +4621,7 @@ function readSave() { try { const r = JSON.parse(lsGet(SAVE_KEY)); return r && r
 function continueGame() {
   const r = readSave(); const g = r && Game.restore(r.snap);
   if (!g) { lsDel(SAVE_KEY); refreshHome(); return; }
-  G = g; seedUsed = r.seed; diff = r.diff; mapKind = g.map || 'strait';
+  G = g; seedUsed = r.seed; diff = r.diff; mapKind = g.map || 'strait'; pciv = g.civs ? g.civs[0] : 0;
   enterGame();
   view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
   updateHud(); updatePanel();
@@ -4622,7 +4633,8 @@ window.addEventListener('pagehide', saveGame);
 /* ---------------- main menu ---------------- */
 // links to the demos: relative on the live site, absolute anywhere else (the playable artifact)
 const SITE = /github\.io$/.test(location.hostname) ? './' : 'https://therediris0827.github.io/SEA-RTS/';
-let mapChoice = 'same', mapKind = 'strait', encyTab = 'heroes';
+let mapChoice = 'same', mapKind = 'strait', pciv = 0, encyTab = 'heroes';
+const CIV_SQ = ['#e8c020', '#c8281e'];
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
 function showMenu(name) {
   $('menu').hidden = !name;
@@ -4634,12 +4646,12 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.10 \u00b7 24 Oct 2026';
+const BUILD = '0.9.11 \u00b7 24 Oct 2026';
 function refreshHome() {
   const r = readSave();
   $('m-ver').textContent = 'v' + BUILD + (navigator.onLine === false ? ' \u00b7 offline' : '');
   $('m-cont').hidden = !r;
-  if (r) $('m-cont-sub').textContent = MAPDEF[r.snap.map || 'strait'].name + ' \u00b7 ' + fmtTime(r.snap.t) + ' \u00b7 ' + r.diff[0].toUpperCase() + r.diff.slice(1);
+  if (r) $('m-cont-sub').textContent = CIV_TITLE[r.snap.civs ? r.snap.civs[0] : 0] + ' \u00b7 ' + MAPDEF[r.snap.map || 'strait'].name + ' \u00b7 ' + fmtTime(r.snap.t) + ' \u00b7 ' + r.diff[0].toUpperCase() + r.diff.slice(1);
 }
 /* version, updates and exit (the installed app has no browser bar to reload or close it) */
 function setVerNote(t) { const e = $('m-vernote'); if (e) e.textContent = t || 'You have version ' + BUILD + '.'; }
@@ -4676,6 +4688,8 @@ function syncMenuSegs() {
   const press = (box, attr, val) => document.querySelectorAll('#' + box + ' button').forEach((b) => b.setAttribute('aria-pressed', b.dataset[attr] === String(val) ? 'true' : 'false'));
   press('m-diff', 'v', diff); press('m-map', 'v', mapChoice); press('m-mapk', 'v', mapKind); if ($('m-mapnote')) $('m-mapnote').textContent = MAP_NOTES[mapKind]; press('m-speed', 'v', settings.speed); press('m-bars', 'v', settings.bars); press('m-sound', 'v', settings.sound); press('m-music', 'v', settings.music);
   const od = $('m-opp-diff'); if (od) od.textContent = diff;
+  document.querySelectorAll('#m-civpick [data-m="civ"]').forEach((b) => { const on = +b.dataset.v === pciv; b.classList.toggle('sel', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
+  if ($('m-opp-name')) { $('m-opp-name').textContent = CIV_TITLE[1 - pciv] + ' AI'; $('m-opp-sq').style.background = CIV_SQ[1 - pciv]; }
 }
 const ENCY_UNITS = {
   villager: 'Gathers food, wood and gold, and builds. Fishes from the shore with a boat.',
@@ -4807,6 +4821,10 @@ function paintMenuArt() {
   renderCampaign();
 }
 function renderEncy() {
+  const keep = CIVMAP; CIVMAP = [0, 1];
+  try { renderEncyList(); } finally { CIVMAP = keep; }
+}
+function renderEncyList() {
   document.querySelectorAll('#m-tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === encyTab ? 'true' : 'false'));
   const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const cost = (c) => Object.keys(c || {}).map((k) => c[k] + ' ' + k).join(', ');
@@ -4841,6 +4859,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'diff') { diff = v; syncMenuSegs(); }
   else if (a === 'map') { mapChoice = v; syncMenuSegs(); }
   else if (a === 'mapk') { mapKind = v; syncMenuSegs(); }
+  else if (a === 'civ') { pciv = +v; syncMenuSegs(); }
   else if (a === 'start') startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
   else if (a === 'tab') { encyTab = v; renderEncy(); }
   else if (a === 'hero') { heroSel = v; renderEncy(); }
@@ -5056,7 +5075,7 @@ function endGame() {
   const win = G.over === 'win';
   $('end-title').textContent = win ? 'Victory' : 'Defeat';
   $('end-title').className = win ? 'win' : 'lose';
-  $('end-sub').textContent = win ? 'The Majapahit Town Centre has fallen. Melaka rises.' : 'Your Town Centre has fallen. The trade routes are lost.';
+  $('end-sub').textContent = win ? 'The ' + CIV_TITLE[CV(1)] + ' Town Centre has fallen. ' + CIV_TITLE[CV(0)] + ' rises.' : 'Your Town Centre has fallen. The trade routes are lost.';
   $('end-stats').innerHTML = '<div><b>' + fmtTime(G.t) + '</b><span>Time</span></div><div><b>' + G.stats.kills + '</b><span>Enemies defeated</span></div><div><b>' + G.stats.lost + '</b><span>Units lost</span></div><div><b>' + G.stats.trained + '</b><span>Units trained</span></div>';
   showOv('end');
 }
