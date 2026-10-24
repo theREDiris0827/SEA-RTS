@@ -6416,5 +6416,17 @@ missionBoot();
 
 </script>
 
+<script>
+/* Exit to main menu: on the start, pause and end cards of every mission */
+(function () {
+  const home = /github\.io$/.test(location.hostname) ? '../../' : 'https://therediris0827.github.io/SEA-RTS/';
+  for (const id of ['ov-start', 'ov-pause', 'ov-end']) {
+    const c = document.getElementById(id); if (!c || c.querySelector('.exit-home')) continue;
+    const b = document.createElement('button'); b.className = 'btn alt exit-home'; b.type = 'button'; b.textContent = 'Exit to main menu';
+    b.addEventListener('click', () => { location.href = home; });
+    c.appendChild(b);
+  }
+})();
+</script>
 </body>
 </html>
