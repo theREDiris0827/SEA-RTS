@@ -348,6 +348,9 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
   .card { padding: 14px 12px 12px; }
   .seg button { padding: 8px 2px; font-size: 13px; }
 }
+
+/* the pixel font turns "fi" into one glyph that reads like "A" */
+body, button, input { font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0; }
 </style>
 
 </head>
@@ -3494,7 +3497,7 @@ const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
 const BUILD_ORDER = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'palisade', 'wall', 'gate', 'tradepost', 'palace'];
-const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool', palisade: 'Palisade', wall: 'Wall', gate: 'Gate' };
+const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool', palisade: 'Palisade', wall: 'Wall', gate: 'Gate', sawah: 'Sawah' };
 const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', sumpit: 'Sumpit', lembing: 'Lembing', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
 const FORMS = ['box', 'line', 'wedge'];
 
@@ -6956,7 +6959,7 @@ function hintText() {
     const left = M.cols.reduce((a, c) => a + (c.done ? 0 : c.left), 0);
     return 'Raid ' + M.cols.filter(c => !c.done).map(c => c.wave + 1).join(', ') + ': ' + left + ' raiders left. Break them!';
   }
-  if (M.t < 45 && M.raid === 0) return 'Put villagers to work and build Houses. The first raid comes in ' + fmtTime(M.next - M.t) + '.';
+  if (M.t < 45 && M.raid === 0) return 'Put villagers to work and build Houses before the first raid comes.';
   if (idle > 2) return idle + ' villagers are idle. Tap the idle button to put them to work.';
   if (M.aging) return 'The court works toward the ' + AGES[M.aging.to].name + ': ' + Math.ceil(M.aging.left) + 's.';
   if (AGES[n] && G.ageNeedMet(0, n) && G.canAfford(0, AGES[n].cost)) return 'You can advance to the ' + AGES[n].name + '. Select the Town Centre.';
