@@ -368,7 +368,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
         <li><b>Ages:</b> select the Town Centre and tap the <b>Age</b> button. Each age costs food and gold and needs two of the buildings listed (the Golden Age needs the Kraton and the Bandar). Ageing up opens new buildings and units, upgrades your archers to gunners and toughens your soldiers, but it also brings the next raid closer.</li>
         <li><b>Raids:</b> raiders come down the two roads in the east and land from the river and the sea in the south. Arrows on the map edge show where, 25 s before. The bar under the resources says what is coming. Between raids you can call the next one early for bonus gold.</li>
         <li><b>Fire:</b> rebel fire arrows set buildings alight. Majapahit's red brick burns at half the usual rate. Villagers next to a burning building put it out and repair damage.</li>
-        <li><b>Army:</b> Tombak spears beat swordsmen. Keris break archers and crossbowmen. Bhayangkara (Kraton) are the royal guard. Juru Bedil and Bedil Kraton hit hard from range. Up to 3 Cetbang cannon smash groups and ships. Acaraki heal. Gajah Mada (Golden Age, Kraton) gives nearby troops +2 attack and returns 60 s after he falls.</li>
+        <li><b>Army:</b> Galah spears beat swordsmen. Golok swords break archers and crossbowmen. Bhayangkara (Kraton) are the royal guard. Bedil Gunners and Cetbang Handgunners hit hard from range. Perahu Api fire ships burn enemy boats. Up to 3 Cetbang cannon smash groups and ships. Acaraki heal. Gajah Mada (Golden Age, Kraton) gives nearby troops +2 attack and returns 60 s after he falls.</li>
         <li><b>Walls:</b> build a palisade by tapping ✓ at each corner; it joins in straight runs. Gates open and close from their panel.</li>
         <li><b>Lose</b> if the Town Centre falls. <b>Win</b> by reaching the Golden Age, then killing the lord of Sadeng or breaking his army. Keys: A attack-move, S stop, F formation, . idle villager, H home, Space pause.</li>
       </ul>
@@ -1296,7 +1296,7 @@ class Game {
       }
     }
     // Majapahit Bandar: the village pays tribute, no ships needed
-    if (b.kind === 'tradepost' && b.team === 1) this.res[1].gold += TRIBUTE * dt;
+    if (b.kind === 'tradepost' && CV(b.team) === 1) this.res[b.team].gold += TRIBUTE * dt;
     // production
     if (b.queue.length) {
       const q = b.queue[0], need = UD[q.kind].time;
@@ -5437,7 +5437,7 @@ const AGES = [null,
   { n: 3, name: 'Age of Commerce', local: 'Bandar', cost: { food: 800, gold: 200 }, time: 90, tc: 2200,
     need: { any: ['palace', 'patirthan', 'tower', 'tradepost'], n: 2, text: '2 of: Kraton, Patirthan, Bale Kulkul, Bandar' } },
   { n: 4, name: 'Golden Age', local: 'Nusantara', cost: { food: 1000, gold: 800 }, time: 120, tc: 2800,
-    need: { all: ['palace', 'tradepost'], text: 'a Kraton and a Bandar (trading post)' } }
+    need: { all: ['palace', 'tradepost'], text: 'a Kraton and a Bandar (tribute post)' } }
 ];
 
 /* ---------- units ----------
@@ -5445,8 +5445,8 @@ const AGES = [null,
    ageing code stays the same; names and art are Majapahit's. */
 Object.assign(UD, {
   // Majapahit: the archer line takes up the bedil in the Age of Commerce
-  pembedil: { name: 'Juru Bedil (Handgunner)', hp: 38, spd: 2.2, atk: 10, bonus: { sword: 2, eleph: 6 }, rng: 5.5, rate: 2.2, ma: 0, pa: 1, sight: 7.5, cost: { wood: 40, gold: 45 }, time: 11, cls: 'archer', ranged: true, gun: true, pierce: 2, age: 3, maxAge: 3, civ: 1 },
-  bediraja: { name: 'Bedil Kraton (Royal gunner)', hp: 46, spd: 2.1, atk: 15, bonus: { sword: 3, eleph: 10 }, rng: 6.5, rate: 2.8, ma: 1, pa: 2, sight: 8, cost: { wood: 45, gold: 70 }, time: 13, cls: 'archer', ranged: true, gun: true, pierce: 3, age: 4, civ: 1 },
+  pembedil: { name: 'Bedil Gunner', hp: 38, spd: 2.2, atk: 10, bonus: { sword: 2, eleph: 6 }, rng: 5.5, rate: 2.2, ma: 0, pa: 1, sight: 7.5, cost: { wood: 40, gold: 45 }, time: 11, cls: 'archer', ranged: true, gun: true, pierce: 2, age: 3, maxAge: 3, civ: 1 },
+  bediraja: { name: 'Cetbang Handgunner', hp: 46, spd: 2.1, atk: 15, bonus: { sword: 3, eleph: 10 }, rng: 6.5, rate: 2.8, ma: 1, pa: 2, sight: 8, cost: { wood: 45, gold: 70 }, time: 13, cls: 'archer', ranged: true, gun: true, pierce: 3, age: 4, civ: 1 },
   meriam: { name: 'Cetbang (Bronze cannon)', hp: 140, spd: 1.5, atk: 18, rng: 7.5, rate: 4.5, ma: 2, pa: 5, sight: 8.5, cost: { wood: 150, gold: 120 }, time: 22, cls: 'siege', ranged: true, gun: true, cap: 3, splash: 1.1, bld: 40, age: 3, civ: 1 },
   tuah: { name: 'Gajah Mada', hp: 450, spd: 2.6, atk: 16, bonus: { elite: 6, eleph: 10 }, rng: 0.85, rate: 0.9, ma: 3, pa: 3, sight: 8, cost: { food: 200, gold: 150 }, time: 25, cls: 'elite', hero: 'tuah', art: 'gajahmada', aura: { r: 5, atk: 2 }, cap: 1, age: 4, civ: 1 },
   perak: { name: 'Tribhuwana', hp: 320, spd: 2.4, atk: 10, bonus: {}, rng: 0.85, rate: 1.0, ma: 2, pa: 2, sight: 9, cost: {}, time: 0, cls: 'sword', hero: 'perak', art: 'tribhuwana', aura: { r: 6, atk: 2 }, age: 9, civ: 1 },
@@ -5472,14 +5472,16 @@ Object.assign(UD, {
 // the ages of Majapahit's own units and ships
 Object.assign(UD.acaraki, { age: 2 }); Object.assign(UD.bhaya, { age: 2 }); Object.assign(UD.archer, { maxAge: 2 });
 Object.assign(UD.galley, { age: 2 }); Object.assign(UD.trade, { age: 2 }); Object.assign(UD.frigate, { age: 3 }); Object.assign(UD.flagship, { age: 4 });
-TEAMMOD[0] = { hp: 1, spd: 1, cost: 1, arm: 0 }; TEAMMOD[1] = { hp: 1, spd: 1, cost: 1, arm: 0 };
-Object.assign(NAVMOD, { hp: 1, spd: 1, cost: 1 });
+// Majapahit keeps its own civ bonuses from the main game and the Majapahit campaign demo (speed and numbers:
+// cheaper, faster, a little frailer, +1 armour; cheaper, faster, weaker ships through NAVMOD)
+TEAMMOD[0] = { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }; TEAMMOD[1] = { hp: 1, spd: 1, cost: 1, arm: 0 };
 Object.assign(ORDER_CLS, { eleph: 0.4, siege: 3.8 });
-// [the raiders' name, Majapahit's name]
+// [the raiders' name, Majapahit's name]; Majapahit's names are the ones the main game and the campaign use
 Object.assign(CIV_NAMES, {
-  villager: ['Raider', 'Wong Cilik (Villager)'], keris: ['Raider swordsman', 'Prajurit Keris'], tombak: ['Raider spearman', 'Prajurit Tombak'], archer: ['Raider archer', 'Pemanah (Archer)'],
-  light: ['Raider boat', 'Jukung (Sloop)'], galley: ['Landing galley', 'Kelulus (Galley)'],
-  wall: [null, 'Pagar (Palisade)'], gate: [null, 'Lawang (Gate)'], tradepost: [null, 'Bandar (Trading post)']
+  villager: ['Raider', 'Kawula (Villager)'], keris: ['Raider swordsman', 'Golok Warrior'], tombak: ['Raider spearman', 'Galah Warrior'], archer: ['Raider archer', 'Panah (Archer)'],
+  boat: [null, 'Jukung (Fishing boat)'], light: ['Raider boat', 'Jukung Perang (Sloop)'], galley: ['Landing galley', 'Kelulus (Galley)'],
+  wall: [null, 'Pagar (Palisade)'], gate: [null, 'Lawang (Gate)'], house: [null, 'Omah (House)'], port: [null, 'Dermaga (Jetty)'],
+  barracks: [null, 'Asrama Prajurit (Barracks)']
 });
 
 /* ---------- buildings ---------- */
@@ -6649,7 +6651,7 @@ function sfxTick() {
   }
 }
 /* ===== mp-ui.js ===== */
-Object.assign(TRAIN_SHORT, { villager: 'Wong Cilik', keris: 'Keris', tombak: 'Tombak', archer: 'Pemanah', pembedil: 'Juru Bedil', bediraja: 'Bedil Kraton', meriam: 'Cetbang', tuah: 'Gajah Mada', bhaya: 'Bhayangkara', acaraki: 'Acaraki', light: 'Jukung', galley: 'Kelulus', trade: 'Jong', frigate: 'Jong Perang', flagship: 'Jong Raya' });
+Object.assign(TRAIN_SHORT, { villager: 'Kawula', keris: 'Golok', tombak: 'Galah', archer: 'Panah', pembedil: 'Bedil', bediraja: 'Cetbang Gun', meriam: 'Cetbang', tuah: 'Gajah Mada', bhaya: 'Bhayangkara', acaraki: 'Acaraki', light: 'Jukung Perang', galley: 'Kelulus', fireship: 'Perahu Api', trade: 'Jong', frigate: 'Jong Perang', flagship: 'Jong Raya' });
 Object.assign(BUILD_SHORT, { granary: 'Lumbung', tower: 'Bale Kulkul', palace: 'Kraton', tradepost: 'Bandar', patirthan: 'Patirthan', wall: 'Palisade', gate: 'Lawang' });
 const TIPS = [
   'The story goes that one of Wijaya\'s men, clearing the Tarik forest, bit into the fruit of a maja tree and found it bitter (pahit). The new village was named after it: Majapahit.',
@@ -6716,7 +6718,7 @@ function bldNote(b) {
     return 'The Golden Age: Majapahit at its height. If the Town Centre falls, all is lost.';
   }
   if (b.kind === 'palace' && b.team === 0) return G.age[0] >= 4 ? 'Trains Bhayangkara and Gajah Mada.' : 'Trains Bhayangkara. Gajah Mada comes with the Golden Age.';
-  if (b.kind === 'barracks' && b.team === 0 && G.age[0] < 3) return 'In the Age of Commerce, Pemanah become Juru Bedil and the Cetbang is cast here.';
+  if (b.kind === 'barracks' && b.team === 0 && G.age[0] < 3) return 'In the Age of Commerce, Panah archers become Bedil Gunners and the Cetbang is cast here.';
   return baseBldNote(b);
 }
 
@@ -6764,7 +6766,7 @@ function storyFor(id) {
     tag: 'Kingdom Age · Kadatwan', title: 'Kertarajasa',
     body: [P('Kediri has fallen and the Yuan have sailed home. Raden Wijaya is crowned Kertarajasa Jayawardhana, first king of Majapahit. A kraton of red brick rises at the heart of the town.'),
       P('The Bhayangkara guard the king, and the acaraki, healers who know the jamu herbs, tend the wounded.'),
-      '<p class="goal">New: Kraton (Bhayangkara), Patirthan (Acaraki healers), Bale Kulkul watchtower, Bandar trading post, Kelulus galleys and Jong traders. Fire arrows at sea.</p>',
+      '<p class="goal">New: Kraton (Bhayangkara), Patirthan (Acaraki healers), Bale Kulkul watchtower, Bandar tribute post, Kelulus galleys and Jong traders. Fire arrows at sea.</p>',
       '<p class="lead tipline">' + TIPS[4] + '</p>'],
     btn: 'Onward'
   };
@@ -6772,15 +6774,15 @@ function storyFor(id) {
     tag: 'Age of Commerce · Bandar', title: 'The river ports',
     body: [P('Rice comes down the Brantas and goes out from the ports of the north coast, Tuban and Gresik. Spices from the eastern islands come back. Majapahit grows rich on the trade between them.'),
       P('Bronze smiths cast the cetbang, and your archers take up the bedil. Your soldiers now wear the kere, a mail coat.'),
-      '<p class="goal">New: Juru Bedil (handgunners), Cetbang bronze cannon (3 at most), Jong Perang warships with ship cannon. Towers fire swivel guns. Soldiers +1 armour.</p>',
+      '<p class="goal">New: Bedil Gunners, Cetbang bronze cannon (3 at most), Jong Perang warships with ship cannon. Towers fire swivel guns. Soldiers +1 armour.</p>',
       '<p class="lead tipline">' + TIPS[5] + '</p>'],
     btn: 'Onward'
   };
   if (id === 'age4') return {
     tag: 'Golden Age · Nusantara', title: 'The queen and her commander',
     body: [P('Queen Tribhuwana rules Majapahit, and Gajah Mada, who once saved a king with a handful of guards, commands her armies.'),
-      P('Gajah Mada now serves at the Kraton. Your Juru Bedil become the Bedil Kraton, the royal gunners.'),
-      '<p class="goal">New: Gajah Mada (hero, at the Kraton), Bedil Kraton, the Jong Raya flagship. Soldiers +1 armour more. Sadeng and Keta are gathering an army: it marches in ' + FINAL_DELAY + ' seconds.</p>',
+      P('Gajah Mada now serves at the Kraton. Your Bedil Gunners become Cetbang Handgunners.'),
+      '<p class="goal">New: Gajah Mada (hero, at the Kraton), Cetbang Handgunners, the Jong Raya flagship. Soldiers +1 armour more. Sadeng and Keta are gathering an army: it marches in ' + FINAL_DELAY + ' seconds.</p>',
       '<p class="lead tipline">' + TIPS[8] + '</p>'],
     btn: 'Make ready'
   };
