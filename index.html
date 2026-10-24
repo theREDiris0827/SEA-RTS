@@ -273,6 +273,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
 .m-card.km { background: #142238; border-color: #3a6fc8; }
 .m-card.off { opacity: .55; }
 .m-mis { display: flex; align-items: center; gap: 10px; margin-top: 6px; padding: 10px; min-height: 44px; box-sizing: border-box; background: rgba(0,0,0,.28); border: 2px solid rgba(255,255,255,.25); color: #fff; text-decoration: none; font-size: 15px; }
+.upd-bar { position: fixed; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 99; padding: 14px; font: inherit; font-size: 15px; color: #2a1a14; background: #f0c060; border: 3px solid #fbe3a5; box-shadow: 0 4px 0 #120a06; }
 .m-mis em { font-style: normal; font-family: 'Silkscreen', monospace; font-size: 12px; background: #f0c060; color: #2a1a14; padding: 2px 6px; }
 .m-mis:active { transform: translateY(2px); }
 .m-start { padding: 14px; font-family: var(--font-hd); font-size: 18px; letter-spacing: .08em; text-transform: uppercase; background: var(--m-mel); color: #fff !important; border: 3px solid var(--m-text); box-shadow: 0 5px 0 #14502d; }
@@ -330,13 +331,14 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
         <div class="m-grid">
           <button class="m-tile" data-m="go" data-v="campaign"><b>Campaign</b><span>3 civs, 15 missions</span></button>
           <button class="m-tile" data-m="go" data-v="skirmish"><b>Skirmish</b><span>You vs the AI</span></button>
-          <button class="m-tile" data-m="go" data-v="battles"><b>Battles</b><span>Play every civ</span></button>
+          <button class="m-tile" data-m="go" data-v="battles"><b>Battles</b><span>&#272;&#7841;i Vi&#7879;t and Khmer</span></button>
           <button class="m-tile" data-m="go" data-v="ency"><b>Encyclopedia</b><span>Units, buildings, civs</span></button>
         </div>
         <button class="m-learn" data-m="learn">Learn to play <span>How to play</span></button>
         <div class="m-foot">
           <button class="m-ico" data-m="go" data-v="settings" aria-label="Settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0c060" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
-          <span class="m-ver">v0.9 &middot; offline</span>
+          <button class="m-ico m-exit" data-m="exit" aria-label="Exit"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0c060" stroke-width="2.4" aria-hidden="true"><path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9"></path></svg></button>
+          <span class="m-ver" id="m-ver"></span>
         </div>
       </div>
     </div>
@@ -392,6 +394,9 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
       <div class="m-seg" id="m-sound" style="grid-template-columns: 1fr 1fr"><button data-m="set" data-k="sound" data-v="on">On</button><button data-m="set" data-k="sound" data-v="off">Off</button></div>
       <div class="m-lbl">Music</div>
       <div class="m-seg" id="m-music" style="grid-template-columns: 1fr 1fr"><button data-m="set" data-k="music" data-v="on">On</button><button data-m="set" data-k="music" data-v="off">Off</button></div>
+      <div class="m-lbl">Version</div>
+      <p class="m-note" id="m-vernote"></p>
+      <button class="m-learn" data-m="update">Check for updates <span></span></button>
       <div class="m-lbl">Saved game</div>
       <p class="m-note" id="m-savenote"></p>
       <button class="m-learn" data-m="delsave">Delete saved game <span></span></button>
@@ -4385,14 +4390,47 @@ function showMenu(name) {
   for (const n of ['home', 'skirmish', 'campaign', 'battles', 'ency', 'settings']) $('m-' + n).hidden = n !== name;
   if (name === 'home') refreshHome();
   if (name === 'skirmish') syncMenuSegs();
-  if (name === 'settings') { syncMenuSegs(); const r = readSave(); $('m-savenote').textContent = r ? 'A game from ' + new Date(r.when).toLocaleString() + ' is saved.' : 'No game saved. Games save by themselves while you play.'; }
+  if (name === 'settings') { syncMenuSegs(); setVerNote(); const r = readSave(); $('m-savenote').textContent = r ? 'A game from ' + new Date(r.when).toLocaleString() + ' is saved.' : 'No game saved. Games save by themselves while you play.'; }
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
+const BUILD = '0.9.8 \u00b7 24 Oct 2026';
 function refreshHome() {
   const r = readSave();
+  $('m-ver').textContent = 'v' + BUILD + (navigator.onLine === false ? ' \u00b7 offline' : '');
   $('m-cont').hidden = !r;
   if (r) $('m-cont-sub').textContent = 'Melaka vs Majapahit \u00b7 ' + fmtTime(r.snap.t) + ' \u00b7 ' + r.diff[0].toUpperCase() + r.diff.slice(1);
+}
+/* version, updates and exit (the installed app has no browser bar to reload or close it) */
+function setVerNote(t) { const e = $('m-vernote'); if (e) e.textContent = t || 'You have version ' + BUILD + '.'; }
+function checkForUpdate() {
+  saveGame();
+  const reg = window.swReg;
+  if (!reg) { setVerNote('Checking\u2026'); location.reload(); return; }
+  setVerNote('Checking for a new version\u2026');
+  reg.update().then(() => {
+    const nw = reg.installing || reg.waiting;
+    if (!nw) { setVerNote('You have the latest version (' + BUILD + ').'); return; }
+    setVerNote('Downloading the new version\u2026');
+    const done = () => { if (nw.state === 'activated') location.reload(); };
+    nw.addEventListener('statechange', done); done();
+  }).catch(() => setVerNote('No connection. Try again when you are online.'));
+}
+function showUpdateReady() {
+  if ($('upd-bar')) return;
+  const b = document.createElement('button'); b.id = 'upd-bar'; b.className = 'upd-bar';
+  b.textContent = 'A new version is ready. Tap to update.';
+  b.addEventListener('click', () => { saveGame(); location.reload(); });
+  document.body.appendChild(b);
+}
+function exitApp() {
+  saveGame();
+  try { window.close(); } catch (e) { /* not allowed here */ }
+  setTimeout(() => { const b = document.querySelector('.m-exit'); if (b) { b.classList.add('m-exit-hint'); b.setAttribute('aria-label', 'Swipe the app away to close it'); } toastMenu('Your game is saved. Swipe the app away to close it.'); }, 300);
+}
+function toastMenu(t) {
+  let e = $('m-toast'); if (!e) { e = document.createElement('div'); e.id = 'm-toast'; e.className = 'upd-bar'; e.style.pointerEvents = 'none'; document.body.appendChild(e); }
+  e.textContent = t; e.hidden = false; clearTimeout(e._t); e._t = setTimeout(() => { e.hidden = true; }, 3000);
 }
 function syncMenuSegs() {
   const press = (box, attr, val) => document.querySelectorAll('#' + box + ' button').forEach((b) => b.setAttribute('aria-pressed', b.dataset[attr] === String(val) ? 'true' : 'false'));
@@ -4474,6 +4512,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'tab') { encyTab = v; renderEncy(); }
   else if (a === 'set') { settings[el.dataset.k] = el.dataset.k === 'speed' ? +v : v; saveSettings(); syncMenuSegs(); SFX.apply(); }
   else if (a === 'delsave') { lsDel(SAVE_KEY); showMenu('settings'); }
+  else if (a === 'update') checkForUpdate();
+  else if (a === 'exit') exitApp();
 });
 document.querySelectorAll('[data-site]').forEach((a) => { a.href = SITE + a.dataset.site; if (SITE !== './') { a.target = '_blank'; a.rel = 'noopener'; } });
 function togglePause() {
@@ -4742,6 +4782,19 @@ window.addEventListener('resize', () => { resize(); });
 
 </script>
 
-<script>if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+<script>
+/* app updates: check for a new version on every open and whenever the app comes back to the front;
+   when one has been fetched, offer a one-tap reload (the game saves itself before the page goes) */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => {
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      window.swReg = reg;
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) showUpdateReady(); });
+  });
+}
+</script>
 </body>
 </html>
