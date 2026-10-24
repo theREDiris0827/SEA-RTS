@@ -5566,7 +5566,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.20 \u00b7 24 Oct 2026';
+const BUILD = '0.9.21 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -5808,6 +5808,14 @@ document.addEventListener('click', (e) => {
   else if (a === 'exit') exitApp();
 });
 document.querySelectorAll('[data-site]').forEach((a) => { a.href = SITE + a.dataset.site; if (SITE !== './') { a.target = '_blank'; a.rel = 'noopener'; } });
+// on the live site a mission replaces the menu page instead of stacking on it: browsers only let the
+// installed app close itself (Exit) while it has a single page in its history
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || SITE !== './' || a.target === '_blank' || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const u = new URL(a.href, location.href); if (u.origin !== location.origin) return;
+  e.preventDefault(); saveGame(); location.replace(u.href);
+});
 function togglePause() {
   if (!started || ended) return;
   paused = !paused;

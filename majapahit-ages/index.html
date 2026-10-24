@@ -7799,7 +7799,7 @@ mrBoot();
   for (const id of ['ov-start', 'ov-pause', 'ov-end']) {
     const c = document.getElementById(id); if (!c || c.querySelector('.exit-home')) continue;
     const b = document.createElement('button'); b.className = 'btn alt exit-home'; b.type = 'button'; b.textContent = 'Exit to main menu';
-    b.addEventListener('click', () => { location.href = home; });
+    b.addEventListener('click', () => { location.replace(home); });
     c.appendChild(b);
   }
 })();

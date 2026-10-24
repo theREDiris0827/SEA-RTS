@@ -575,6 +575,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
         <button data-do="diff" data-v="normal" aria-pressed="true">Normal</button>
         <button data-do="diff" data-v="hard" aria-pressed="false">Hard</button>
       </div>
+      <button class="btn" data-do="mcont" id="ms-cont" hidden>Continue saved game</button>
       <button class="btn" data-do="start">Begin</button>
       <div class="lbl">Practice: start later</div>
       <div class="seg">
@@ -598,6 +599,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       <button class="btn alt" data-do="restart">Restart</button>
       <p class="lead tipline" id="pause-tip"></p>
       <button class="btn alt" data-do="help">How to play</button>
+      <button class="btn" data-do="msave">Save and exit to menu</button>
     </div>
 
     <div class="card" id="ov-end" hidden>
@@ -5625,7 +5627,7 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nothing t
 let saveT = 0;
 const settings = Object.assign({ speed: 1, bars: 'auto', sound: 'on', music: 'on' }, (() => { try { return JSON.parse(lsGet(SET_KEY)) || {}; } catch (e) { return {}; } })());
 function saveSettings() { lsSet(SET_KEY, JSON.stringify(settings)); }
-function saveGame() { }
+function saveGame() { mSave(); }
 function baseSaveGame() {
   if (!started || ended || !G || G.over) return;
   const rec = { snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() };
@@ -5659,7 +5661,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.20 \u00b7 24 Oct 2026';
+const BUILD = '0.9.21 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -5901,6 +5903,14 @@ document.addEventListener('click', (e) => {
   else if (a === 'exit') exitApp();
 });
 document.querySelectorAll('[data-site]').forEach((a) => { a.href = SITE + a.dataset.site; if (SITE !== './') { a.target = '_blank'; a.rel = 'noopener'; } });
+// on the live site a mission replaces the menu page instead of stacking on it: browsers only let the
+// installed app close itself (Exit) while it has a single page in its history
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || SITE !== './' || a.target === '_blank' || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const u = new URL(a.href, location.href); if (u.origin !== location.origin) return;
+  e.preventDefault(); saveGame(); location.replace(u.href);
+});
 function baseTogglePause() {
   if (!started || ended) return;
   paused = !paused;
@@ -6132,6 +6142,8 @@ document.addEventListener('click', (e) => {
   if (a === 'diff') { diff = el.dataset.v; document.querySelectorAll('[data-do="diff"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === diff ? 'true' : 'false')); }
   else if (a === 'start') startGame(seedUsed);
   else if (a === 'skipwave') skipTo(el.dataset.v);
+  else if (a === 'msave') mSaveExit();
+  else if (a === 'mcont') mContinue();
   else if (a === 'resume') togglePause();
   else if (a === 'restart') startGame(seedUsed);
   else if (a === 'newmap') startGame(1 + Math.floor(Math.random() * 900000));
@@ -7715,7 +7727,7 @@ function togglePause() {
 }
 function endGame() {
   const M = G.M;
-  ended = true; paused = true;
+  ended = true; paused = true; lsDel(MSAVE_KEY);
   const win = G.over === 'win';
   $('end-tag').textContent = win ? 'Mission complete' : 'The mission is lost';
   $('end-title').textContent = win ? 'Ramathibodi I' : 'Defeat';
@@ -7731,6 +7743,32 @@ function endGame() {
   if (!win) { const art = document.createElement('div'); try { art.appendChild(drawScene('fall')); } catch (e) { /* no art */ } art.className = 'end-art'; $('end-title').after(art); }
   showOv('end');
 }
+/* ---------- this mission's own saved game ---------- */
+const MSAVE_KEY = 'seak-mission-ayu1';
+function mSave() {
+  if (!started || ended || !G || !G.M || G.over) return;
+  lsSet(MSAVE_KEY, JSON.stringify({ snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() }));
+}
+function readMSave() { try { const r = JSON.parse(lsGet(MSAVE_KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
+function mHome() { return /github\.io$/.test(location.hostname) ? '../../' : 'https://therediris0827.github.io/SEA-RTS/'; }
+function mSaveExit() { mSave(); location.replace(mHome()); }
+function syncCont() {
+  const r = readMSave(), b = $('ms-cont'); if (!b) return;
+  b.hidden = !r;
+  if (r) b.textContent = 'Continue saved game (' + fmtTime(r.snap.t || 0) + ' in, ' + r.diff + ')';
+}
+function mContinue() {
+  const r = readMSave(), g = r && Game.restore(r.snap);
+  if (!g || !g.M) { lsDel(MSAVE_KEY); syncCont(); toast('That saved game could not be loaded.'); return; }
+  G = g; seedUsed = r.seed; diff = r.diff;
+  G.computeRegions();
+  const M = G.M; if (M.cmdr) M.cmdr = G.byId.get(M.cmdr.id) || null;
+  for (const k in RC) delete RC[k];
+  enterGame(); storyOpen = null; objStarted = false; lastMKey = '';
+  view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
+  updateHud(); updatePanel();
+  G.msg('Saved game loaded.');
+}
 function mrBoot() {
   setupObj();
   const relayout = () => setTimeout(() => { resize(); if (G && G.M) updateHud(); }, 250);
@@ -7739,7 +7777,7 @@ function mrBoot() {
   const set = (id, name) => { const e = $(id); if (e) e.src = resIcon(name); };
   set('i-food', 'food'); set('i-wood', 'wood'); set('i-gold', 'gold'); set('i-pop', 'pop'); set('i-idle', 'idle'); set('i-army', 'army');
   set('i-zin', 'plus'); set('i-zout', 'minus'); set('i-menu', 'menu');
-  $('hud').hidden = true; showMenu(null); resize(); showOv('start');
+  $('hud').hidden = true; showMenu(null); resize(); showOv('start'); syncCont();
   G = new Game({ seed: seedUsed, diff, map: 'river', civs: [AYU_CIV, AYU_CIV] }); terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
   for (let i = 0; i < W * H; i++) G.explored[i] = 1;
   view.zoom = view.w > 700 ? 0.9 : 0.7; centerOn(ISLE.x, ISLE.y);
@@ -7758,10 +7796,10 @@ mrBoot();
 /* Exit to main menu: on the start, pause and end cards of every mission */
 (function () {
   const home = /github\.io$/.test(location.hostname) ? '../../' : 'https://therediris0827.github.io/SEA-RTS/';
-  for (const id of ['ov-start', 'ov-pause', 'ov-end']) {
+  for (const id of ['ov-start', 'ov-end']) {   // the pause card has Save and exit instead
     const c = document.getElementById(id); if (!c || c.querySelector('.exit-home')) continue;
     const b = document.createElement('button'); b.className = 'btn alt exit-home'; b.type = 'button'; b.textContent = 'Exit to main menu';
-    b.addEventListener('click', () => { location.href = home; });
+    b.addEventListener('click', () => { mSave(); location.replace(home); });
     c.appendChild(b);
   }
 })();
