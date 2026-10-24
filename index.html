@@ -533,7 +533,8 @@ const CIV_NAMES = {
   frigate: ['Ghali (Frigate)', 'Jong Perang (Frigate)'], flagship: ['Mendam Berahi (Flagship)', 'Jong Raya (Flagship)'],
   granary: ['Jelapang (Granary)', 'Lumbung (Granary)'], tower: ['Menara Kawal (Watchtower)', 'Bale Kulkul (Watchtower)'],
   palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)'],
-  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)'], sumpit: ['Penyumpit (Blowpipe)', null], lembing: [null, 'Lembing (Javelin Thrower)']
+  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)'], palisade: ['Pagar Kayu (Palisade)', 'Pagar Kayu (Palisade)'],
+  wall: ['Kubu (Timber Wall)', 'Benteng Bata (Brick Wall)'], gate: ['Pintu Kota (Gate)', 'Gapura (Split Gate)'], sumpit: ['Penyumpit (Blowpipe)', null], lembing: [null, 'Lembing (Javelin Thrower)']
 };
 function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[team === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
 
@@ -553,12 +554,17 @@ const BD = {
   patirthan: { name: 'Patirthan (Bathing Pool)', size: 3, hp: 900, cost: { wood: 150, gold: 50 }, time: 40, train: ['acaraki'], needs: 'barracks', civ: 1, aura: { rng: 3, amt: 1, max: 10 }, sight: 5 },
   palace: { name: 'Palace', size: 4, hp: 2400, cost: { wood: 400, gold: 200 }, time: 60, train: ['pahlawan', 'bhaya'], one: true, sight: 9 },
   tradepost: { name: 'Trading Post', size: 3, hp: 700, cost: { wood: 150, gold: 50 }, time: 30, site: true, sight: 7 },
+  // walls are one tile each, laid in lines; gates let your own side through and stop everyone else
+  palisade: { name: 'Palisade', size: 1, hp: 200, cost: { wood: 3 }, time: 3, wall: true, line: true, burn: 2, sight: 1 },
+  wall: { name: 'Wall', size: 1, hp: 900, civHp: [900, 1200], cost: { wood: 5, gold: 2 }, time: 6, wall: true, line: true, needs: 'barracks', sight: 1 },
+  gate: { name: 'Gate', size: 1, hp: 1100, civHp: [1100, 1400], cost: { wood: 30, gold: 10 }, time: 12, wall: true, gate: true, sight: 2 },
   village: { name: 'Orang Laut Village', size: 3, hp: 99999, cost: null, time: 0, neutral: true, sight: 0 }
 };
 /* gold a trade ship earns per round trip, by straight-line distance between Port and Trading Post */
 const TRADE = { k: 1 / 40, melaka: 1.2 };
 const TRIBUTE = 0.55;   // gold per second from each Majapahit Bandar
 const BARM = { ma: 2, pa: 6 };
+const WALL_MAX = 24;   // longest wall line laid in one go, in tiles
 const NK = {
   tree: { type: 'wood', amt: 100, rate: 1.2 }, berry: { type: 'food', amt: 120, rate: 1.3 },
   gold: { type: 'gold', amt: 500, rate: 1.0 }, fish: { type: 'food', amt: 260, rate: 1.4 },
@@ -590,6 +596,7 @@ class Game {
   init() {
     this.t = 0; this.tickN = 0; this.nextId = 1; this.over = null;
     this.terrain = new Uint8Array(W * H); this.block = new Uint8Array(W * H); this.occ = new Uint8Array(W * H);
+    this.gate = new Uint8Array(W * H); this.wt = -1;   // gate tiles hold team + 1; wt is the team whose move is being worked out
     this.visible = new Uint8Array(W * H); this.explored = new Uint8Array(W * H);
     this.units = []; this.buildings = []; this.nodes = []; this.byId = new Map();
     this.fx = []; this.arrows = []; this.floaters = []; this.msgs = []; this.alerts = [];
@@ -651,6 +658,7 @@ class Game {
     o = JSON.parse(JSON.stringify(o), snapDec);
     for (const k of Object.keys(o)) if (k !== 'v' && k !== 'rngA') g[k] = o[k];
     g.rng.set(o.rngA);
+    if (!g.gate) { g.gate = new Uint8Array(W * H); g.wt = -1; }
     g.byId = new Map(); for (const e of g.units.concat(g.buildings, g.nodes)) g.byId.set(e.id, e);
     g.burning = new Set(); for (const e of g.units.concat(g.buildings)) if (e.burn) g.burning.add(e);
     g.rebuildHash(); g.updateFog();
@@ -900,17 +908,17 @@ class Game {
     };
     b.rect = rectOfTiles(tx, ty, d.size, d.size);
     for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
-      this.occ[y * W + x] = 1; if (!d.walk) this.block[y * W + x] = 1;
+      this.occ[y * W + x] = 1; if (d.gate) this.gate[y * W + x] = team + 1; else if (!d.walk) this.block[y * W + x] = 1;
     }
     this.buildings.push(b); this.byId.set(b.id, b);
-    if (!d.walk) this.evict(b);
+    if (!d.walk && !d.gate) this.evict(b);
     return b;
   }
   evict(b) {
     for (const u of this.units) {
       const x = Math.floor(u.x), y = Math.floor(u.y);
       if (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + b.size) {
-        const p = this.nearestFree(u.x, u.y, u.layer, 10);
+        this.wt = u.team; const p = this.nearestFree(u.x, u.y, u.layer, 10);
         u.x = p.x + 0.5; u.y = p.y + 0.5; u.path = null;
       }
     }
@@ -919,6 +927,7 @@ class Game {
   walkable(x, y, layer) {
     if (x < 0 || y < 0 || x >= W || y >= H) return false;
     const i = y * W + x; if (this.block[i]) return false;
+    if (this.gate[i] && this.gate[i] - 1 !== this.wt) return false;
     const t = this.terrain[i];
     return layer === 1 ? (t === T.SHALLOW || t === T.DEEP) : t <= T.SAND;
   }
@@ -960,6 +969,7 @@ class Game {
 
   /* spawn tile next to a building, preferring the side facing 'toward' (and tiles nobody stands on) */
   findSpawn(b, toward, layer) {
+    this.wt = b.team;
     const tx = toward ? toward.x : b.x, ty = toward ? toward.y : b.y + 6;
     let best = null, bd = 1e9;
     for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) {
@@ -1043,6 +1053,7 @@ class Game {
   }
   /* path to within `reach` of a rectangle (continuous coords) */
   pathToRect(u, rect, reach) {
+    this.wt = u.team;
     const px = (x) => x + 0.5;
     const goal = (x, y) => rectDist(px(x), px(y), rect) <= reach;
     const h = (x, y) => Math.max(0, rectDist(px(x), px(y), rect) - reach);
@@ -1059,6 +1070,7 @@ class Game {
     return res;
   }
   pathToPoint(u, gx, gy) {
+    this.wt = u.team;
     const g = this.nearestFree(gx, gy, u.layer, 8);
     const goal = (x, y) => x === g.x && y === g.y;
     const h = (x, y) => { const dx = Math.abs(x - g.x), dy = Math.abs(y - g.y); return Math.max(dx, dy) + 0.4142 * Math.min(dx, dy); };
@@ -1073,7 +1085,7 @@ class Game {
   }
   setPath(u, res) {
     if (!res) { u.path = null; return false; }
-    u.path = res.path; u.pi = 0; return true;
+    u.path = res.path; u.pi = 0; u.pr = res.reached; return true;
   }
   stepMove(u, dt) {
     if (!u.path || u.pi >= u.path.length) { u.moving = false; return true; }
@@ -1261,7 +1273,7 @@ class Game {
     if (d.site && !this.siteAt(tx, ty)) return false;
     if (!d.site) for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) if (this.siteMask[y * W + x]) return false;
     for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
-      if (!this.freeTile(x, y)) return false;
+      if (!this.freeTile(x, y) && !(d.gate && this.wallPieceAt(x, y, team, true))) return false;
       if (team === 0 && !this.explored[y * W + x]) return false;
     }
     if (d.shore) {
@@ -1274,6 +1286,45 @@ class Game {
     }
     return true;
   }
+  /* the team's own palisade or wall (or any wall piece, gates included, unless plain) on a tile */
+  wallPieceAt(x, y, team, plain) {
+    if (!this.occ[y * W + x]) return null;
+    for (const b of this.buildings) if (b.hp > 0 && b.tx === x && b.ty === y && b.team === team && BD[b.kind].wall && !(plain && BD[b.kind].gate)) return b;
+    return null;
+  }
+  /* tiles of a wall line from (ax, ay) to (bx, by), stepping one axis at a time so there are no diagonal gaps */
+  lineTiles(ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay, sx = Math.sign(dx), sy = Math.sign(dy), n = Math.min(WALL_MAX - 1, Math.abs(dx) + Math.abs(dy));
+    const out = [[ax, ay]]; let x = ax, y = ay;
+    for (let i = 0; i < n; i++) {
+      const ex = Math.abs((x + sx - ax) * dy - (y - ay) * dx), ey = Math.abs((x - ax) * dy - (y + sy - ay) * dx);
+      if (sx && (!sy || ex <= ey)) x += sx; else y += sy;
+      out.push([x, y]);
+    }
+    return out;
+  }
+  /* lay a palisade or wall line; own wall tiles on the way are kept, blocked tiles are skipped. returns {ok, n, why} */
+  placeLine(team, kind, ax, ay, bx, by, builderIds) {
+    const d = BD[kind];
+    if (!d || !d.line) return { ok: false, why: 'Cannot build that.' };
+    if (d.needs && !this.buildings.some(b => b.team === team && b.kind === d.needs && b.done && b.hp > 0)) return { ok: false, why: 'Build a ' + civName(d.needs, team) + ' first.' };
+    const placed = [];
+    for (const [x, y] of this.lineTiles(ax, ay, bx, by)) {
+      if (!this.canPlace(kind, x, y, team)) continue;
+      if (!this.canAfford(team, d.cost)) break;
+      this.pay(team, d.cost); placed.push(this.addBuilding(kind, team, x, y, false));
+    }
+    if (!placed.length) return { ok: false, why: this.canAfford(team, d.cost) ? 'Cannot build there.' : 'Not enough resources.' };
+    // each builder starts on the nearest piece; finishing one moves them on to the next
+    for (const id of builderIds || []) {
+      const u = this.byId.get(id); if (!u || u.hp <= 0 || u.cls !== 'vil') continue;
+      let nb = placed[0], bd = 1e9;
+      for (const b of placed) { const dd = Math.hypot(b.x - u.x, b.y - u.y); if (dd < bd) { bd = dd; nb = b; } }
+      this.orderBuild(u, nb);
+    }
+    if (team === 0) this.stats.built += placed.length;
+    return { ok: true, n: placed.length, b: placed[placed.length - 1] };
+  }
   /* returns {ok, b, why} */
   placeBuilding(team, kind, tx, ty, builderIds) {
     const d = BD[kind];
@@ -1283,6 +1334,9 @@ class Game {
     if (d.one && this.countOf(team, kind) > 0) return { ok: false, why: 'You can only have one ' + civName(kind, team) + '.' };
     if (!this.canPlace(kind, tx, ty, team)) return { ok: false, why: kind === 'port' ? 'Ports need a spot on the shore.' : d.site ? 'Build it on the landing beside a neutral village.' : 'Cannot build there.' };
     this.pay(team, d.cost);
+    // a gate set into a wall takes that wall piece's place
+    const old = d.gate && this.wallPieceAt(tx, ty, team, true);
+    if (old) { old.hp = 0; this.burning.delete(old); this.byId.delete(old.id); this.buildings = this.buildings.filter(o => o !== old); const i = ty * W + tx; this.occ[i] = 0; this.block[i] = 0; }
     const b = this.addBuilding(kind, team, tx, ty, false);
     if (d.site) this.siteAt(tx, ty).post = b.id;
     for (const id of builderIds || []) { const u = this.byId.get(id); if (u && u.hp > 0 && u.cls === 'vil') this.orderBuild(u, b); }
@@ -1460,7 +1514,7 @@ class Game {
     u.cd = Math.max(0, u.cd - dt); if (u.cd2) u.cd2 = Math.max(0, u.cd2 - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
     u.wait = Math.max(0, u.wait - dt); u.rp = Math.max(0, u.rp - dt);
     if (u.psn) { u.psn.t -= dt; u.hp -= u.psn.dps * dt; if (u.psn.t <= 0) u.psn = null; if (u.hp <= 0) { this.onKilled(u, { team: u.psnBy, isUnit: false }); return; } }
-    u.anim += dt; u.moving = false; u.working = false;
+    u.anim += dt; u.moving = false; u.working = false; this.wt = u.team;
     const o = u.order;
     switch (o.t) {
       case 'idle': this.doIdle(u, dt); break;
@@ -1511,6 +1565,17 @@ class Game {
     const t = this.nearestEnemy(u, u.sight);
     if (t) this.orderAttack(u, t, { leash: { x: u.x, y: u.y, r: 11 } });
   }
+  /* a land soldier whose way is walled off attacks the enemy wall piece that is most in the way to (gx, gy) */
+  breach(u, gx, gy) {
+    if (u.layer !== 0 || u.cls === 'vil' || u.cls === 'healer' || u.cls === 'animal') return null;
+    let best = null, bs = 1e9;
+    for (const b of this.buildings) {
+      if (b.hp <= 0 || b.team === u.team || b.team === 2 || !BD[b.kind].wall) continue;
+      const du = rectDist(u.x, u.y, b.rect); if (du > 14) continue;
+      const s = du + Math.hypot(b.x - gx, b.y - gy); if (s < bs) { bs = s; best = b; }
+    }
+    return best;
+  }
   doAMove(u, dt) {
     const o = u.order;
     u.scan -= dt;
@@ -1519,12 +1584,16 @@ class Game {
       const t = this.nearestEnemy(u, u.sight);
       if (t) { this.orderAttack(u, t, { amove: { x: o.x, y: o.y } }); return; }
     }
-    if (!u.path) { if (u.wait > 0) return; if (!this.setPath(u, this.pathToPoint(u, o.x, o.y))) { u.wait = 0.6; this.idleOrder(u); return; } }
+    if (!u.path) {
+      if (u.wait > 0) return;
+      if (!this.setPath(u, this.pathToPoint(u, o.x, o.y))) { u.wait = 0.6; this.idleOrder(u); return; }
+      if (!u.pr) { const w = this.breach(u, o.x, o.y); if (w) { this.orderAttack(u, w, { amove: { x: o.x, y: o.y } }); return; } }
+    }
     if (this.stepMove(u, dt)) { if (u.path === null) u.wait = 0.3; else this.idleOrder(u); }
   }
   doAttack(u, dt) {
     const o = u.order, t = this.byId.get(o.id);
-    const done = () => { if (o.amove) u.order = { t: 'amove', x: o.amove.x, y: o.amove.y }; else if (o.leash) this.orderMove(u, o.leash.x, o.leash.y); else this.idleOrder(u); u.path = null; };
+    const done = () => { if (o.then) { u.order = o.then; u.path = null; return; } if (o.amove) u.order = { t: 'amove', x: o.amove.x, y: o.amove.y }; else if (o.leash) this.orderMove(u, o.leash.x, o.leash.y); else this.idleOrder(u); u.path = null; };
     if (!t || t.hp <= 0 || (t.isUnit && t.team === 0 && u.team === 0)) { done(); return; }
     if (u.team === 0 && t.isUnit && t.team !== 2 && !this.isVisible(t.x, t.y)) { done(); return; }
     if (o.leash && Math.hypot(u.x - o.leash.x, u.y - o.leash.y) > o.leash.r) { this.orderMove(u, o.leash.x, o.leash.y); return; }
@@ -1552,6 +1621,10 @@ class Game {
       u.pt = tt; u.rp = 0.45;
       const res = this.pathToRect(u, rect, Math.max(0.6, reach - 0.12));
       if (!this.setPath(u, res)) { u.wait = 0.5; done(); return; }
+      if (!res.reached && !o.leash && !(t.isBld && BD[t.kind].wall)) {
+        const w = this.breach(u, t.x, t.y);
+        if (w) { u.order = { t: 'attack', id: w.id, then: { t: 'attack', id: t.id, amove: o.amove } }; u.path = null; return; }
+      }
     }
     if (this.stepMove(u, dt) && u.path !== null) { u.path = null; u.wait = 0.35; }
   }
@@ -1682,7 +1755,7 @@ class Game {
         if (vil) B.t -= dt * 3;
       }
       if (B.t <= 0) { t.burn = null; this.burning.delete(t); continue; }
-      const rate = (t.isUnit ? BURN.ship : BURN.bld * (BURNMAT[t.team] != null ? BURNMAT[t.team] : 1)) * B.n;
+      const rate = (t.isUnit ? BURN.ship : BURN.bld * (BURNMAT[t.team] != null ? BURNMAT[t.team] : 1) * (BD[t.kind].burn || 1)) * B.n;
       t.hp -= rate * dt; t.lastHit = this.t;
       B.tick -= dt;
       if (B.tick <= 0) { B.tick = 0.5; this.fx.push({ k: 'flame', x: t.x + (this.rng() - 0.5) * (t.isBld ? t.size * 0.6 : 0.5), y: t.y - (t.isBld ? 0.2 : 0.5), n: B.n, t: 0.7, max: 0.7 }); }
@@ -1879,7 +1952,7 @@ class Game {
     }
   }
   nudge(u, dx, dy) {
-    const nx = u.x + dx, ny = u.y + dy;
+    const nx = u.x + dx, ny = u.y + dy; this.wt = u.team;
     if (this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; }
   }
 
@@ -1933,7 +2006,7 @@ class Game {
     let bd = false;
     for (const b of this.buildings) if (b.hp <= 0) {
       bd = true; this.byId.delete(b.id);
-      for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) { this.occ[y * W + x] = 0; this.block[y * W + x] = 0; }
+      for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) { this.occ[y * W + x] = 0; this.block[y * W + x] = 0; this.gate[y * W + x] = 0; }
     }
     if (bd) this.buildings = this.buildings.filter(b => b.hp > 0);
     if (this.nodes.some(n => n.hp <= 0)) this.nodes = this.nodes.filter(n => n.hp > 0);
@@ -2916,7 +2989,77 @@ function shipSprite(u) { return u.kind === 'boat' ? boatSprite(u.team) : NAVAL.n
 function shipAnchor(kind) { return kind === 'boat' ? [20, 34] : kind === 'fireship' ? SHIP_ANCHOR.fire : SHIP_ANCHOR[UD[kind].slot]; }
 
 /* ------------------------------ buildings ------------------------------ */
+/* one wall tile. mask: 1 N, 2 E, 4 S, 8 W neighbours of the same side; open: a gate with friends close by.
+   Palisade: sharpened logs. Melaka Kubu: planked timber with a walkway. Majapahit: red brick, and the
+   gate is a candi bentar, the split gate of Trowulan. */
+function wallSprite(kind, team, mask, open) {
+  const T = TEAMC[team] || TEAMC[0], maj = team === 1;
+  return sprite(`w|${kind}|${team}|${mask}|${open ? 1 : 0}`, 16, 34, 2, (P) => {
+    const r = P.r, yc = 25, N = mask & 1, E = mask & 2, S = mask & 4, Wn = mask & 8;
+    const mat = kind === 'palisade' ? 'log' : maj ? 'brick' : 'timber';
+    const hF = mat === 'log' ? 9 : 11, top = yc - hF + 1;
+    const C = mat === 'log' ? { face: '#9a6a3a', faceD: '#7a5030', cap: '#b4824a', capD: '#8a5a2b' }
+      : mat === 'brick' ? { face: '#b5503a', faceD: '#7d2f22', cap: '#cf7050', capD: '#9a3e2a' }
+      : { face: '#8a5a2b', faceD: '#5e3b1c', cap: '#b08050', capD: '#7a5030' };
+    // a stretch of face (with its top) from x0 to x1
+    const face = (x0, x1) => {
+      for (let x = x0; x < x1; x++) {
+        if (mat === 'log') {
+          // two-pixel logs with a dark gap, each sharpened to a point
+          const k = x % 3;
+          if (k === 0) { r(x, top + 1, 1, hF + 3, '#4a2e16'); continue; }
+          r(x, top + (k === 1 ? -1 : 0), 1, hF + 4 + (k === 1 ? 1 : 0), k === 1 ? C.face : C.faceD);
+          r(x, top + (k === 1 ? -1 : 0), 1, 1, k === 1 ? '#d8b080' : '#b4824a'); if (k === 1) r(x, top - 2, 1, 1, '#2a1a10');
+          r(x, top + hF + 3, 1, 1, '#4a2e16'); if (k === 2) r(x, top - 1, 1, 1, '#2a1a10');
+        } else {
+          r(x, top - 1, 1, 1, '#2a1a10'); r(x, top + hF + 4, 1, 1, '#2a1a10');
+          r(x, top, 1, 3, C.cap); r(x, top + 3, 1, hF + 1, C.face);
+          if (mat === 'brick') { for (let y = top + 4; y < top + hF + 4; y += 2) r(x, y, 1, 1, ((x + (y >> 1)) % 4 === 0) ? C.faceD : '#a6452f'); }
+          else { for (let y = top + 5; y < top + hF + 4; y += 3) r(x, y, 1, 1, C.faceD); }
+          if (x % 3 === 0) r(x, top - 1, 1, 1, C.capD);
+        }
+      }
+      if (mat === 'timber') r(x0, top + 4, x1 - x0, 1, T.main);
+      if (mat === 'log') r(x0, top + 5, x1 - x0, 1, '#5e3b1c');
+      if (mat === 'brick') r(x0, top + 3, x1 - x0, 1, '#e0b070');
+    };
+    // a north-south stretch seen from above: just the top surface
+    const strip = (y0, y1) => {
+      r(4, y0, 1, y1 - y0, '#2a1a10'); r(11, y0, 1, y1 - y0, '#2a1a10');
+      r(5, y0, 6, y1 - y0, C.cap); r(5, y0, 1, y1 - y0, C.capD); r(10, y0, 1, y1 - y0, C.capD);
+      if (mat === 'log') for (let y = y0; y < y1; y += 2) { r(6 + (y % 4 ? 2 : 0), y, 1, 1, '#d8b080'); r(8 - (y % 4 ? 2 : 0), y, 1, 1, C.capD); }
+      if (mat === 'timber') r(7, y0, 2, y1 - y0, T.main);
+    };
+    if (N) strip(top - 9, top + 1);
+    if (S) strip(top, top + 17);
+    if (kind !== 'gate') {
+      if (Wn || E) face(Wn ? 0 : 5, E ? 16 : 11);
+      if (!S || Wn || E) face(5, 11); else strip(top, top + 3);
+      return;
+    }
+    // gates: wall stubs either side, then the gatehouse
+    if (Wn) face(0, 4); if (E) face(12, 16);
+    const gt = yc - 13;
+    if (maj) {
+      // candi bentar: two stepped brick towers with a gap between
+      for (const x0 of [1, 10]) {
+        r(x0, gt + 3, 5, 15, '#b5503a'); r(x0, gt + 3, 5, 1, '#e0b070'); r(x0 + 1, gt, 3, 3, '#b5503a'); r(x0 + 2, gt - 2, 1, 2, '#cf7050');
+        for (let y = gt + 5; y < gt + 18; y += 3) r(x0, y, 5, 1, '#8e3624');
+        r(x0 + (x0 < 8 ? 4 : 0), gt + 3, 1, 15, '#7d2f22');
+      }
+      if (!open) { r(6, gt + 7, 4, 11, '#5e3b1c'); r(6, gt + 7, 4, 1, T.main); r(7, gt + 10, 1, 1, '#f2c94c'); r(8, gt + 13, 1, 1, '#f2c94c'); r(7, gt + 8, 2, 9, '#6e4626'); }
+      else { r(6, gt + 7, 1, 11, '#6e4626'); r(9, gt + 7, 1, 11, '#6e4626'); }
+    } else {
+      // timber gatehouse with a small roof in the team colour
+      r(1, gt + 5, 3, 13, WOOD_D); r(12, gt + 5, 3, 13, WOOD_D); r(1, gt + 5, 14, 3, WOOD); r(1, gt + 8, 14, 1, T.main);
+      r(0, gt + 2, 16, 3, T.roofA); r(2, gt, 12, 2, T.roofB); r(0, gt + 4, 16, 1, T.roofR); r(7, gt - 2, 2, 2, T.trim);
+      if (!open) { r(4, gt + 9, 8, 9, '#6e4626'); r(7, gt + 9, 2, 9, '#4a2e16'); r(5, gt + 12, 1, 1, '#f2c94c'); r(10, gt + 12, 1, 1, '#f2c94c'); }
+      else { r(4, gt + 9, 8, 9, '#1a120c'); r(4, gt + 9, 1, 9, '#6e4626'); r(11, gt + 9, 1, 9, '#6e4626'); }
+    }
+  }, kind === 'gate');
+}
 function buildingSprite(kind, team, level) {
+  if (BD[kind] && BD[kind].wall) { const m = level >= 100 ? level - 100 : 10; return wallSprite(kind, team, m & 15, m & 16); }
   if (CIVB_KIND[kind]) return team === 1 ? CIVB.majapahitBuilding(CIVB_KIND[kind][1], team) : CIVB.melakaBuilding(CIVB_KIND[kind][0], team);
   if (kind === 'village') return CIVB.neutralSite('village');
   if (kind === 'rumahtabib' || kind === 'patirthan') return CIVB.healerBuilding(kind, team);
@@ -3112,8 +3255,8 @@ const cvs = $('view'), ctx = cvs.getContext('2d');
 const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
-const BUILD_ORDER = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'tradepost', 'palace'];
-const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool' };
+const BUILD_ORDER = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'palisade', 'wall', 'gate', 'tradepost', 'palace'];
+const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool', palisade: 'Palisade', wall: 'Wall', gate: 'Gate' };
 const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', sumpit: 'Sumpit', lembing: 'Lembing', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
 const FORMS = ['box', 'line', 'wedge'];
 
@@ -3268,9 +3411,23 @@ function paintNode(n) {
   }
   if (isSel(n)) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(px + 2, py + 2, 28, 28); }
 }
+/* which sides of a wall tile join another wall piece of the same side; gates open when their own people are close */
+let wallGrid = null;
+function buildWallGrid() {
+  if (!wallGrid) wallGrid = new Int32Array(W * H);
+  wallGrid.fill(0);
+  for (const b of G.buildings) if (b.hp > 0 && BD[b.kind].wall) wallGrid[b.ty * W + b.tx] = b.team + 1;
+}
+function wallMask(b) {
+  const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && wallGrid[y * W + x] === b.team + 1;
+  let m = (at(b.tx, b.ty - 1) ? 1 : 0) | (at(b.tx + 1, b.ty) ? 2 : 0) | (at(b.tx, b.ty + 1) ? 4 : 0) | (at(b.tx - 1, b.ty) ? 8 : 0);
+  if (BD[b.kind].gate && b.done && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
+  return m;
+}
 function paintBuilding(b) {
   const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = b.kind === 'farm';
   let lvl = 2; if (flat) { const f = b.food / BD.farm.food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
+  if (BD[b.kind].wall) lvl = 100 + wallMask(b);
   const spr = buildingSprite(b.kind, b.team, lvl);
   const dx = px + (w - spr.width) / 2, dy = flat ? py : py + w - spr.height + 2;
   if (!flat) shadow(px + w / 2, py + w - 6, w * 0.46, w * 0.2, 0.26);
@@ -3393,6 +3550,7 @@ function paintPlacement() {
   if (!mode || mode.kind !== 'place') return;
   const d = BD[mode.bkind];
   if (mode.tx == null) return;
+  if (mode.line) { paintLinePlacement(d); return; }
   const tx = mode.tx, ty = mode.ty;
   for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
     const ok = G.freeTile(x, y) && G.explored[y * W + x];
@@ -3405,6 +3563,30 @@ function paintPlacement() {
   ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, w);
 }
 
+/* a wall line: every tile green (new), grey (already walled) or red (blocked), with the count and cost by its end */
+function paintLinePlacement(d) {
+  const tiles = G.lineTiles(mode.ax, mode.ay, mode.tx, mode.ty), inLine = new Set(tiles.map(([x, y]) => y * W + x));
+  let n = 0;
+  for (const [x, y] of tiles) {
+    const own = G.wallPieceAt(x, y, 0), ok = !own && G.canPlace(mode.bkind, x, y, 0);
+    if (ok) n++;
+    ctx.fillStyle = own ? 'rgba(255,255,255,0.18)' : ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+    if (!ok) continue;
+    const join = (xx, yy) => inLine.has(yy * W + xx) || (xx >= 0 && yy >= 0 && xx < W && yy < H && wallGrid && wallGrid[yy * W + xx] === 1);
+    const m = (join(x, y - 1) ? 1 : 0) | (join(x + 1, y) ? 2 : 0) | (join(x, y + 1) ? 4 : 0) | (join(x - 1, y) ? 8 : 0);
+    const spr = buildingSprite(mode.bkind, 0, 100 + m);
+    ctx.globalAlpha = 0.72; ctx.drawImage(spr, x * TILE, y * TILE + TILE - spr.height + 2); ctx.globalAlpha = 1;
+  }
+  const afford = Math.min(n, ...Object.keys(d.cost).map(k => Math.floor(G.res[0][k] / d.cost[k])));
+  mode.valid = n > 0 && afford > 0; mode.n = n;
+  if (mode.touch) for (const [x, y] of [[mode.ax, mode.ay], [mode.tx, mode.ty]]) {
+    ctx.beginPath(); ctx.arc(x * TILE + 16, y * TILE + 16, 9, 0, 6.2832); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+  }
+  const cost = Object.keys(d.cost).map(k => d.cost[k] * n + ' ' + k).join(', ');
+  const label = n ? n + ' \u00d7 ' + civName(mode.bkind, 0).split(' (')[0] + ': ' + cost + (afford < n ? ' (can afford ' + afford + ')' : '') : 'Nothing to build here';
+  ctx.font = 'bold ' + Math.round(13 / view.zoom) + 'px sans-serif'; const tw = ctx.measureText(label).width, lx = mode.tx * TILE + 16 - tw / 2, ly = mode.ty * TILE - 30, fh = 13 / view.zoom;
+  ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(lx - 6, ly - fh, tw + 12, fh * 1.45); ctx.fillStyle = afford < n ? '#ffb0a0' : '#fbe3a5'; ctx.fillText(label, lx, ly);
+}
 /* touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests */
 function placeButtons() {
   if (!mode || mode.kind !== 'place' || !mode.touch || mode.tx == null) return null;
@@ -3439,6 +3621,7 @@ function render() {
   }
   const tall = [];
   const expl = (x, y) => G.explored[Math.floor(y) * W + Math.floor(x)];
+  buildWallGrid();
   for (const b of G.buildings) {
     if (!inView(b.x * TILE, b.y * TILE, 160)) continue;
     if (b.team !== 0 && !expl(b.x, b.y)) continue;
@@ -3561,6 +3744,13 @@ function nearestSite(wx, wy, maxD) {
 function tryPlace(keep) {
   if (!mode || mode.kind !== 'place' || mode.tx == null) return false;
   const ids = selUnits().filter(u => u.cls === 'vil').map(u => u.id);
+  if (mode.line) {
+    const r = G.placeLine(0, mode.bkind, mode.ax, mode.ay, mode.tx, mode.ty, ids);
+    if (!r.ok) { toast(r.why); return false; }
+    addMarker(r.b.x, r.b.y, 'build');
+    if (keep && G.canAfford(0, BD[mode.bkind].cost)) { mode.anchored = false; mode.ax = mode.tx; mode.ay = mode.ty; } else mode = null;
+    panelKey = ''; return true;
+  }
   const r = G.placeBuilding(0, mode.bkind, mode.tx, mode.ty, ids);
   if (!r.ok) { toast(r.why); return false; }
   addMarker(r.b.x, r.b.y, 'build');
@@ -3579,9 +3769,14 @@ function startPlace(kind) {
     mode = { kind: 'place', bkind: kind, tx: v.site.tx, ty: v.site.ty, touch: !(hover && hover.mouse) };
     centerOn(v.site.tx + 1.5, v.site.ty + 1.5); panelKey = ''; return;
   }
-  mode = { kind: 'place', bkind: kind, tx: null, ty: null, touch: !(hover && hover.mouse) };
+  mode = { kind: 'place', bkind: kind, tx: null, ty: null, touch: !(hover && hover.mouse), line: !!d.line };
   if (hover && hover.mouse) placeAt(hover.wx, hover.wy); else { const c = s2w(view.w / 2, view.h * 0.4); placeAt(c.x, c.y); }
   const spot = findSpot(kind, mode.tx, mode.ty); if (spot) { mode.tx = spot.tx; mode.ty = spot.ty; }
+  if (mode.line) {
+    // start as a short line on touch screens so both ends show; with a mouse the first click sets the start
+    mode.ax = mode.tx; mode.ay = mode.ty; mode.anchored = false;
+    if (mode.touch) { let k = 0; while (k < 4 && G.canPlace(kind, mode.ax + k + 1, mode.ay, 0)) k++; mode.tx = mode.ax + k; }
+  }
   panelKey = '';
 }
 function findSpot(kind, cx, cy) {
@@ -3602,9 +3797,16 @@ function handleTap(wx, wy, o) {
       const B = placeButtons(), sp = w2s(wx, wy);
       if (B && Math.hypot(sp.x - B.ok.x, sp.y - B.ok.y) <= B.r + 6) { if (mode.valid) tryPlace(false); else toast('Move the building to a green spot.'); return; }
       if (B && Math.hypot(sp.x - B.no.x, sp.y - B.no.y) <= B.r + 6) { mode = null; panelKey = ''; return; }
+      if (mode.line) {
+        // a tap moves whichever end of the wall is nearer
+        const nx = Math.floor(wx), ny = Math.floor(wy);
+        if (Math.hypot(nx - mode.ax, ny - mode.ay) < Math.hypot(nx - mode.tx, ny - mode.ty)) { mode.ax = nx; mode.ay = ny; } else { mode.tx = nx; mode.ty = ny; }
+        return;
+      }
       const inside = mode.tx != null && wx >= mode.tx && wx < mode.tx + d.size && wy >= mode.ty && wy < mode.ty + d.size;
       if (!inside) placeAt(wx, wy);
-    } else { placeAt(wx, wy); tryPlace(o.shift); }
+    } else if (mode.line && !mode.anchored) { placeAt(wx, wy); mode.ax = mode.tx; mode.ay = mode.ty; mode.anchored = true; }
+    else { placeAt(wx, wy); tryPlace(o.shift); }
     return;
   }
   const hit = G.pick(wx, wy), now = performance.now();
@@ -3683,6 +3885,8 @@ cvs.addEventListener('pointerdown', (e) => {
     if (e.button === 2) { const w = s2w(q.x, q.y); if (mode) { mode = null; panelKey = ''; } else contextCommand(w.x, w.y); ptrs.delete(e.pointerId); return; }
     if (e.button === 1) { gest = { type: 'pan', p }; return; }
     gest = { type: 'press', p };
+  } else if (mode && mode.kind === 'place' && mode.line && mode.tx != null && (() => { const w = s2w(q.x, q.y); return Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) < 0.9 && Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) <= Math.hypot(w.x - mode.tx - 0.5, w.y - mode.ty - 0.5); })()) {
+    gest = { type: 'ghost', p, end: 'a', ox: 0, oy: 0 };
   } else if (mode && mode.kind === 'place' && mode.tx != null && (() => { const w = s2w(q.x, q.y), d = BD[mode.bkind]; return w.x >= mode.tx - 0.3 && w.x < mode.tx + d.size + 0.3 && w.y >= mode.ty - 0.3 && w.y < mode.ty + d.size + 0.3; })()) {
     const w = s2w(q.x, q.y); gest = { type: 'ghost', p, ox: w.x - mode.tx, oy: w.y - mode.ty };
   } else {
@@ -3693,7 +3897,7 @@ cvs.addEventListener('pointermove', (e) => {
   const q = pos(e), p = ptrs.get(e.pointerId);
   if (e.pointerType === 'mouse') {
     const w = s2w(q.x, q.y); hover = { mouse: true, wx: w.x, wy: w.y, sx: q.x, sy: q.y };
-    if (mode && mode.kind === 'place' && !ptrs.size) placeAt(w.x, w.y);
+    if (mode && mode.kind === 'place' && !ptrs.size) { placeAt(w.x, w.y); if (mode.line && !mode.anchored) { mode.ax = mode.tx; mode.ay = mode.ty; } }
   }
   if (!p) return;
   p.x = q.x; p.y = q.y;
@@ -3707,7 +3911,12 @@ cvs.addEventListener('pointermove', (e) => {
   const dist = Math.hypot(q.x - p.sx, q.y - p.sy);
   if (gest.type === 'ghost') {
     if (dist > 6) p.moved = true;
-    if (p.moved && mode && mode.kind === 'place') { const w = s2w(q.x, q.y); mode.tx = Math.round(w.x - gest.ox); mode.ty = Math.round(w.y - gest.oy); }
+    if (p.moved && mode && mode.kind === 'place') {
+      const w = s2w(q.x, q.y);
+      if (gest.end === 'a') { mode.ax = Math.floor(w.x); mode.ay = Math.floor(w.y); }
+      else if (mode.line) { mode.tx = Math.floor(w.x); mode.ty = Math.floor(w.y); }
+      else { mode.tx = Math.round(w.x - gest.ox); mode.ty = Math.round(w.y - gest.oy); }
+    }
     p.lx = q.x; p.ly = q.y; return;
   }
   if (gest.type === 'press') {
@@ -3818,7 +4027,9 @@ function buildPanel() {
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
     info = '<div class="p-head"><img alt="" src="' + bldIcon(mode.bkind, 0) + '"><div><div class="p-name">Place ' + civName(mode.bkind, 0) + '</div><div class="p-sub">' + costTitle(d.cost) + '</div></div></div>' +
-      '<div class="p-line">' + ((hover && hover.mouse) ? 'Click to place. Shift-click keeps building. Esc cancels.' : 'Drag the building (or tap the map) to move it, then tap the green tick to build.') + '</div>';
+      '<div class="p-line">' + (d.line ? ((hover && hover.mouse) ? 'Click where the wall starts, then click where it ends. Esc cancels.' : 'Drag either end of the wall (or tap near it), then tap the green tick to build.')
+        : d.gate ? 'Set it into your own wall, or anywhere on open ground. Your people walk through; enemies have to break it.'
+        : (hover && hover.mouse) ? 'Click to place. Shift-click keeps building. Esc cancels.' : 'Drag the building (or tap the map) to move it, then tap the green tick to build.') + '</div>';
     cmds = '<button class="cmd ok" data-a="place-ok" title="Place building"><img alt="" src="' + resIcon('check') + '"><span class="nm">Place</span><span class="ct">&nbsp;</span></button>' +
       '<button class="cmd" data-a="place-cancel" title="Cancel"><img alt="" src="' + resIcon('x') + '"><span class="nm">Cancel</span><span class="ct">&nbsp;</span></button>';
   } else if (!sel.length) {
@@ -4039,7 +4250,10 @@ const ENCY_BLDS = {
   granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
   tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
   patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
-  palace: 'One only. Trains the civ\u2019s unique unit.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
+  palace: 'One only. Trains the civ\u2019s unique unit.',
+  palisade: 'Sharpened logs, laid in a line. Cheap and quick, but it burns fast.',
+  wall: 'Melaka builds timber Kubu, Majapahit red brick that burns at half rate. Needs a Barracks.',
+  gate: 'Set into a wall. Opens for your own people; enemies have to break it down.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
 };
 const ENCY_CIVS = [
   ['mel', 'Melaka', 'Maritime trade. Fewer, better soldiers paid for by the harbour. Timber buildings burn fast.'],
