@@ -458,10 +458,10 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 
   <div id="ov" hidden>
     <div class="card" id="ov-start" hidden>
-      <div class="tag">Majapahit demo &middot; Village to Golden Age</div>
+      <div class="tag">Majapahit &middot; Village to Kingdom</div>
       <h1>Rise of Majapahit<small>East Java, 1293&ndash;1336</small></h1>
       <div class="waves"></div>
-      <p class="lead">Grow Raden Wijaya's clearing in the Tarik forest into the kingdom of the Palapa oath. Kediri, the Yuan fleet and rebel lords come for you while you build, and each age brings new soldiers, guns and ships. Reach the Golden Age, then break the rising of Sadeng and Keta. About 25 minutes.</p>
+      <p class="lead">Grow Raden Wijaya's clearing in the Tarik forest into the kingdom of the Palapa oath. Kediri, the Yuan fleet and rebel lords come for you while you build. Become the Kingdom of Majapahit, hold out against every raid, then break the rising of Sadeng and Keta. About 25 minutes.</p>
       <div class="lbl">Difficulty</div>
       <div class="seg">
         <button data-do="diff" data-v="easy" aria-pressed="false">Easy</button>
@@ -471,7 +471,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       <button class="btn" data-do="start">Begin</button>
       <div class="lbl">Practice: start later</div>
       <div class="seg">
-        <button data-do="skipwave" data-v="age3">Age of Commerce</button>
+        <button data-do="skipwave" data-v="age2">Kingdom Age</button>
         <button data-do="skipwave" data-v="final">Final battle</button>
       </div>
       <button class="btn alt" data-do="help">How to play</button>
@@ -506,12 +506,12 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       <ul class="help">
         <li><b>Scroll:</b> drag the map. <b>Zoom:</b> pinch (or the +/- buttons, or mouse wheel). <b>Select:</b> tap a unit or building; hold, then drag a box for a group. Double-tap a unit to pick all of its kind on screen. Tap it again to deselect.</li>
         <li><b>Command:</b> with units selected, tap the ground to move, a resource to gather, an enemy to attack. Mouse: right-click.</li>
-        <li><b>Ages:</b> select the Town Centre and tap the <b>Age</b> button. Each age costs food and gold and needs two of the buildings listed (the Golden Age needs the Kraton and the Bandar). Ageing up opens new buildings and units, upgrades your archers to gunners and toughens your soldiers, but it also brings the next raid closer.</li>
+        <li><b>Ages:</b> select the Town Centre and tap the <b>Age</b> button. This mission has two ages: the Village Age and the Kingdom Age. The Kingdom Age costs food and needs two of the buildings listed. It opens new buildings, units and ships and toughens your soldiers, but it also brings the next raid closer.</li>
         <li><b>Raids:</b> raiders come down the two roads in the east and land from the river and the sea in the south. Arrows on the map edge show where, 25 s before. The bar under the resources says what is coming. Between raids you can call the next one early for bonus gold.</li>
         <li><b>Fire:</b> rebel fire arrows set buildings alight. Majapahit's red brick burns at half the usual rate. Villagers next to a burning building put it out and repair damage.</li>
-        <li><b>Army:</b> Galah spears beat swordsmen. Golok swords break archers and crossbowmen. Bhayangkara (Kraton) are the royal guard. Bedil Gunners and Cetbang Handgunners hit hard from range. Perahu Api fire ships burn enemy boats. Up to 3 Cetbang cannon smash groups and ships. Acaraki heal. Gajah Mada (Golden Age, Kraton) gives nearby troops +2 attack and returns 60 s after he falls.</li>
+        <li><b>Army:</b> Galah spears beat swordsmen. Golok swords break archers and crossbowmen. Bhayangkara (Kraton) are the royal guard. Panah archers shoot from behind the spears. Perahu Api fire ships burn enemy boats. Acaraki heal. Gajah Mada (Kingdom Age, Kraton) gives nearby troops +2 attack and returns 60 s after he falls.</li>
         <li><b>Walls:</b> pick Palisade (or the stronger Wall from the Kingdom Age) and drag a line. A Gate set into the line lets your own people through and stops raiders. Villagers repair damage.</li>
-        <li><b>Lose</b> if the Town Centre falls. <b>Win</b> by reaching the Golden Age, then killing the lord of Sadeng or breaking his army. Keys: A attack-move, S stop, F formation, . idle villager, H home, Space pause.</li>
+        <li><b>Lose</b> if the Town Centre falls. <b>Win</b> by reaching the Kingdom Age and breaking every raid, then killing the lord of Sadeng or breaking his army. Keys: A attack-move, S stop, F formation, . idle villager, H home, Space pause.</li>
       </ul>
       <button class="btn" data-do="back">Back</button>
     </div>
@@ -6159,7 +6159,9 @@ const HERO_BACK = 60;                           // a fallen hero is carried home
 const AGE_SPEEDUP = 45;                          // ageing up brings the next raid this close, if it was further off
 function CV(team) { return team === 0 ? 1 : 0; }
 
-/* ---------- the four ages (lore/ages.md, Old Javanese names) ---------- */
+/* ---------- the ages (lore/ages.md, Old Javanese names) ----------
+   This mission stops at the Kingdom Age: 1293-1336 is Majapahit's founding, before the guns, the trade
+   empire and Hayam Wuruk's golden age. The later ages are kept in the table for later missions. */
 const AGES = [null,
   { n: 1, name: 'Village Age', local: 'Wanua', tc: 1200 },
   { n: 2, name: 'Kingdom Age', local: 'Kadatwan', cost: { food: 500 }, time: 60, tc: 1700,
@@ -6169,6 +6171,8 @@ const AGES = [null,
   { n: 4, name: 'Golden Age', local: 'Nusantara', cost: { food: 1000, gold: 800 }, time: 120, tc: 2800,
     need: { all: ['palace', 'tradepost'], text: 'a Kraton and a Bandar (tribute post)' } }
 ];
+const MAX_AGE = 2;
+AGES.length = MAX_AGE + 1;
 
 /* ---------- units ----------
    The kind keys are shared with the Melaka ages demo (pembedil, bediraja, meriam, tuah, perak) so the
@@ -6178,7 +6182,7 @@ Object.assign(UD, {
   pembedil: { name: 'Bedil Gunner', hp: 38, spd: 2.2, atk: 10, bonus: { sword: 2, eleph: 6 }, rng: 5.5, rate: 2.2, ma: 0, pa: 1, sight: 7.5, cost: { wood: 40, gold: 45 }, time: 11, cls: 'archer', ranged: true, gun: true, pierce: 2, age: 3, maxAge: 3, civ: 1 },
   bediraja: { name: 'Cetbang Handgunner', hp: 46, spd: 2.1, atk: 15, bonus: { sword: 3, eleph: 10 }, rng: 6.5, rate: 2.8, ma: 1, pa: 2, sight: 8, cost: { wood: 45, gold: 70 }, time: 13, cls: 'archer', ranged: true, gun: true, pierce: 3, age: 4, civ: 1 },
   meriam: { name: 'Cetbang (Bronze cannon)', hp: 140, spd: 1.5, atk: 18, rng: 7.5, rate: 4.5, ma: 2, pa: 5, sight: 8.5, cost: { wood: 150, gold: 120 }, time: 22, cls: 'siege', ranged: true, gun: true, cap: 3, splash: 1.1, bld: 40, age: 3, civ: 1 },
-  tuah: { name: 'Gajah Mada', hp: 450, spd: 2.6, atk: 16, bonus: { elite: 6, eleph: 10 }, rng: 0.85, rate: 0.9, ma: 3, pa: 3, sight: 8, cost: { food: 200, gold: 150 }, time: 25, cls: 'elite', hero: 'tuah', art: 'gajahmada', aura: { r: 5, atk: 2 }, cap: 1, age: 4, civ: 1 },
+  tuah: { name: 'Gajah Mada', hp: 450, spd: 2.6, atk: 16, bonus: { elite: 6, eleph: 10 }, rng: 0.85, rate: 0.9, ma: 3, pa: 3, sight: 8, cost: { food: 200, gold: 150 }, time: 25, cls: 'elite', hero: 'tuah', art: 'gajahmada', aura: { r: 5, atk: 2 }, cap: 1, age: 2, civ: 1 },
   perak: { name: 'Tribhuwana', hp: 320, spd: 2.4, atk: 10, bonus: {}, rng: 0.85, rate: 1.0, ma: 2, pa: 2, sight: 9, cost: {}, time: 0, cls: 'sword', hero: 'perak', art: 'tribhuwana', aura: { r: 6, atk: 2 }, age: 9, civ: 1 },
   // Kediri: Jayakatwang's Javanese soldiers (the game's Majapahit drawing in Kediri brown, team colour 3)
   kd_sword: { name: 'Kediri swordsman', hp: 55, spd: 2.4, atk: 8, bonus: { archer: 3 }, rng: 0.85, rate: 1.0, ma: 1, pa: 2, sight: 6.5, cost: {}, time: 0, cls: 'sword', jv: 'keris', pal: 3, civ: 9 },
@@ -6200,7 +6204,7 @@ Object.assign(UD, {
   cmdr: { name: 'The lord of Sadeng', hp: 900, spd: 2.3, atk: 18, bonus: { sword: 4, elite: 4 }, rng: 0.95, rate: 1.2, ma: 4, pa: 5, sight: 8.5, cost: {}, time: 0, cls: 'elite', foeHero: true, aura: { r: 5, atk: 2 }, bld: 12, jv: 'bhaya', pal: 4, lord: true, civ: 9 }
 });
 // the ages of Majapahit's own units and ships
-Object.assign(UD.acaraki, { age: 2 }); Object.assign(UD.bhaya, { age: 2 }); Object.assign(UD.archer, { maxAge: 2 });
+Object.assign(UD.acaraki, { age: 2 }); Object.assign(UD.bhaya, { age: 2 }); 
 Object.assign(UD.galley, { age: 2 }); Object.assign(UD.trade, { age: 2 }); Object.assign(UD.frigate, { age: 3 }); Object.assign(UD.flagship, { age: 4 });
 // Majapahit keeps its own civ bonuses from the main game and the Majapahit campaign demo (speed and numbers:
 // cheaper, faster, a little frailer, +1 armour; cheaper, faster, weaker ships through NAVMOD)
@@ -6217,7 +6221,7 @@ Object.assign(CIV_NAMES, {
 /* ---------- buildings ---------- */
 for (const k of ['patirthan', 'tower', 'palace', 'tradepost']) BD[k].age = 2;
 BD.palace.train = ['bhaya', 'tuah'];
-BD.barracks.train = ['keris', 'tombak', 'archer', 'sumpit', 'lembing', 'pembedil', 'bediraja', 'meriam'];
+BD.barracks.train = ['keris', 'tombak', 'archer', 'sumpit', 'lembing'];
 delete BD.rumahtabib;
 BUILD_ORDER.length = 0;
 for (const k of ['house', 'sawah', 'store', 'granary', 'barracks', 'port', 'palisade', 'gate', 'wall', 'patirthan', 'tower', 'palace', 'tradepost']) BUILD_ORDER.push(k);
@@ -6252,8 +6256,8 @@ const RAIDS = [
 // 1331: Sadeng and Keta rise together; Gajah Mada breaks them, and the queen comes to the field
 const FINAL = { land: { ne: { cmdr: 1, rb_guard: 2, rb_sword: 6, rb_spear: 5, rb_archer: 5 }, e: { rb_guard: 1, rb_sword: 4, rb_spear: 4, rb_archer: 4 } },
   sea: { boats: { rb_boat: 4 }, land: [{ at: 'bay', k: 'rb_galley', u: { rb_sword: 3, rb_archer: 3 } }, { at: 'kuala', k: 'rb_galley', u: { rb_spear: 3, rb_sword: 3 } }] }, who: 'sd', final: true };
-const REPEAT_GAP = 130;   // after the list runs out, the last raid comes again until Majapahit reaches the Golden Age
-const FINAL_DELAY = 75;   // Sadeng and Keta rise this long after the Golden Age begins
+const REPEAT_GAP = 130;   // after the list runs out, the last raid comes again until Majapahit reaches the Kingdom Age
+const FINAL_DELAY = 75;   // Sadeng and Keta rise this long after the last raid is broken, once Majapahit is a kingdom
 function raidKinds(R, diff) {
   const out = [];
   const add = (u) => { for (const k in u) { const n = k === 'cmdr' ? 1 : Math.max(1, Math.round(u[k] * DMUL[diff])); for (let j = 0; j < n; j++) out.push(k); } };
@@ -6318,9 +6322,10 @@ Game.prototype.cancelAge = function () {
 };
 function soldierArm(u, age) {
   if (u.team !== 0 || !(u.cls === 'sword' || u.cls === 'spear' || u.cls === 'elite') || UD[u.kind].hero) return;
-  const want = age >= 4 ? 2 : age >= 3 ? 1 : 0, have = u.ageArm || 0;
+  // the Kingdom Age puts the soldiers in the kere, a mail coat
+  const want = age >= 2 ? 1 : 0, have = u.ageArm || 0;
   if (want === have) return;
-  u.pa += want - have; u.ma += (age >= 4 ? 1 : 0) - (have >= 2 ? 1 : 0); u.ageArm = want;
+  u.pa += want - have; u.ageArm = want;
 }
 Game.prototype.applyAge = function (team, n) {
   const M = this.M, A = AGES[n];
@@ -6339,10 +6344,8 @@ Game.prototype.applyAge = function (team, n) {
     if (n >= 4 && q.kind === 'pembedil') q.kind = 'bediraja';
   }
   if (n >= 3) { BD.tower.atk = { dmg: 8, range: 7.5, rate: 1.6 }; }
-  // a new age brings the next raid closer: word of a rich port travels
-  // (the Golden Age instead stops the small raids: Sadeng and Keta gather their army)
-  if (n < 4 && M.raid < RAIDS.length && !M.active && M.next - M.t > AGE_SPEEDUP) M.next = M.t + AGE_SPEEDUP;
-  if (n === 4 && !M.finalAt) { M.finalAt = M.t + FINAL_DELAY; M.next = 1e9; }
+  // a new age brings the next raid closer: word of a new kingdom travels
+  if (M.raid < RAIDS.length && !M.active && M.next - M.t > AGE_SPEEDUP) M.next = M.t + AGE_SPEEDUP;
   M.cardQ.push('age' + n);
 };
 const _addUnit = Game.prototype.addUnit;
@@ -6662,7 +6665,12 @@ function missionTick(g, dt) {
     M.raid++;
     M.next = M.raid < RAIDS.length ? M.t + RAIDS[M.raid].at : M.t + REPEAT_GAP;
   }
-  // Sadeng and Keta rise once Majapahit is at its height
+  // once every raid is broken and Majapahit is a kingdom, Sadeng and Keta gather their army
+  if (!M.finalAt && M.raid >= RAIDS.length && !M.active && g.age[0] >= MAX_AGE) {
+    M.finalAt = M.t + FINAL_DELAY; M.next = 1e9;
+    g.msg('Word comes from the east: Sadeng and Keta are gathering an army. It marches in ' + FINAL_DELAY + ' seconds.');
+  }
+  // Sadeng and Keta rise
   if (M.finalAt && !M.finalOn && M.t >= M.finalAt) {
     M.finalOn = true; M.next = 1e9;
     M.cardQ.push('final');
@@ -7010,7 +7018,7 @@ function drawScene(id) {
       putUnit(x, 'villager', 0, 420, 212, 'idle', 0, true);
     } else if (id === 'age4') {
       // the Golden Age: Queen Tribhuwana's court, Gajah Mada beside her, the guard in gold
-      SCENE_AGE = 4;
+      SCENE_AGE = 2;
       skyBands(x, W2, 0, 110, ['#e8b860', '#f4d890', '#f8ecc4']);
       glow(x, 240, 60, 140, 'rgba(255,230,150,.5)');
       ground(x, W2, 108, H2, '#6fa55a', '#4f8a3e');
@@ -7037,23 +7045,23 @@ function drawScene(id) {
       return c2;
     } else if (id === 'final') {
       // 1331: Sadeng and Keta rise; the rebel lord under his payung; the queen and Gajah Mada meet them
-      SCENE_AGE = 4;
+      SCENE_AGE = 2;
       skyBands(x, W2, 0, 110, ['#3a3e66', '#8a6a7a', '#e0a070']);
       x.fillStyle = '#2e3a34'; x.fillRect(0, 70, W2, 40); x.fillRect(60, 56, 140, 14); x.fillRect(300, 60, 120, 10);
       ground(x, W2, 108, H2, '#4f7a3e', '#3f6a30');
       putUnit(x, 'cmdr', 1, 340, 176, 'walk', 0, true); putUnit(x, 'rb_guard', 1, 410, 168, 'walk', 1, true); putUnit(x, 'rb_guard', 1, 290, 160, 'walk', 2, true);
       for (let i = 0; i < 6; i++) putUnit(x, ['rb_sword', 'rb_spear', 'rb_archer'][i % 3], 1, 250 + i * 34, 198 + (i % 2) * 8, 'walk', i % 4, true);
-      putHero(x, 'tribhuwana', 70, 196); putUnit(x, 'bediraja', 0, 110, 200); putUnit(x, 'bhaya', 0, 36, 204); putHero(x, 'gajahmada', 144, 206);
+      putHero(x, 'tribhuwana', 70, 196); putUnit(x, 'archer', 0, 110, 200); putUnit(x, 'bhaya', 0, 36, 204); putHero(x, 'gajahmada', 144, 206);
     } else if (id === 'rout') {
       const [c2, y] = sceneCanvas(240, 96);
       skyBands(y, 240, 0, 44, ['#e8b860', '#f8ecc4']); ground(y, 240, 40, 96, '#5f8a4a', '#4a7038');
-      SCENE_AGE = 4;
-      putHero(y, 'gajahmada', 60, 88); putUnit(y, 'bhaya', 0, 30, 90); putUnit(y, 'bediraja', 0, 92, 90);
+      SCENE_AGE = 2;
+      putHero(y, 'gajahmada', 60, 88); putUnit(y, 'bhaya', 0, 30, 90); putUnit(y, 'tombak', 0, 92, 90);
       putUnit(y, 'rb_sword', 1, 170, 88, 'walk', 1); putUnit(y, 'rb_archer', 1, 214, 90, 'walk', 2);
       return c2;
     } else if (id === 'closing') {
       // 1336, the Palapa oath: Gajah Mada before the queen's court at dusk, the fleet ready for the islands
-      SCENE_AGE = 4;
+      SCENE_AGE = 2;
       skyBands(x, W2, 0, 104, ['#2a2c54', '#8a5a7a', '#f0a866', '#f8d890']);
       x.fillStyle = '#3a4a3a'; x.fillRect(250, 70, 230, 34); x.fillRect(300, 58, 120, 12);
       putBld(x, buildingSprite('palace', 0, 2), 360, 108, 0.9);
@@ -7062,7 +7070,7 @@ function drawScene(id) {
       putHero(x, 'tribhuwana', 330, 140); putHero(x, 'gajahmada', 270, 142, 'idle', 0, true);
       putUnit(x, 'bhaya', 0, 380, 140, 'idle', 0, true); putUnit(x, 'bhaya', 0, 410, 142, 'idle', 0, true);
       seaBand(x, W2, 150, H2, '#24506e', '#6aa8c0', 12);
-      putShip(x, 'flagship', 0, 120, 206); putShip(x, 'frigate', 0, 260, 200); putShip(x, 'trade', 0, 420, 206, true);
+      putShip(x, 'trade', 0, 120, 206); putShip(x, 'galley', 0, 260, 200); putShip(x, 'trade', 0, 420, 206, true);
     } else if (id === 'fall') {
       const [c2, y] = sceneCanvas(240, 96);
       skyBands(y, 240, 0, 50, ['#14121e', '#3a2430']); glow(y, 120, 50, 90, 'rgba(255,120,40,.4)');
@@ -7412,10 +7420,9 @@ function bldNote(b) {
     const n = G.age[0] + 1;
     if (M && M.aging) return 'Advancing to the ' + AGES[M.aging.to].name + ': ' + Math.ceil(M.aging.left) + 's.';
     if (AGES[n]) return 'Next: ' + AGES[n].name + '. Needs ' + AGES[n].need.text + (G.ageNeedMet(0, n) ? ' (done).' : '.');
-    return 'The Golden Age: Majapahit at its height. If the Town Centre falls, all is lost.';
+    return 'The Kingdom Age: Majapahit is a kingdom now. If the Town Centre falls, all is lost.';
   }
-  if (b.kind === 'palace' && b.team === 0) return G.age[0] >= 4 ? 'Trains Bhayangkara and Gajah Mada.' : 'Trains Bhayangkara. Gajah Mada comes with the Golden Age.';
-  if (b.kind === 'barracks' && b.team === 0 && G.age[0] < 3) return 'In the Age of Commerce, Panah archers become Bedil Gunners and the Cetbang is cast here.';
+  if (b.kind === 'palace' && b.team === 0) return 'Trains Bhayangkara and Gajah Mada.';
   return baseBldNote(b);
 }
 
@@ -7427,15 +7434,16 @@ function storyFor(id) {
     body: [P('King Kertanegara of Singhasari is dead, killed by Jayakatwang of Kediri. His son-in-law, Raden Wijaya, has made his peace with the new king and been given a stretch of wild forest at Tarik, by the Brantas river.'),
       P('His followers are clearing it now. They named the place after a bitter fruit they found there: Majapahit.'),
       P('Kediri is watching. And across the sea, the Yuan emperor has sent a fleet to punish a king who is already dead.'),
-      '<p class="goal">Objective: grow Majapahit through four ages to the Golden Age, and break the great rising of Sadeng and Keta. Keep the Town Centre standing.</p>',
-      '<p class="lead tipline">Select the Town Centre to advance an age. Each age needs certain buildings first and brings new units, guns and ships. Ageing up also draws the next raid closer.</p>'],
+      '<p class="goal">Objective: grow the village into the Kingdom of Majapahit, hold out against Kediri, the Yuan and the rebels, then break the great rising of Sadeng and Keta. Keep the Town Centre standing.</p>',
+      '<p class="lead tipline">Select the Town Centre to advance to the Kingdom Age. It needs certain buildings first and brings new units and ships. Ageing up also draws the next raid closer.</p>'],
     btn: 'Clear the forest'
   };
   if (id === 'age2') return {
     tag: 'Kingdom Age · Kadatwan', title: 'Kertarajasa',
     body: [P('Kediri has fallen and the Yuan have sailed home. Raden Wijaya is crowned Kertarajasa Jayawardhana, first king of Majapahit. A kraton of red brick rises at the heart of the town.'),
       P('The Bhayangkara guard the king, and the acaraki, healers who know the jamu herbs, tend the wounded.'),
-      '<p class="goal">New: Kraton (Bhayangkara), Patirthan (Acaraki healers), Bale Kulkul watchtower, Bandar tribute post, Kelulus galleys and Jong traders. Fire arrows at sea.</p>',
+      P('In the Bhayangkara a young guard named Gajah Mada will one day save a king, and then command the queen\'s armies.'),
+      '<p class="goal">New: Kraton (Bhayangkara, Gajah Mada), Patirthan (Acaraki healers), Bale Kulkul watchtower, Bandar tribute post, stone Wall, Kelulus galleys and Jong traders. Fire arrows at sea. Soldiers +1 armour. This is the last age in this mission.</p>',
       '<p class="lead tipline">' + TIPS[4] + '</p>'],
     btn: 'Onward'
   };
@@ -7544,7 +7552,8 @@ function objList() {
   const pct = (u) => u && u.hp > 0 ? Math.ceil(u.hp / u.maxHp * 100) + '%' : 'fallen';
   const tc = G.buildings.find(b => b.team === 0 && b.kind === 'towncentre');
   const a = G.age[0], items = [];
-  for (let n = 2; n <= 4; n++) items.push({ t: 'Reach the ' + AGES[n].name + ' (' + AGES[n].local + ')' + (M.aging && M.aging.to === n ? ': ' + Math.floor((1 - M.aging.left / M.aging.tot) * 100) + '%' : ''), ok: a >= n });
+  for (let n = 2; n <= MAX_AGE; n++) items.push({ t: 'Reach the ' + AGES[n].name + ' (' + AGES[n].local + ')' + (M.aging && M.aging.to === n ? ': ' + Math.floor((1 - M.aging.left / M.aging.tot) * 100) + '%' : ''), ok: a >= n });
+  items.push({ t: 'Break the raids (' + Math.min(M.broken, RAIDS.length) + ' of ' + RAIDS.length + ')', ok: M.broken >= RAIDS.length });
   items.push({ t: 'Break the rising of Sadeng and Keta' + (M.finalOn && M.cmdr && M.cmdr.hp > 0 ? ' (lord ' + pct(M.cmdr) + ')' : ''), ok: !!M.routed });
   items.push({ t: 'Keep the Town Centre standing (' + pct(tc) + ')', ok: false });
   const heroes = [];
@@ -7553,7 +7562,7 @@ function objList() {
   if (heroes.length) items.push({ t: heroes.join(' · '), opt: true });
   if (!M.active && !M.finalAt) items.push({ t: 'Raid ' + (M.raid + 1) + ' in ' + fmtTime(M.next - M.t) + ': ' + raidPreview(M.raid), tip: true });
   if (M.finalAt && !M.finalOn) items.push({ t: 'Sadeng and Keta march in ' + fmtTime(M.finalAt - M.t), tip: true });
-  items.push({ t: a < 2 ? 'Ages: select the Town Centre. The Kingdom Age needs 2 of Barracks, Gudang, Lumbung or Port.' : a < 3 ? 'The Age of Commerce needs 2 of Kraton, Patirthan, Bale Kulkul, Bandar. A Bandar stands on a village landing.' : a < 4 ? 'The Golden Age needs a Kraton and a Bandar.' : 'Gajah Mada trains at the Kraton.', tip: true });
+  items.push({ t: a < 2 ? 'Ages: select the Town Centre. The Kingdom Age needs 2 of Barracks, Gudang, Lumbung or Port.' : 'Gajah Mada trains at the Kraton.', tip: true });
   return { title: 'Rise of Majapahit · ' + AGES[a].local, items };
 }
 function updateObj() {
@@ -7632,18 +7641,18 @@ function skipTo(which) {
   startGame(seedUsed);
   storyOpen = null; showOv(null); paused = false;
   const M = G.M, tc = G.byId.get(M.tc), late = which === 'final';
-  const age = late ? 4 : 3;
+  const age = MAX_AGE;
   for (let n = 2; n <= age; n++) { G.applyAge(0, n); }
   M.cardQ.length = 0;
   M.raid = late ? 11 : 6; M.broken = M.raid; M.warned = M.raid - 1; M.next = M.t + 40;
-  if (late) { M.finalAt = M.t + 30; M.next = 1e9; }
-  G.res[0] = late ? { food: 1200, wood: 1200, gold: 900 } : { food: 900, wood: 900, gold: 600 };
+  if (late) { M.raid = RAIDS.length; M.finalAt = M.t + 30; M.next = 1e9; }
+  G.res[0] = late ? { food: 1000, wood: 1000, gold: 600 } : { food: 800, wood: 800, gold: 400 };
   const spot = (kind, dx, dy) => { const p = G.nearestFree(tc.tx + dx, tc.ty + dy, 0, 8); for (let r = 0; r < 6; r++) for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) if (G.canPlace(kind, p.x + xx, p.y + yy, 0)) return G.addBuilding(kind, 0, p.x + xx, p.y + yy, true); return null; };
   spot('barracks', 6, -4); spot('palace', -6, -6); spot('patirthan', 6, 3); spot('house', -4, 4); spot('house', -2, 6); spot('house', 2, 7); spot('house', 5, 6); spot('house', -6, 2);
   for (const [dx, dy] of [[1, 5], [4, 5], [-3, -3], [0, -4]]) spot('sawah', dx, dy);
   if (late) spot('tower', 10, -1);
   const put = (k, x, y) => { const p = G.openSpot(x, y, 0); return G.addUnit(k, 0, p.x, p.y); };
-  const army = late ? { keris: 6, tombak: 8, bediraja: 8, bhaya: 3, acaraki: 2, meriam: 2, tuah: 1 } : { keris: 4, tombak: 5, pembedil: 5, bhaya: 2, acaraki: 1, meriam: 1 };
+  const army = late ? { keris: 7, tombak: 9, archer: 9, bhaya: 4, acaraki: 2, tuah: 1 } : { keris: 4, tombak: 5, archer: 5, bhaya: 2, acaraki: 1 };
   let i = 0; for (const k in army) for (let j = 0; j < army[k]; j++, i++) put(k, tc.x + 5 + (i % 8) * 1.1, tc.y - 2 + Math.floor(i / 8));
   for (let j = 0; j < (late ? 10 : 8); j++) put('villager', tc.x - 2 + (j % 5), tc.y + 3 + Math.floor(j / 5));
   for (const u of G.units) if (u.team === 0) soldierArm(u, G.age[0]);
@@ -7659,7 +7668,7 @@ function endGame() {
   ended = true; paused = true;
   const win = G.over === 'win';
   $('end-tag').textContent = win ? 'Demo complete' : 'Majapahit has fallen';
-  $('end-title').textContent = win ? 'The Golden Age' : 'Defeat';
+  $('end-title').textContent = win ? 'The Palapa Oath' : 'Defeat';
   $('end-title').className = win ? 'win' : 'lose';
   $('end-sub').textContent = win ? 'Majapahit grew from a forest clearing to the kingdom of the Palapa oath.'
     : 'The Town Centre has fallen. Wijaya\'s people scatter into the forest. They will clear it again.';
@@ -7687,7 +7696,7 @@ function mrBoot() {
   requestAnimationFrame(function pre(ts) { if (!started) { nowS = ts / 1000; render(); requestAnimationFrame(pre); } });
   requestAnimationFrame(frame);
   const h = (location.hash || '').slice(1);
-  if (h === 'age3' || h === 'final') skipTo(h);
+  if (h === 'age2' || h === 'final') skipTo(h);
 }
 
 /* ---------- full screen: a button on the start card and in the pause menu; phones try it on Begin ---------- */
