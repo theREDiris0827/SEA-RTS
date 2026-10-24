@@ -529,7 +529,8 @@ const CIV_NAMES = {
   light: ['Penjajap (Sloop)', 'Jukung Perang (Sloop)'], galley: ['Lancaran (Galley)', 'Kelulus (Galley)'],
   frigate: ['Ghali (Frigate)', 'Jong Perang (Frigate)'], flagship: ['Mendam Berahi (Flagship)', 'Jong Raya (Flagship)'],
   granary: ['Jelapang (Granary)', 'Lumbung (Granary)'], tower: ['Menara Kawal (Watchtower)', 'Bale Kulkul (Watchtower)'],
-  palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)']
+  palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)'],
+  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)']
 };
 function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[team === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
 
@@ -538,6 +539,8 @@ const BD = {
   house: { name: 'House', size: 2, hp: 300, pop: 5, cost: { wood: 30 }, time: 14, sight: 4 },
   mill: { name: 'Timber Mill', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['wood'], sight: 4 },
   goldmine: { name: 'Gold Mine', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['gold'], sight: 4 },
+  // one drop-off for wood and gold replaces the mill and mine (kept above for old saves and the demos)
+  store: { name: 'Storehouse', size: 2, hp: 400, cost: { wood: 100 }, time: 18, drop: ['wood', 'gold'], sight: 4 },
   farm: { name: 'Farm', size: 2, hp: 100, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3 },
   barracks: { name: 'Barracks', size: 3, hp: 800, cost: { wood: 150 }, time: 30, train: ['keris', 'tombak', 'archer'], sight: 6 },
   port: { name: 'Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat', 'trade', 'fireship', 'light', 'galley', 'frigate', 'flagship'], shore: true, sight: 8 },
@@ -1436,6 +1439,11 @@ class Game {
       this.idleOrder(u);
       if (b.kind === 'mill') { const n = this.nearestNode(b.x, b.y, 'wood', 0, 14, b.team); if (n) this.orderGather(u, n); }
       else if (b.kind === 'goldmine') { const n = this.nearestNode(b.x, b.y, 'gold', 0, 14, b.team); if (n) this.orderGather(u, n); }
+      else if (b.kind === 'store') {
+        const w = this.nearestNode(b.x, b.y, 'wood', 0, 14, b.team), g = this.nearestNode(b.x, b.y, 'gold', 0, 14, b.team);
+        const d = (n) => n ? Math.hypot(n.x - b.x, n.y - b.y) : 1e9, n = d(g) < d(w) ? g : w;
+        if (n) this.orderGather(u, n);
+      }
       else if (b.kind === 'farm') { this.orderGather(u, b); }
       else {
         let nb = null, bd = 12;
@@ -1772,7 +1780,7 @@ class Game {
       u.working = false;
       const drop = this.nearestDrop(u, u.carry.type || o.type);
       if (!drop) {
-        if (u.team === 0 && this.t - (u.lastNoDrop || -99) > 10) { u.lastNoDrop = this.t; this.msg(u.cls === 'boat' ? 'Build a Trading Port on the shore to unload fish.' : 'Build a ' + (o.type === 'wood' ? 'Timber Mill' : 'Gold Mine') + ' or use the Town Centre.'); }
+        if (u.team === 0 && this.t - (u.lastNoDrop || -99) > 10) { u.lastNoDrop = this.t; this.msg(u.cls === 'boat' ? 'Build a Trading Port on the shore to unload fish.' : (o.type === 'food' ? 'Build a Granary' : 'Build a Storehouse') + ' or use the Town Centre.'); }
         u.wait = 1; return;
       }
       const d = rectDist(u.x, u.y, drop.rect);
@@ -2028,8 +2036,8 @@ class Game {
       if (!n) continue;
       // drop-off distance check
       if (n.isNode && (pick === 'wood' || pick === 'gold') && r.wood >= 100) {
-        const kind = pick === 'wood' ? 'mill' : 'goldmine';
-        const near = this.buildings.some(b => b.team === 1 && b.kind === kind && Math.hypot(b.x - n.x, b.y - n.y) < 7);
+        const kind = 'store';
+        const near = this.buildings.some(b => b.team === 1 && BD[b.kind].drop && BD[b.kind].drop.includes(pick) && b.kind !== 'towncentre' && Math.hypot(b.x - n.x, b.y - n.y) < 7);
         if (!near && Math.hypot(n.x - tc.x, n.y - tc.y) > 9 && !building.some(b => b.kind === kind)) {
           if (this.aiBuildNear(kind, n, [v])) { counts[pick]++; continue; }
         }
@@ -2895,7 +2903,7 @@ function buildingSprite(kind, team, level) {
   if (kind === 'rumahtabib' || kind === 'patirthan') return CIVB.healerBuilding(kind, team);
   if (team === 1 && ['towncentre', 'house', 'barracks', 'port'].includes(kind)) return CIVB.majapahitBase(kind, team);
   const T = TEAMC[team] || TEAMC[0], key = `b|${kind}|${team}|${level || 0}`;
-  const dims = { towncentre: [48, 62], house: [32, 46], mill: [32, 46], goldmine: [32, 44], farm: [32, 32], barracks: [48, 58], port: [48, 54] }[kind];
+  const dims = { towncentre: [48, 62], house: [32, 46], mill: [32, 46], store: [32, 46], goldmine: [32, 44], farm: [32, 32], barracks: [48, 58], port: [48, 54] }[kind];
   return sprite(key, dims[0], dims[1], 2, (P) => {
     const r = P.r;
     if (kind === 'house') {
@@ -2907,6 +2915,14 @@ function buildingSprite(kind, team, level) {
       r(5, 24, 22, 16, '#3a2a1a'); roofGable(P, 16, 8, 24, 5, 15, T.roofA, T.roofB, T.roofR); r(2, 24, 28, 1, T.main);
       for (let i = 0; i < 3; i++) { r(17 + i * 3, 36 - (i % 2), 3, 4, '#a0693a'); r(17 + i * 3, 38 - (i % 2), 3, 1, '#c99b5d'); }
       r(18, 32, 9, 3, '#8a5a2b'); r(19, 29, 7, 3, '#a0693a'); r(7, 33, 8, 1, STEEL); r(6, 34, 10, 6, '#7a4a24'); r(8, 30, 1, 4, WOOD_D); r(8, 29, 3, 1, STEEL);
+      r(15, 4, 1, 5, WOOD_D); r(16, 4, 5, 3, T.main);
+    } else if (kind === 'store') {
+      // Gudang: a raised plank warehouse with a log stack and a gold chest at the door
+      posts(P, [3, 27], 26, 44, 2); r(1, 40, 30, 3, '#8f6232'); r(1, 43, 30, 1, '#5a3a1e');
+      planks(P, 4, 24, 24, 16, '#b88a52', '#9a6e3c'); roofGable(P, 16, 8, 24, 5, 15, T.roofA, T.roofB, T.roofR); r(2, 24, 28, 1, T.main);
+      r(12, 29, 8, 11, '#3f2713'); r(12, 28, 8, 1, T.trim);
+      for (let i = 0; i < 3; i++) { r(22, 34 - i * 2, 8, 2, i % 2 ? '#a0693a' : '#8a5a2b'); r(29, 34 - i * 2, 1, 2, '#c99b5d'); }
+      r(2, 34, 8, 6, '#5e3b1c'); r(2, 33, 8, 2, '#f2c94c'); r(4, 32, 3, 1, '#ffe27a'); r(5, 35, 2, 2, '#333');
       r(15, 4, 1, 5, WOOD_D); r(16, 4, 5, 3, T.main);
     } else if (kind === 'goldmine') {
       disc(P, 16, 26, 14, '#7b7f88'); disc(P, 9, 29, 8, '#8b9099'); disc(P, 24, 29, 8, '#6d717a'); r(2, 36, 28, 4, '#6d717a');
@@ -3077,8 +3093,8 @@ const cvs = $('view'), ctx = cvs.getContext('2d');
 const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
-const BUILD_ORDER = ['house', 'farm', 'mill', 'goldmine', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'tradepost', 'palace'];
-const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool' };
+const BUILD_ORDER = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'tradepost', 'palace'];
+const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool' };
 const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
 const FORMS = ['box', 'line', 'wedge'];
 
@@ -3771,6 +3787,7 @@ function bldNote(b) {
   if (b.kind === 'village') return b.post ? 'A trading post stands on its landing.' : 'Build a Trade Post on the landing beside it.';
   if (b.kind === 'tradepost') return own ? 'Tap it with a Jong Dagang to start a trade route. Trade gold so far: ' + G.tradeGold + '.' : 'This village pays tribute to Majapahit.';
   if (b.kind === 'granary' && own) return 'Villagers drop food here.';
+  if (b.kind === 'store' && own) return 'Villagers drop wood and gold here.';
   if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
   if (b.kind === 'patirthan') return 'Units resting by the pool heal slowly.';
   return '';
@@ -3997,7 +4014,7 @@ const ENCY_UNITS = {
 };
 const ENCY_BLDS = {
   towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
-  house: '+5 population.', farm: 'Endless food for one or two farmers.', mill: 'Drop-off for wood.', goldmine: 'Drop-off for gold.',
+  house: '+5 population.', farm: 'Endless food for one or two farmers.', store: 'Gudang: drop-off for wood and gold.',
   granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
   tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
   patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
