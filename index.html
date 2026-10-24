@@ -495,9 +495,12 @@ function fbm(x, y, s) {
 const UD = {
   villager: { name: 'Villager', hp: 25, spd: 2.1, atk: 3, rng: 0.85, rate: 1.5, ma: 0, pa: 0, sight: 5, cost: { food: 50 }, time: 8, cls: 'vil', carry: 10 },
   // counters: Tombak beats Keris, Keris beats Archer, Archer beats Tombak; elites have their own jobs
-  keris: { name: 'Keris Warrior', hp: 55, spd: 2.4, atk: 8, bonus: { archer: 3 }, rng: 0.85, rate: 1.0, ma: 1, pa: 2, sight: 6.5, cost: { food: 50, gold: 20 }, time: 9, cls: 'sword' },
+  keris: { name: 'Keris Warrior', hp: 55, spd: 2.4, atk: 8, bonus: { archer: 3, skirm: 4 }, rng: 0.85, rate: 1.0, ma: 1, pa: 2, sight: 6.5, cost: { food: 50, gold: 20 }, time: 9, cls: 'sword' },
   tombak: { name: 'Tombak Warrior', hp: 50, spd: 2.3, atk: 5, bonus: { sword: 5, elite: 4 }, rng: 1.5, rate: 1.1, ma: 2, pa: 0, sight: 6.5, cost: { food: 40, wood: 25 }, time: 9, cls: 'spear' },
   archer: { name: 'Archer', hp: 30, spd: 2.2, atk: 6, bonus: { spear: 3, elite: 3 }, rng: 5.5, rate: 1.5, ma: 0, pa: 0, sight: 7.5, cost: { wood: 30, gold: 35 }, time: 10, cls: 'archer', ranged: true },
+  // light ranged: no gold, quick shots; kills archers and spearmen, melts against swords and armour (lore/ranged-units.md)
+  sumpit: { name: 'Penyumpit', hp: 32, spd: 2.4, atk: 3, bonus: { archer: 3, spear: 2 }, rng: 5, rate: 0.9, ma: 0, pa: 0, sight: 7.5, cost: { food: 30, wood: 25 }, time: 8, cls: 'skirm', ranged: true, civ: 0, poison: { dps: 1.2, dur: 4 } },
+  lembing: { name: 'Javelin Thrower', hp: 40, spd: 2.4, atk: 5, bonus: { archer: 3, spear: 3 }, rng: 4, rate: 1.3, ma: 0, pa: 0, sight: 7, cost: { food: 35, wood: 25 }, time: 8, cls: 'skirm', ranged: true, civ: 1 },
   pahlawan: { name: 'Pahlawan', hp: 80, spd: 2.3, atk: 11, bonus: { sword: 5, elite: 4 }, rng: 0.85, rate: 1.0, ma: 2, pa: 0, sight: 6.5, cost: { food: 90, gold: 60 }, time: 14, cls: 'elite', civ: 0 },
   bhaya: { name: 'Bhayangkara', hp: 75, spd: 3.5, atk: 6, bonus: { archer: 4, sword: 2 }, rng: 0.85, rate: 0.55, ma: 1, pa: 4, sight: 6.5, cost: { food: 70, gold: 40 }, time: 12, cls: 'elite', civ: 1 },
   // healers: herbal medicine. Melaka heals one unit well, Majapahit heals a crowd a little
@@ -530,7 +533,7 @@ const CIV_NAMES = {
   frigate: ['Ghali (Frigate)', 'Jong Perang (Frigate)'], flagship: ['Mendam Berahi (Flagship)', 'Jong Raya (Flagship)'],
   granary: ['Jelapang (Granary)', 'Lumbung (Granary)'], tower: ['Menara Kawal (Watchtower)', 'Bale Kulkul (Watchtower)'],
   palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)'],
-  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)']
+  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)'], sumpit: ['Penyumpit (Blowpipe)', null], lembing: [null, 'Lembing (Javelin Thrower)']
 };
 function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[team === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
 
@@ -542,7 +545,7 @@ const BD = {
   // one drop-off for wood and gold replaces the mill and mine (kept above for old saves and the demos)
   store: { name: 'Storehouse', size: 2, hp: 400, cost: { wood: 100 }, time: 18, drop: ['wood', 'gold'], sight: 4 },
   farm: { name: 'Farm', size: 2, hp: 100, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3 },
-  barracks: { name: 'Barracks', size: 3, hp: 800, cost: { wood: 150 }, time: 30, train: ['keris', 'tombak', 'archer'], sight: 6 },
+  barracks: { name: 'Barracks', size: 3, hp: 800, cost: { wood: 150 }, time: 30, train: ['keris', 'tombak', 'archer', 'sumpit', 'lembing'], sight: 6 },
   port: { name: 'Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat', 'trade', 'fireship', 'light', 'galley', 'frigate', 'flagship'], shore: true, sight: 8 },
   granary: { name: 'Granary', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['food'], sight: 4 },
   tower: { name: 'Watchtower', size: 2, hp: 600, civHp: [600, 800], cost: { wood: 75, gold: 25 }, time: 25, atk: { dmg: 5, range: 7, rate: 1.8 }, sight: 11, civSight: [11, 9] },
@@ -1456,6 +1459,7 @@ class Game {
   updateUnit(u, dt) {
     u.cd = Math.max(0, u.cd - dt); if (u.cd2) u.cd2 = Math.max(0, u.cd2 - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
     u.wait = Math.max(0, u.wait - dt); u.rp = Math.max(0, u.rp - dt);
+    if (u.psn) { u.psn.t -= dt; u.hp -= u.psn.dps * dt; if (u.psn.t <= 0) u.psn = null; if (u.hp <= 0) { this.onKilled(u, { team: u.psnBy, isUnit: false }); return; } }
     u.anim += dt; u.moving = false; u.working = false;
     const o = u.order;
     switch (o.t) {
@@ -1889,6 +1893,9 @@ class Game {
     if (w && tgt.isBld) { if (w.wpn === 'cannon') { arm = 0; dmg *= NAVWPN.cannonBld; } else if (w.swv) arm = Math.floor(arm * NAVWPN.swivelArmCut); }
     dmg = Math.max(1, dmg - arm);
     if (w && w.fire) this.ignite(tgt, att.team);
+    // blowpipe darts: ipoh poison, a little damage over a few seconds that ignores armour (doesn't stack)
+    const pz = att.isUnit && UD[att.kind] && UD[att.kind].poison;
+    if (pz && tgt.isUnit && tgt.layer !== 1 && tgt.cls !== 'animal') { tgt.psn = { t: pz.dur, dps: pz.dps }; tgt.psnBy = att.team; }
     tgt.hp -= dmg; tgt.hit = 0.15; tgt.lastHit = this.t;
     if (tgt.isUnit && tgt.cls === 'animal') { tgt.order = { t: 'flee', t0: 3, fx: att.x != null ? att.x : tgt.x, fy: att.y != null ? att.y : tgt.y }; tgt.path = null; }
     if (tgt.team === 0 && att.team === 1 && this.t - this.lastAlert > 5) {
@@ -2071,7 +2078,7 @@ class Game {
     if (palace && !palace.rally) palace.rally = { x: tc.x - 6, y: tc.y + 2 };
     for (const b of barracks) {
       if (b.queue.length >= 2 || mil.length + b.queue.length >= milCap) continue;
-      const roll = this.rng(), kind = roll < 0.4 ? 'keris' : roll < 0.72 ? 'tombak' : 'archer';
+      const roll = this.rng(), kind = roll < 0.35 ? 'keris' : roll < 0.6 ? 'lembing' : roll < 0.82 ? 'tombak' : 'archer';
       if (pop + b.queue.length < cap) this.queueUnit(b, kind, 1);
       if (!b.rally) b.rally = { x: tc.x - 6, y: tc.y + 2 };
     }
@@ -2230,6 +2237,8 @@ function drawUnit(P, kind, team, anim, f, tool) {
   const L = LEGS[walk ? f : 1];
   const pw = kind === 'pahlawan', legC = bh ? '#3a1c1c' : pw ? '#1d2b22' : (mel ? '#3f6a50' : SKIN_D);
   for (const l of L) { const lx = l[0]; S(lx, l[1], l[2], l[3], legC); S(lx, l[1] + l[3] - 1, l[2], 1, '#2b1d12'); }
+  // javelin thrower: a bundle of spare lembing on the back
+  if (kind === 'lembing') { S(3, 0, 1, 12, WOOD); S(4, 1, 1, 11, WOOD_D); S(3, -1, 1, 1, STEEL); S(4, 0, 1, 1, STEEL); }
   // quiver on the back, with fletching showing over the shoulder
   if (kind === 'archer') { B(3, 5, 2, 6, WOOD_D); B(3, 4, 1, 1, '#f4ecd4'); B(4, 3, 1, 2, T.main); B(4, 10, 1, 1, GOLD); }
 
@@ -2248,7 +2257,7 @@ function drawUnit(P, kind, team, anim, f, tool) {
       B(5, 7, 6, 3, '#e9dcb4'); B(5, 10, 6, 2, T.main); B(6, 10, 1, 2, T.dark); B(9, 10, 1, 2, T.dark); B(5, 11, 6, 1, T.dark);
     } else {
       // baju Melayu with a songket sampin: gold belt and gold thread dots
-      B(5, 7, 6, 2, kind === 'archer' ? '#d4c796' : CREAM); B(7, 7, 2, 1, T.trim);
+      B(5, 7, 6, 2, kind === 'archer' || kind === 'sumpit' ? '#d4c796' : CREAM); B(7, 7, 2, 1, T.trim);
       B(5, 9, 6, 3, T.main); B(5, 9, 6, 1, GOLD); B(6, 11, 1, 1, GOLD); B(9, 11, 1, 1, GOLD);
     }
   } else {
@@ -2263,7 +2272,7 @@ function drawUnit(P, kind, team, anim, f, tool) {
   // arms (Majapahit soldiers wear gold armbands)
   const sleeve = pw ? '#1f2a24' : (mel && !vil) ? CREAM : SKIN, ax0 = 4, ax1 = 11;
   B(ax0, 8, 1, 3, sleeve);
-  if (atk && f === 1 && kind !== 'tombak' && kind !== 'archer') B(ax1, 8, 3, 1, sleeve); else B(ax1, 8, 1, 3, sleeve);
+  if (atk && f === 1 && kind !== 'tombak' && kind !== 'archer' && kind !== 'sumpit') B(ax1, 8, 3, 1, sleeve); else B(ax1, 8, 1, 3, sleeve);
   if (!mel && !vil) { B(ax0, 8, 1, 1, GOLD); B(ax1, 8, 1, 1, GOLD); }
 
   // head
@@ -2277,7 +2286,7 @@ function drawUnit(P, kind, team, anim, f, tool) {
     B(5, 1, 6, 3, T.dark); B(5, 3, 6, 1, GOLD); B(6, 2, 4, 1, T.main);
     B(9, -1, 2, 3, T.dark); B(10, -1, 1, 1, GOLD); B(4, 2, 1, 2, T.main);
   } else if (mel) {
-    if (kind === 'archer') {
+    if (kind === 'archer' || kind === 'sumpit') {
       // tied headband with trailing ends
       B(6, 2, 4, 1, HAIR); B(5, 3, 6, 1, T.main); B(4, 3, 1, 1, T.main); B(3, 4, 1, 2, T.main);
     } else {
@@ -2320,6 +2329,16 @@ function drawUnit(P, kind, team, anim, f, tool) {
     B(13, 4, 1, 1, WOOD); B(14, 5, 1, 8, WOOD); B(13, 13, 1, 1, WOOD); B(14, 8, 1, 2, GOLD_D);
     if (atk && f === 0) { B(9, 9, 5, 1, WOOD); B(13, 5, 1, 8, '#d8d0b0'); B(14, 9, 1, 1, STEEL); }
     else B(13, 5, 1, 8, '#d8d0b0');
+  } else if (kind === 'sumpit') {
+    // long bamboo blowpipe: upright at rest, raised to the lips to shoot; a dart pouch at the hip
+    B(4, 11, 2, 2, '#8a5a2b'); B(4, 11, 2, 1, GOLD_D);
+    if (atk && f === 0) { B(9, 5, 7, 1, '#b8a060'); B(15, 5, 1, 1, '#6a5a30'); B(11, 6, 1, 2, sleeve); }
+    else { S(12, 0, 1, 14, '#b8a060'); S(12, 0, 1, 1, '#6a5a30'); S(12, 6, 1, 1, '#8a7a40'); }
+  } else if (kind === 'lembing') {
+    // a javelin in the throwing hand, drawn back then thrown
+    if (!atk) { S(12, 1, 1, 13, WOOD); S(12, 0, 1, 2, STEEL); }
+    else if (f === 0) { B(6, 5, 8, 1, WOOD); B(14, 5, 1, 1, STEEL); B(11, 6, 1, 2, sleeve); }
+    else B(13, 7, 2, 1, sleeve);
   } else if (bh) {
     // small round shield on the left arm, broad gold-hilted blade in the right hand
     disc({ r: B }, 4, 10, 2, '#6a2e20'); B(4, 10, 1, 1, GOLD); B(3, 9, 1, 1, '#8e4a30');
@@ -3095,7 +3114,7 @@ const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
 const BUILD_ORDER = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'port', 'tower', 'tradepost', 'palace'];
 const BUILD_SHORT = { house: 'House', mill: 'Mill', goldmine: 'Mine', store: 'Store', farm: 'Farm', granary: 'Granary', barracks: 'Barracks', port: 'Port', tower: 'Tower', tradepost: 'Trade Post', palace: 'Palace', rumahtabib: 'Healer', patirthan: 'Pool' };
-const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
+const TRAIN_SHORT = { villager: 'Villager', keris: 'Keris', tombak: 'Tombak', archer: 'Archer', sumpit: 'Sumpit', lembing: 'Lembing', pahlawan: 'Pahlawan', bhaya: 'Bhayangkara', tabib: 'Tabib', acaraki: 'Acaraki', boat: 'Sampan', trade: 'Trader', fireship: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' };
 const FORMS = ['box', 'line', 'wedge'];
 
 let G = null, terrainC = null, miniBase = null, fogC = null, fogCtx = null, fogImg = null, fogSeen = -1;
@@ -4000,6 +4019,8 @@ const ENCY_UNITS = {
   keris: 'Cheap, fast swordsman. Runs down archers.',
   tombak: 'Spearman. Holds the line and hits elite units hard.',
   archer: 'Shoots from range. Strong against spearmen, weak when swords reach it.',
+  sumpit: 'Melaka blowpipe hunter. No gold needed. Poison darts keep hurting after the hit. Beats archers and spearmen; swords cut it down.',
+  lembing: 'Majapahit javelin thrower. No gold needed. Short range, heavy throws. Beats archers and spearmen; swords cut it down.',
   pahlawan: 'Melaka\u2019s champion warriors, trained at the Istana. Few, costly and deadly.',
   bhaya: 'Majapahit\u2019s royal guard, trained at the Kraton. Tough and hard to shoot down.',
   tabib: 'Melaka physician. Heals one wounded soldier at a time, fast.',
