@@ -535,7 +535,7 @@ const CIV_NAMES = {
   frigate: ['Ghali (Frigate)', 'Jong Perang (Frigate)'], flagship: ['Mendam Berahi (Flagship)', 'Jong Raya (Flagship)'],
   granary: ['Jelapang (Granary)', 'Lumbung (Granary)'], tower: ['Menara Kawal (Watchtower)', 'Bale Kulkul (Watchtower)'],
   palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)'],
-  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)'], palisade: ['Pagar Kayu (Palisade)', 'Pagar Kayu (Palisade)'],
+  store: ['Gudang (Storehouse)', 'Gudang (Storehouse)'], sawah: [null, 'Sawah (Rice Terrace)'], palisade: ['Pagar Kayu (Palisade)', 'Pagar Kayu (Palisade)'],
   wall: ['Kubu (Timber Wall)', 'Benteng Bata (Brick Wall)'], gate: ['Pintu Kota (Gate)', 'Gapura (Split Gate)'], sumpit: ['Penyumpit (Blowpipe)', null], lembing: [null, 'Lembing (Javelin Thrower)']
 };
 function civName(kind, team) { const n = CIV_NAMES[kind]; return (n && n[team === 1 ? 1 : 0]) || (UD[kind] || BD[kind]).name; }
@@ -547,7 +547,9 @@ const BD = {
   goldmine: { name: 'Gold Mine', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['gold'], sight: 4 },
   // one drop-off for wood and gold replaces the mill and mine (kept above for old saves and the demos)
   store: { name: 'Storehouse', size: 2, hp: 400, cost: { wood: 100 }, time: 18, drop: ['wood', 'gold'], sight: 4 },
-  farm: { name: 'Farm', size: 2, hp: 100, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3 },
+  farm: { name: 'Farm', size: 2, hp: 100, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3, civ: 0 },
+  // Majapahit rice terraces: cheaper, richer and faster to work than a farm, but they take more room
+  sawah: { name: 'Sawah', size: 3, hp: 150, cost: { wood: 45 }, time: 12, walk: true, food: 500, rate: 1.2, sight: 3, civ: 1 },
   barracks: { name: 'Barracks', size: 3, hp: 800, cost: { wood: 150 }, time: 30, train: ['keris', 'tombak', 'archer', 'sumpit', 'lembing'], sight: 6 },
   port: { name: 'Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat', 'trade', 'fireship', 'light', 'galley', 'frigate', 'flagship'], shore: true, sight: 8 },
   granary: { name: 'Granary', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['food'], sight: 4 },
@@ -574,6 +576,7 @@ const NK = {
   carcass: { type: 'food', amt: 120, rate: 1.8 }
 };
 const FARM_RATE = 0.9;
+const FIELD = { farm: 1, sawah: 1 };   // buildings villagers farm
 const DIFF = {
   easy: { wave0: 300, gap: 120, base: 3, grow: 2, vil: 9, milBase: 4, milRate: 70 },
   normal: { wave0: 215, gap: 90, base: 5, grow: 3, vil: 12, milBase: 7, milRate: 45 },
@@ -1155,7 +1158,7 @@ class Game {
   gatherInfo(o) {
     if (!o) return null;
     if (o.isNode) return { type: o.type, amt: o.amt, rate: NK[o.kind].rate, rect: o.rect };
-    if (o.isBld && o.kind === 'farm' && o.done) return { type: 'food', amt: o.food, rate: FARM_RATE, rect: o.rect };
+    if (o.isBld && FIELD[o.kind] && o.done) return { type: 'food', amt: o.food, rate: FARM_RATE * (BD[o.kind].rate || 1), rect: o.rect };
     return null;
   }
   orderGather(u, target) {
@@ -1293,7 +1296,7 @@ class Game {
         if (movers.length) this.groupMove(movers, target.x, target.y, opts);
         return;
       }
-      if (target.isNode || (target.isBld && target.kind === 'farm' && target.done && target.team === team)) {
+      if (target.isNode || (target.isBld && FIELD[target.kind] && target.done && target.team === team)) {
         const movers = [], gi = this.gatherInfo(target);
         this.countClaims();
         const workers = us.filter(u => u.cls === 'vil' || u.cls === 'boat').sort((a, b) => Math.hypot(a.x - target.x, a.y - target.y) - Math.hypot(b.x - target.x, b.y - target.y));
@@ -1483,7 +1486,7 @@ class Game {
     }
     if (type === 'food' && layer === 0) {
       for (const b of this.buildings) {
-        if (b.kind !== 'farm' || b.hp <= 0 || !b.done || b.food <= 0 || b.team !== team) continue;
+        if (!FIELD[b.kind] || b.hp <= 0 || !b.done || b.food <= 0 || b.team !== team) continue;
         consider(b);
       }
     }
@@ -1492,7 +1495,7 @@ class Game {
   /* nearest other resource of the same kind as `like` (tree -> tree, farm -> own farm) with a free slot */
   freeSameKind(like, x, y, team, maxD) {
     let best = null, bd = maxD;
-    const list = like.isBld ? this.buildings.filter(b => b.kind === 'farm' && b.team === team && b.done && b.food > 0) : this.nodes;
+    const list = like.isBld ? this.buildings.filter(b => FIELD[b.kind] && b.team === team && b.done && b.food > 0) : this.nodes;
     for (const n of list) {
       if (n === like || n.hp <= 0 || (n.isNode && (n.amt <= 0 || n.kind !== like.kind))) continue;
       if (this.claimsOf(n) >= this.gatherCap(n)) continue;
@@ -1597,7 +1600,7 @@ class Game {
         const d = (n) => n ? Math.hypot(n.x - b.x, n.y - b.y) : 1e9, n = d(g) < d(w) ? g : w;
         if (n) this.orderGather(u, n);
       }
-      else if (b.kind === 'farm') { this.orderGather(u, b); }
+      else if (FIELD[b.kind]) { this.orderGather(u, b); }
       else {
         let nb = null, bd = 12;
         for (const o of this.buildings) { if (o.team === u.team && !o.done && o.hp > 0) { const d = Math.hypot(o.x - u.x, o.y - u.y); if (d < bd) { bd = d; nb = o; } } }
@@ -1897,10 +1900,10 @@ class Game {
     };
     if (o.s === 'go' || o.s === 'work') {
       if (!node || node.hp <= 0 || !info || info.amt <= 0) {
-        if (node && node.isBld && node.kind === 'farm' && node.hp > 0 && node.food <= 0) {
+        if (node && node.isBld && FIELD[node.kind] && node.hp > 0 && node.food <= 0) {
           // auto-reseed
-          const cost = BD.farm.cost;
-          if (this.canAfford(u.team, cost)) { this.pay(u.team, cost); node.food = BD.farm.food; return; }
+          const cost = BD[node.kind].cost;
+          if (this.canAfford(u.team, cost)) { this.pay(u.team, cost); node.food = BD[node.kind].food; return; }
         }
         if (retarget()) return;
         if (u.carry.amt > 0) { o.s = 'ret'; u.path = null; } else { this.idleOrder(u); }
@@ -1989,7 +1992,7 @@ class Game {
     o.wt = 0;
     if (node.isBld) {
       // each farmer gets their own patch of the field: the closest one nobody else is standing on
-      const spots = [[0.5, 0.95], [1.5, 1.05], [1.0, 0.45], [1.0, 1.55]];
+      const k = node.size / 2, spots = [[0.5, 0.95], [1.5, 1.05], [1.0, 0.45], [1.0, 1.55]].map(([a, b]) => [a * k, b * k]);
       let best = null, bd = 1e9;
       for (const sp of spots) {
         const sx = r.ax + sp[0], sy = r.ay + sp[1];
@@ -2208,7 +2211,7 @@ class Game {
     // 4. economy: idle villagers
     const counts = { food: 0, wood: 0, gold: 0 };
     for (const v of vils) { if (v.order.t === 'gather') counts[v.order.type]++; }
-    const farms = myB('farm');
+    const farms = myB('sawah');
     for (const v of vils) {
       if (v.order.t !== 'idle') continue;
       const w = { food: 0.4, wood: 0.38, gold: 0.22 };
@@ -2219,7 +2222,7 @@ class Game {
       if (pick === 'food' && (!n || Math.hypot(n.x - tc.x, n.y - tc.y) > 16 || n.kind === 'carcass')) {
         const fm = farms.find(f => f.done && f.food > 0);
         if (fm) n = fm;
-        else if (!building.some(b => b.kind === 'farm') && r.wood >= BD.farm.cost.wood && farms.length < 6) { this.aiBuild('farm', tc, [v], 1, 3.5, 7); counts.food++; continue; }
+        else if (!building.some(b => FIELD[b.kind]) && r.wood >= BD.sawah.cost.wood && farms.length < 5) { this.aiBuild('sawah', tc, [v], 1, 3.5, 8); counts.food++; continue; }
       }
       if (!n) { pick = 'wood'; n = this.nearestNode(tc.x, tc.y, 'wood', 0, 40, 1); }
       if (!n) continue;
@@ -3179,7 +3182,32 @@ function wallSprite(kind, team, mask, open) {
     }
   }, kind === 'gate');
 }
+/* Sawah: stepped rice terraces with water between the rows, earth bunds and a dangau hut (lore/scenes/bld-extra.js, fitted to 3 tiles) */
+function sawahSprite(team) {
+  const T = TEAMC[team] || TEAMC[1];
+  return sprite('sawah|' + team, 48, 48, 2, (P) => {
+    const r = P.r, EA = '#7a5634', EA_D = '#5a3e22', EA_L = '#94703f';
+    const terr = [[2, 13, 40], [16, 27, 45], [30, 41, 47]];
+    for (let t = 0; t < 3; t++) {
+      const [y0, yb, xr] = terr[t], xl = 3 - t;
+      r(xl, y0, xr - xl, yb - y0, '#5cbf3a');
+      for (let y = y0 + 1; y < yb; y++) {
+        if ((y - y0) % 3 === 0) { r(xl, y, xr - xl, 1, '#4b9fb5'); for (let x = xl + ((y * 5) % 7); x < xr; x += 9) r(x, y, 2, 1, '#cdeef0'); }
+        else for (let x = xl + (y & 1); x < xr; x += 3) r(x, y, 1, 1, (y - y0) % 3 === 1 ? '#8fdc4a' : '#46a32e');
+      }
+      r(xl, y0, xr - xl, 1, EA_L); r(xl, yb, xr - xl, 1, EA_L); r(xl, yb + 1, xr - xl, 1, EA); r(xl, yb + 2, xr - xl, 1, EA_D);
+      r(xl - 1, y0, 1, yb - y0 + 3, EA); r(xr, y0, 1, yb - y0 + 3, EA_D);
+    }
+    r(0, 44, 48, 2, '#3d86a3'); r(6, 44, 4, 1, '#7fb7b8'); r(28, 45, 4, 1, '#7fb7b8'); r(0, 46, 48, 2, EA); r(0, 46, 48, 1, EA_L);
+    r(22, 14, 1, 2, '#cdeef0'); r(34, 28, 1, 2, '#cdeef0');
+    // dangau: a little thatched watch hut on the top terrace, a farmer in a caping
+    posts(P, [39, 46], 6, 13, 1); r(37, 10, 11, 1, '#8f6232');
+    r(36, 2, 12, 1, '#54443c'); r(37, 3, 10, 3, '#3a2e2a'); r(36, 5, 12, 1, '#241c19');
+    r(42, 7, 2, 3, SKIN); r(42, 6, 2, 1, '#c9ae5e'); r(47, 0, 1, 9, WOOD_D); r(46, 1, 1, 3, T.main);
+  }, false);
+}
 function buildingSprite(kind, team, level) {
+  if (kind === 'sawah') return sawahSprite(team);
   if (BD[kind] && BD[kind].wall) { const m = level >= 100 ? level - 100 : 10; return wallSprite(kind, team, m & 15, m & 16); }
   if (CIVB_KIND[kind]) return team === 1 ? CIVB.majapahitBuilding(CIVB_KIND[kind][1], team) : CIVB.melakaBuilding(CIVB_KIND[kind][0], team);
   if (kind === 'village') return CIVB.neutralSite('village');
@@ -3470,7 +3498,7 @@ function isSel(o) { return sel.indexOf(o) >= 0; }
 function toolFor(u) {
   const o = u.order;
   if (o.t === 'build') return 'hammer';
-  if (o.t === 'gather') { const n = G.byId.get(o.id); if (!n) return 'hand'; return n.kind === 'tree' ? 'axe' : n.kind === 'gold' ? 'pick' : n.kind === 'farm' ? 'hoe' : 'hand'; }
+  if (o.t === 'gather') { const n = G.byId.get(o.id); if (!n) return 'hand'; return n.kind === 'tree' ? 'axe' : n.kind === 'gold' ? 'pick' : FIELD[n.kind] ? 'hoe' : 'hand'; }
   return 'hand';
 }
 function paintUnit(u) {
@@ -3550,8 +3578,8 @@ function wallMask(b) {
   return m;
 }
 function paintBuilding(b) {
-  const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = b.kind === 'farm';
-  let lvl = 2; if (flat) { const f = b.food / BD.farm.food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
+  const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = FIELD[b.kind];
+  let lvl = 2; if (flat) { const f = b.food / BD[b.kind].food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
   if (BD[b.kind].wall) lvl = 100 + wallMask(b);
   const spr = buildingSprite(b.kind, b.team, lvl);
   const dx = px + (w - spr.width) / 2, dy = flat ? py : py + w - spr.height + 2;
@@ -3635,7 +3663,7 @@ function jobTarget(u) {
   return null;
 }
 function targetRing(t, col, grow, alpha) {
-  const big = t.isBld ? t.size * 0.62 : 0.62, x = t.x * TILE, y = (t.isBld ? t.y + (t.kind === 'farm' ? 0 : t.size * 0.32) : t.y + 0.3) * TILE;
+  const big = t.isBld ? t.size * 0.62 : 0.62, x = t.x * TILE, y = (t.isBld ? t.y + (FIELD[t.kind] ? 0 : t.size * 0.32) : t.y + 0.3) * TILE;
   ctx.strokeStyle = col; ctx.globalAlpha = alpha; ctx.lineWidth = 2;
   ell(x, y, big * TILE * grow, big * TILE * 0.5 * grow); ctx.stroke(); ctx.globalAlpha = 1;
 }
@@ -3750,7 +3778,7 @@ function render() {
   for (const b of G.buildings) {
     if (!inView(b.x * TILE, b.y * TILE, 160)) continue;
     if (b.team !== 0 && !expl(b.x, b.y)) continue;
-    if (b.kind === 'farm') paintBuilding(b); else tall.push({ y: (b.ty + b.size) * TILE, t: 0, o: b });
+    if (FIELD[b.kind]) paintBuilding(b); else tall.push({ y: (b.ty + b.size) * TILE, t: 0, o: b });
   }
   for (const v of G.villages) if (!v.post && expl(v.site.tx + 1.5, v.site.ty + 1.5)) { const spr = CIVB.neutralSite('landing'); ctx.drawImage(spr, v.site.tx * TILE + (96 - spr.width) / 2, (v.site.ty + 3) * TILE - spr.height + 2); }
   for (const f of G.fx) if ((f.k === 'corpse' || f.k === 'rubble') && inView(f.x * TILE, f.y * TILE, 100)) paintFx(f);
@@ -3830,7 +3858,7 @@ function issue(wx, wy, hit) {
   G.command(ids, wx, wy, hit, { formation, amove });
   if (hit && hit.isUnit && hit.team !== 0) addMarker(hit.x, hit.y, 'attack');
   else if (hit && hit.isBld && hit.team === 1) addMarker(hit.x, hit.y, 'attack');
-  else if (hit && (hit.isNode || (hit.isBld && hit.kind === 'farm'))) addMarker(hit.x, hit.y, 'gather', hit);
+  else if (hit && (hit.isNode || (hit.isBld && FIELD[hit.kind]))) addMarker(hit.x, hit.y, 'gather', hit);
   else if (hit && hit.isBld && !hit.done) addMarker(hit.x, hit.y, 'build', hit);
   else if (hit && hit.kind === 'tradepost' && hit.team === 0) addMarker(hit.x, hit.y, 'gather', hit);
   else addMarker(wx, wy, amove ? 'attack' : 'move');
@@ -3947,7 +3975,7 @@ function handleTap(wx, wy, o) {
     if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].carry && us.some(u => u.layer === 0))) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
     const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
-    if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || hit.kind === 'farm'))) { select([hit]); return; }
+    if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || FIELD[hit.kind]))) { select([hit]); return; }
     issue(wx, wy, hit); return;
   }
   if (single && canRally(single)) {
@@ -4132,7 +4160,7 @@ function describeOrder(u) {
     case 'gather': {
       const n = G.byId.get(o.id);
       if (!n) return 'Gathering';
-      return n.kind === 'tree' ? 'Chopping wood' : n.kind === 'gold' ? 'Mining gold' : n.kind === 'fish' ? 'Fishing' : n.kind === 'berry' ? 'Foraging' : n.kind === 'carcass' ? 'Butchering' : n.kind === 'farm' ? 'Farming' : 'Gathering';
+      return n.kind === 'tree' ? 'Chopping wood' : n.kind === 'gold' ? 'Mining gold' : n.kind === 'fish' ? 'Fishing' : n.kind === 'berry' ? 'Foraging' : n.kind === 'carcass' ? 'Butchering' : FIELD[n.kind] ? 'Farming' : 'Gathering';
     }
     default: return '';
   }
@@ -4196,7 +4224,7 @@ function buildPanel() {
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';
-      $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? ((hover && hover.mouse) ? 'Right-click the map to set a rally point.' : 'Double-tap the map to set a rally point.') : own && b.kind === 'farm' ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : bldNote(b) || Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
+      $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? ((hover && hover.mouse) ? 'Right-click the map to set a rally point.' : 'Double-tap the map to set a rally point.') : own && FIELD[b.kind] ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : bldNote(b) || Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
     });
     if (own && b.done && d.train) {
       for (const k of G.trainable(b.kind, 0)) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), TRAIN_SHORT[k], c, G.unitName({ kind: k, team: 0 }) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
@@ -4378,7 +4406,8 @@ const ENCY_UNITS = {
 };
 const ENCY_BLDS = {
   towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
-  house: '+5 population.', farm: 'Endless food for one or two farmers.', store: 'Gudang: drop-off for wood and gold.',
+  house: '+5 population.', farm: 'Food for one or two farmers; reseeds itself for wood.',
+  sawah: 'Majapahit rice terraces in place of farms: cheaper, more food and 20% faster to work, but they take more room.', store: 'Gudang: drop-off for wood and gold.',
   granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
   tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
   patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
