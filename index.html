@@ -5566,7 +5566,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.19 \u00b7 24 Oct 2026';
+const BUILD = '0.9.20 \u00b7 24 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -5671,7 +5671,7 @@ const CAMPAIGNS = [
   ['maj', 'gajah-mada', '1293-1527', 'Majapahit', 'From its founding to the war over Singapura: an empire holding to the Palapa oath.',
     [['maj1', 'Rise of Majapahit'], ['maj2', "The Treasurer's Gate"], [0, 'The Paregreg War'], [0, 'The Melaka Envoys'], [0, 'Sirna Ilang Kertaning Bumi'], [0, 'The Road to Bali']]],
   ['ayu', 'u-thong', '1351-1569', 'Ayutthaya', 'The river kingdom of war elephants.',
-    [[0, 'The Island City'], ['ayu2', 'The Fall of Angkor'], [0, 'A Thousand Torches'], [0, 'The Queen on the Elephant'], [0, 'The White Elephants']]],
+    [['ayu1', 'The Island City'], ['ayu2', 'The Fall of Angkor'], [0, 'A Thousand Torches'], [0, 'The Queen on the Elephant'], [0, 'The White Elephants']]],
   ['dv', 'le-loi', 'Free update   1406-1527', 'Dai Viet', 'From the fall of the Ho to the Lam Son rising. Try it now in Battles.',
     [[0, 'The Ho Citadel'], [0, "Le Lai's Cloak"], [0, 'Attack the Heart'], [0, 'Chi Lang'], [0, 'The Last Le Court']]],
   ['km', 'ponhea-yat', 'Free update   1431-1594', 'Khmer', 'From the fall of Angkor to the bamboo walls of Lovek. Try it now in Battles.',
@@ -5690,6 +5690,9 @@ const MISSIONS = {
   maj2: { civ: 'maj', n: 2, site: 'majapahit/', year: 'c. 1398', hero: 'wikramawardhana', name: 'Wikramawardhana', as: 'King of the West', foe: 'Singapura', fc: '#2a8a8a',
     story: 'Singapura has defied the empire. The fleet sails for the island, and a treasurer inside the walls has sent word that a gate can be opened.',
     obj: [['Land', 'Bring the army ashore'], ['Breach', 'Force a gate or win over the treasurer'], ['Take', 'Seize the palace before Ayutthaya does']] },
+  ayu1: { civ: 'ayu', n: 1, site: 'campaign/ayutthaya-1/', year: '1351', hero: 'u-thong', name: 'U Thong', as: 'The Founder King', foe: 'Bandits, a rival lord', fc: '#9a3426',
+    story: 'Sickness has emptied the old town. U Thong takes the families down the river to an island where three rivers meet, and there a kingdom must be founded.',
+    obj: [['Found', 'Ferry the families and build on the island'], ['Unite', 'Win over Lavo and Suphanburi'], ['Crown', 'Raise the Wang and crown the king']] },
   ayu2: { civ: 'ayu', n: 2, site: 'ayutthaya/', year: '1431', hero: 'the-kalahom', name: 'The Kalahom', as: 'Minister of War', foe: 'Khmer of Angkor', fc: '#3a6fc8',
     story: 'Ayutthaya’s army has besieged Angkor for months. Now the walls must fall before the rains and the city’s hope run out.',
     obj: [['Burn', 'Fire the outer town and take the outworks'], ['Break', 'Smash a gate of Angkor Thom'], ['Hold', 'Keep the banner at the palace']] }
