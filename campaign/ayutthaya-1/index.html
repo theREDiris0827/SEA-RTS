@@ -452,7 +452,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
     </div>
     <div id="strip"><span id="hint"></span><span id="clock"></span></div>
     <div id="mid">
-      <canvas id="mini" width="128" height="96"></canvas>
+      <canvas id="mini" width="192" height="144"></canvas>
       <div id="toasts"></div>
       <div id="side">
         <button class="sbtn" id="btn-idle" aria-label="Next idle villager"><img id="i-idle" alt=""><span class="badge" id="idle-n" hidden>0</span></button>
@@ -640,7 +640,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
    SEA RTS — simulation core. No DOM in here, so it can be tested in Node.
    Coordinates are in tile units. Units stand at tile centres (x+0.5, y+0.5).
    ========================================================================== */
-const W = 64, H = 48, TILE = 32, MAXPOP = 100, STEP = 1 / 30;
+const W = 96, H = 72, TILE = 32, MAXPOP = 100, STEP = 1 / 30;
 const T = { GRASS: 0, DIRT: 1, SAND: 2, SHALLOW: 3, DEEP: 4, CLIFF: 5 };
 
 const SAVE_VERSION = 1;
@@ -4725,7 +4725,7 @@ function clampCam() {
   cam.y = HH > vh ? clamp(cam.y, 0, HH - vh) : (HH - vh) / 2;
 }
 function setZoom(z, sx, sy) {
-  z = clamp(z, 0.55, 2.6);
+  z = clamp(z, 0.38, 2.6);
   if (sx == null) { sx = view.w / 2; sy = view.h / 2; }
   const wx = sx / view.zoom + cam.x, wy = sy / view.zoom + cam.y;
   view.zoom = z; cam.x = wx - sx / z; cam.y = wy - sy / z; clampCam();
@@ -6183,15 +6183,16 @@ const DMUL = { easy: 0.7, normal: 1, hard: 1.3 };
 CIVMAP = [AYU_CIV, AYU_CIV];
 
 /* ---------- the map: three rivers meet round an island (sea-rts-fixes/maps/ayu1.py) ---------- */
-const ISLE = { x: 32, y: 28, rx: 8.6, ry: 5.2, ring: [10, 6.5] };
-const FLOODP = { x: 16, y: 40, rx: 13, ry: 7 };
+// a 96 x 72 map (build.py widens the main game's 64 x 48); the island is the heart of it
+const ISLE = { x: 48, y: 38, rx: 19, ry: 12, ring: [21.6, 14.6] };
+const FLOODP = { x: 21, y: 59, rx: 18, ry: 9 };
 MAPDEF.river = {
-  name: 'The Island City', starts: [{ x: 7, y: 6 }, { x: 55, y: 41 }],
-  rivers: [[[[14, -1], [16, 10], [24, 20], [30, 27], [31, 36], [32, 42], [33, 49]], 2.0],     // Chao Phraya, from the old town in the north
-    [[[65, 6], [60, 8], [52, 12], [42, 19], [34, 24]], 1.6],                                 // Lopburi, from Lavo
-    [[[65, 31], [61, 30.5], [50, 30], [40, 30], [35, 30]], 1.6]],                               // Pa Sak, from the east
-  fords: [[0, 0], [1, 0], [2, 0], [0, 5]],     // upriver of every boat route: barges, gift boats and raiders never cross one
-  cliffs: [[57, 43, 3.5, 2.2], [6, 45, 3, 2], [44, 3, 2, 1.5]],
+  name: 'The Island City', starts: [{ x: 12, y: 10 }, { x: 80, y: 62 }],
+  rivers: [[[[21, -1], [23, 8], [25, 16], [34, 27], [46, 40], [47, 54], [48, 63], [50, 73]], 2.4],   // Chao Phraya, from the old town in the north
+    [[[97, 9], [90, 12], [78, 18], [63, 28], [56, 31]], 2.0],                                    // Lopburi, from Lavo
+    [[[97, 46], [91, 45.5], [75, 45], [66, 44]], 2.0]],                                          // Pa Sak, from the east
+  fords: [[0, 0], [1, 0], [2, 0], [0, 6]],     // upriver of every boat route: barges, gift boats and raiders never cross one
+  cliffs: [[86, 64, 4.5, 3], [8, 66, 4, 2.6], [64, 5, 3, 2]],
   gold: [], deer: [], villages: []
 };
 Game.prototype.genRiverlands = function (M) {
@@ -6217,7 +6218,7 @@ Game.prototype.genRiverlands = function (M) {
     for (let y = Math.floor(cy) - 2; y <= cy + 2; y++) for (let x = Math.floor(cx) - 2; x <= cx + 2; x++) {
       if (!this.inb(x, y)) continue;
       const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
-      if (d <= 0.6) terr[y * W + x] = T.DEEP; else if (d <= 1.5 && terr[y * W + x] !== T.DEEP) terr[y * W + x] = T.SHALLOW;
+      if (d <= 0.9) terr[y * W + x] = T.DEEP; else if (d <= 2.0 && terr[y * W + x] !== T.DEEP) terr[y * W + x] = T.SHALLOW;
     }
   }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot((x + 0.5 - ISLE.x) / ISLE.rx, (y + 0.5 - ISLE.y) / ISLE.ry) < 1) terr[y * W + x] = T.GRASS;
@@ -6239,7 +6240,7 @@ function floodMask(g) {
   return m;
 }
 // bamboo bridges from the island to the west bank and the east bank, laid once the city is founded
-const BRIDGES = [{ x: 24, y: 28, dx: -1, dy: 0 }, { x: 40, y: 26, dx: 1, dy: 0 }];
+const BRIDGES = [{ x: 29, y: 38, dx: -1, dy: 0 }, { x: 66, y: 35, dx: 1, dy: 0 }];
 Game.prototype.layBridges = function () {
   const terr = this.terrain;
   for (const B of BRIDGES) {
@@ -6306,15 +6307,15 @@ const AGES = [null,
 const MAX_AGE = 2;
 
 /* ---------- where things are ---------- */
-const OLD = { x: 9, y: 7 };                                   // the old town, upriver
+const OLD = { x: 12, y: 11 };                                   // the old town, upriver
 const TOWNS = {
-  lavo: { name: 'Lavo', tx: 52, ty: 4, land: { x: 53.5, y: 11.5 }, how: 'trade', col: 'lavo' },
-  suphan: { name: 'Suphanburi', tx: 4, ty: 22, how: 'wed', col: 'suphan' }
+  lavo: { name: 'Lavo', tx: 78, ty: 6, land: { x: 80.5, y: 16.5 }, how: 'trade', col: 'lavo' },
+  suphan: { name: 'Suphanburi', tx: 6, ty: 33, how: 'wed', col: 'suphan' }
 };
-const RIVAL = { tx: 52, ty: 39 };                             // the rival lord's stockade in the south-east hills
-const ENTRY = { se: { x: 61.5, y: 45.5, name: 'the south-east hills' }, w: { x: 1.5, y: 33.5, name: 'the western fields' }, n: { x: 34.5, y: 1.5, name: 'the northern road' } };
-const RIVERIN = { s: { x: 31.5, y: 39.5 }, e: { x: 57.5, y: 30.3 }, ne: { x: 57.5, y: 9.5 } };   // just below the fords
-const LANDINGS = { n: { x: 31.5, y: 22.5, name: 'the north shore' }, s: { x: 33.5, y: 33.5, name: 'the south shore' } };
+const RIVAL = { tx: 78, ty: 59 };                             // the rival lord's stockade in the south-east hills
+const ENTRY = { se: { x: 93.5, y: 69.5, name: 'the south-east hills' }, w: { x: 1.5, y: 50.5, name: 'the western fields' }, n: { x: 50.5, y: 1.5, name: 'the northern road' } };
+const RIVERIN = { s: { x: 47.5, y: 58.5 }, e: { x: 87.5, y: 45.3 }, ne: { x: 86.5, y: 14 } };   // just below the fords
+const LANDINGS = { n: { x: 48.5, y: 23.5, name: 'the north shore' }, s: { x: 48.5, y: 52.5, name: 'the south shore' } };
 const RAIN = { len: 180, slow: 0.55 };
 const CROWN = 90;
 // raids. Phase 2: bandits on rafts land on the island. Phase 3 on: the rival lord's men on the roads
@@ -6357,37 +6358,39 @@ Game.prototype.populate = function () {
   const onIsle = (x, y) => Math.hypot((x + 0.5 - ISLE.x) / ISLE.rx, (y + 0.5 - ISLE.y) / ISLE.ry) < 1;
   const keepClear = (x, y) => !onIsle(x, y) && !g.flood[y * W + x] && Math.hypot(x - OLD.x, y - OLD.y) > 5;
   // roads the towns and raiders use stay clear of trees
-  g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 22, 29);
-  g.reserveRoute(ENTRY.se.x | 0, ENTRY.se.y | 0, 42, 27);
-  g.reserveRoute(ENTRY.w.x | 0, ENTRY.w.y | 0, 22, 29);
-  g.reserveRoute(OLD.x, OLD.y + 2, 18, 20);
+  g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 25, 39);
+  g.reserveRoute(ENTRY.se.x | 0, ENTRY.se.y | 0, 72, 36);
+  g.reserveRoute(ENTRY.w.x | 0, ENTRY.w.y | 0, 25, 39);
+  g.reserveRoute(ENTRY.n.x | 0, ENTRY.n.y | 0, 70, 30);
+  g.reserveRoute(OLD.x, OLD.y + 2, 20, 26);
   for (const T0 of Object.values(TOWNS)) for (let y = T0.ty - 2; y <= T0.ty + 6; y++) for (let x = T0.tx - 3; x <= T0.tx + 7; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
   for (let y = RIVAL.ty - 2; y <= RIVAL.ty + 6; y++) for (let x = RIVAL.tx - 3; x <= RIVAL.tx + 8; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
-  // the island: a little grove, berries and a few palms; most wood is on the banks
-  place('berry', 29, 30, 1.6, 5, onIsle); place('berry', 36, 26, 1.4, 4, onIsle);
-  place('tree', 38, 30, 1.8, 7, onIsle); place('tree', 26, 26, 1.5, 5, onIsle);
+  // the island: room for a whole city, with groves, berries and a little gold; more wood on the banks
+  place('berry', 40, 43, 1.8, 6, onIsle); place('berry', 57, 33, 1.6, 5, onIsle);
+  place('tree', 61, 43, 2.6, 14, onIsle); place('tree', 35, 33, 2.4, 12, onIsle); place('tree', 50, 48, 2.0, 8, onIsle); place('tree', 54, 28, 1.8, 6, onIsle);
+  { const c = g.nearestFree(58, 39, 0, 4); if (c) place('gold', c.x, c.y, 1.4, 4, onIsle); }
   // forests on the banks, gold in the hills
-  for (const [cx, cy, r, n] of [[20, 7, 3.5, 26], [4, 14, 3.2, 22], [14, 25, 3, 18], [44, 12, 3.5, 24], [47, 22, 3, 18], [28, 12, 2.6, 14],
-    [41, 38, 3.2, 20], [24, 44, 2.5, 10], [58, 18, 3, 16], [58, 36, 2.6, 12], [6, 36, 2.2, 8]]) place('tree', cx, cy, r, n, keepClear);
-  for (let i = 0; i < 70; i++) {
+  for (const [cx, cy, r, n] of [[31, 9, 5, 40], [5, 21, 4.5, 32], [17, 30, 4, 24], [64, 14, 5, 36], [73, 33, 4.5, 28], [42, 15, 3.5, 18],
+    [64, 61, 4.5, 28], [33, 66, 3.5, 14], [88, 27, 4.5, 24], [88, 56, 4, 18], [10, 47, 3, 12], [55, 66, 3, 12]]) place('tree', cx, cy, r, n, keepClear);
+  for (let i = 0; i < 160; i++) {
     const x = 2 + Math.floor(rng() * (W - 4)), y = 2 + Math.floor(rng() * (H - 4));
     if (g.freeTile(x, y) && !g.reserve[y * W + x] && keepClear(x, y) && hash2(x, y, 31) < 0.45) g.addNode('tree', x, y);
   }
-  for (const [x, y] of [[10, 17], [46, 26], [36, 8]]) { const c = g.nearestFree(x, y, 0, 5); if (c) place('gold', c.x, c.y, 1.6, 5); }
-  place('berry', 12, 11, 1.6, 5, keepClear);
-  for (const [gx, gy] of [[12, 30], [48, 16], [24, 40]]) {
+  for (const [x, y] of [[15, 24], [74, 39], [54, 11], [70, 66]]) { const c = g.nearestFree(x, y, 0, 5); if (c) place('gold', c.x, c.y, 1.6, 5); }
+  place('berry', 17, 15, 1.6, 5, keepClear); place('berry', 20, 42, 1.6, 5, keepClear);
+  for (const [gx, gy] of [[17, 44], [72, 24], [36, 60], [86, 36]]) {
     const c = g.nearestFree(gx, gy, 0, 6); if (!c) continue;
     for (let i = 0; i < 3; i++) { const p = g.nearestFree(c.x + i, c.y + (i % 2), 0, 4); if (!p) continue; const d = g.addUnit('deer', 2, p.x + 0.5, p.y + 0.5); d.order = { t: 'wander', next: 2 + rng() * 5 }; }
   }
   // fish in the rivers round the island
-  for (let i = 0, n = 0; i < 2000 && n < 14; i++) {
+  for (let i = 0, n = 0; i < 4000 && n < 24; i++) {
     const x = 2 + Math.floor(rng() * (W - 4)), y = 2 + Math.floor(rng() * (H - 4));
-    if (!g.isWater(x, y) || g.block[y * W + x] || Math.hypot(x - ISLE.x, y - ISLE.y) > 16) continue;
+    if (!g.isWater(x, y) || g.block[y * W + x] || Math.hypot(x - ISLE.x, y - ISLE.y) > 28) continue;
     if (g.nodes.some(o => o.kind === 'fish' && Math.abs(o.tx - x) + Math.abs(o.ty - y) < 4)) continue;
     g.addNode('fish', x, y); n++;
   }
   // the old town: houses emptied by the sickness (team 2, they take no part)
-  for (const [x, y] of [[4, 3], [8, 2], [3, 8], [11, 3]]) if (g.canPlace('house', x, y, 2)) { const b = g.addBuilding('house', 2, x, y, true); b.old = true; }
+  for (const [x, y] of [[7, 6], [12, 5], [6, 11], [16, 6]]) if (g.canPlace('house', x, y, 2)) { const b = g.addBuilding('house', 2, x, y, true); b.old = true; }
   // the towns
   for (const id in TOWNS) buildTown(g, id);
   buildRival(g);
@@ -6396,9 +6399,9 @@ Game.prototype.populate = function () {
   M.hero = put('uthong', OLD.x + 2, OLD.y + 1).id;
   for (let i = 0; i < 12; i++) put('villager', OLD.x - 1 + (i % 4), OLD.y + 2 + Math.floor(i / 4));
   put('keris', OLD.x + 3, OLD.y + 3); put('keris', OLD.x + 4, OLD.y + 3); put('archer', OLD.x + 3, OLD.y + 4); put('archer', OLD.x + 4, OLD.y + 4);
-  for (const [x, y] of [[15, 8], [16, 10]]) { const w = g.nearestFree(x, y, 1, 4); if (w) g.addUnit('barge', 0, w.x + 0.5, w.y + 0.5); }
+  for (const [x, y] of [[24, 14], [25, 17]]) { const w = g.nearestFree(x, y, 1, 4); if (w) g.addUnit('barge', 0, w.x + 0.5, w.y + 0.5); }
   // bandits waiting on the banks downriver
-  for (const [x, y, u] of [[19, 19, { bd_archer: 2, bd_sword: 1 }], [27, 15, { bd_archer: 2, bd_sword: 2 }]]) {
+  for (const [x, y, u] of [[25, 24, { bd_archer: 2, bd_sword: 1 }], [34, 19, { bd_archer: 2, bd_sword: 2 }]]) {
     let i = 0;
     for (const k in u) for (let j = 0, n = Math.max(1, Math.round(u[k] * DMUL[g.diff])); j < n; j++, i++) {
       const p = g.openSpot(x + (i % 2), y + Math.floor(i / 2), 0), b = g.addUnit(k, 1, p.x, p.y); b.guard = { x: p.x, y: p.y, r: 7 };
@@ -6851,9 +6854,9 @@ function missionTick(g, dt) {
         S.ambush = true;
         const kinds = { bd_sword: 3, bd_archer: 2 }; let i = 0;
         for (const k in kinds) for (let j = 0, n = Math.max(1, Math.round(kinds[k] * DMUL[g.diff])); j < n; j++, i++) {
-          const p = g.openSpot(14 + (i % 3), 33 + Math.floor(i / 3), 0), u = g.addUnit(k, 1, p.x, p.y); u.ambush = true; g.orderAttack(u, b);
+          const p = g.openSpot(16 + (i % 3), 44 + Math.floor(i / 3), 0), u = g.addUnit(k, 1, p.x, p.y); u.ambush = true; g.orderAttack(u, b);
         }
-        g.msg('Bandits break from the trees to seize the bride!'); g.alerts.push({ x: 14, y: 33, t: 3 });
+        g.msg('Bandits break from the trees to seize the bride!'); g.alerts.push({ x: 16, y: 44, t: 3 });
       }
       if (b.order.t === 'idle' && Math.hypot(b.x - S.x, b.y - S.y) > 4) g.orderMove(b, S.x + 1, S.y + 3.5);
       if (Math.hypot(b.x - S.x, b.y - (S.y + 2)) < 3.2) { b.hp = 0; b.silent = true; g.joinTown('suphan', 'wed'); }
@@ -7673,7 +7676,7 @@ function startGame(seed) {
   enterGame(); showMenu(null);
   objStarted = false; lastMKey = '';
   for (const k in RC) delete RC[k];
-  view.zoom = view.w > 700 ? 1.4 : 1.1; resize();
+  view.zoom = view.w > 700 ? 1.0 : 0.8; resize();
   const h = heroUnit(G); centerOn(h.x + 3, h.y + 2);
   const barge = G.units.find(u => u.kind === 'barge'); if (barge) select([barge]);
   updateHud(); updatePanel();
@@ -7701,6 +7704,8 @@ function skipTo(which) {
     spot('store', -1, 4); G.res[0] = { food: 800, wood: 900, gold: 500 };
     setPhase(G, 5); M.cardQ.length = 0;
   }
+  for (const u of G.units) if (u.kind === 'barge' && u.hp > 0) { const w = G.nearestFree(ISLE.x - 21, ISLE.y + (u.id % 2 ? 2 : -2), 1, 6); if (w) { u.x = w.x + 0.5; u.y = w.y + 0.5; u.order = { t: 'idle' }; u.path = null; } }
+  select([]); centerOn(ISLE.x, ISLE.y);
   G.msg('Practice: starting at ' + (which === 'crown' ? 'the coronation.' : 'the two towns.'));
 }
 function togglePause() {
@@ -7737,7 +7742,7 @@ function mrBoot() {
   $('hud').hidden = true; showMenu(null); resize(); showOv('start');
   G = new Game({ seed: seedUsed, diff, map: 'river', civs: [AYU_CIV, AYU_CIV] }); terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
   for (let i = 0; i < W * H; i++) G.explored[i] = 1;
-  view.zoom = view.w > 700 ? 1.2 : 0.9; centerOn(ISLE.x, ISLE.y);
+  view.zoom = view.w > 700 ? 0.9 : 0.7; centerOn(ISLE.x, ISLE.y);
   started = false;
   requestAnimationFrame(function pre(ts) { if (!started) { nowS = ts / 1000; render(); requestAnimationFrame(pre); } });
   requestAnimationFrame(frame);
