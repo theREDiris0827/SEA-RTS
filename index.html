@@ -222,6 +222,69 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
   .cmd img { width: 24px; height: 24px; }
   .cmd .nm { font-size: 11px; }
 }
+
+/* main menu (approved concept: dark wood, gold, Melaka green) */
+#menu {
+  --m-ink: #2a1a14; --m-wood: #4a2e20; --m-edge: #d4862f; --m-line: #8a6a4a; --m-text: #fbe3a5; --m-soft: #e8c890; --m-mel: #2f9e5b;
+  position: absolute; inset: 0; z-index: 40; background: var(--m-ink); color: var(--m-text); overflow-y: auto; overscroll-behavior: contain;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+#menu[hidden] { display: none; }
+.m-scr { box-sizing: border-box; width: 100%; max-width: 920px; min-height: 100%; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.m-scr[hidden] { display: none; }
+#menu button { font-family: var(--font-ui); color: var(--m-text); cursor: pointer; }
+.m-home { display: grid; grid-template-columns: 1fr; gap: 14px; align-content: start; }
+.m-cover { background: #f0c060; overflow: hidden; }
+.m-cover img { display: block; width: 100%; image-rendering: pixelated; }
+.m-col { display: flex; flex-direction: column; gap: 10px; }
+.m-cont { display: flex; align-items: center; gap: 12px; text-align: left; background: var(--m-mel); border: 3px solid var(--m-text); box-shadow: 0 4px 0 #14502d; padding: 10px 14px; }
+.m-cont[hidden] { display: none; }
+.m-cont b { display: block; font-size: 21px; color: #fff; }
+.m-cont span { font-size: 13px; color: #dff5e6; }
+.m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.m-tile { text-align: left; background: var(--m-wood); border: 3px solid var(--m-edge); box-shadow: 0 4px 0 #170e0a; padding: 10px 12px; min-height: 64px; }
+.m-tile:active, .m-cont:active, .m-card:active { transform: translateY(3px); box-shadow: none; }
+.m-tile b { display: block; font-size: 19px; }
+.m-tile span { font-size: 12px; color: var(--m-soft); }
+.m-learn { display: flex; justify-content: space-between; align-items: center; background: transparent; border: 3px dashed var(--m-line); padding: 10px 14px; font-size: 16px; }
+.m-learn span { font-size: 12px; color: var(--m-soft); }
+.m-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.m-ico { width: 48px; height: 48px; display: grid; place-items: center; background: transparent; border: 3px solid var(--m-line); }
+.m-ver { font-family: var(--font-hd); font-size: 11px; color: #c9a878; }
+.m-top { display: flex; align-items: center; gap: 12px; }
+.m-top h2 { color: var(--m-text); font-size: 22px; }
+.m-back { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: transparent; border: 3px solid var(--m-line); }
+.m-lbl { font-family: var(--font-hd); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #c9a878; }
+.m-seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 3px solid #5a4030; }
+.m-seg button { background: transparent; border: 0; border-left: 3px solid #5a4030; padding: 10px 4px; font-size: 15px; }
+.m-seg button:first-child { border-left: 0; }
+.m-seg button[aria-pressed="true"] { background: var(--m-edge); color: var(--m-ink); font-weight: 700; }
+.m-seg button:disabled { color: #8a7a62; }
+.m-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.m-card { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; border: 3px solid; box-shadow: 0 4px 0 #120a06; text-decoration: none; color: var(--m-text); }
+.m-card b { font-size: 20px; color: #fff; }
+.m-card span { font-size: 13px; line-height: 1.35; }
+.m-card i { font-style: normal; font-size: 12px; opacity: .85; }
+.m-card.mel { background: #1d3b2a; border-color: var(--m-mel); }
+.m-card.maj { background: #3a1512; border-color: #a8231c; }
+.m-card.ayu { background: #24163a; border-color: #7b4fb0; }
+.m-card.dv { background: #2a2010; border-color: #d9b021; }
+.m-card.km { background: #142238; border-color: #3a6fc8; }
+.m-card.off { opacity: .55; }
+.m-start { padding: 14px; font-family: var(--font-hd); font-size: 18px; letter-spacing: .08em; text-transform: uppercase; background: var(--m-mel); color: #fff !important; border: 3px solid var(--m-text); box-shadow: 0 5px 0 #14502d; }
+.m-note { font-size: 13px; color: var(--m-soft); line-height: 1.35; margin: 0; }
+.m-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.m-tabs button { background: var(--m-wood); border: 0; padding: 8px 12px; font-size: 14px; }
+.m-tabs button[aria-pressed="true"] { background: var(--m-edge); color: var(--m-ink); font-weight: 700; }
+.m-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+.m-ent { display: flex; gap: 10px; padding: 8px; background: #3a2418; border: 2px solid #5a4030; }
+.m-ent img { width: 44px; height: 44px; image-rendering: pixelated; flex: none; background: #2a1a14; }
+.m-ent b { display: block; font-size: 15px; }
+.m-ent span { display: block; font-size: 12px; color: var(--m-soft); line-height: 1.3; }
+.m-ent em { display: block; font-style: normal; font-family: var(--font-num); font-size: 12px; color: #c9a878; margin-top: 2px; }
+@media (min-aspect-ratio: 4/3) and (min-width: 560px) {
+  .m-home { grid-template-columns: 1.15fr 1fr; align-items: start; }
+}
 </style>
 
 </head>
@@ -252,22 +315,81 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
     <div id="panel"></div>
   </div>
 
-  <div id="ov" hidden>
-    <div class="card" id="ov-start" hidden>
-      <div class="tag">Prototype V0.1 &middot; Melaka slice</div>
-      <h1>Melaka<small>vs Majapahit</small></h1>
-      <div class="waves"></div>
-      <p class="lead">It is 1400. A young port is growing rich on trade. Gather, build, raise warriors, and break the Majapahit Town Centre before their raids break yours.</p>
-      <div class="lbl">Difficulty</div>
-      <div class="seg">
-        <button data-do="diff" data-v="easy" aria-pressed="false">Easy</button>
-        <button data-do="diff" data-v="normal" aria-pressed="true">Normal</button>
-        <button data-do="diff" data-v="hard" aria-pressed="false">Hard</button>
+  <div id="menu" hidden>
+    <div class="m-scr m-home" id="m-home">
+      <div class="m-cover"><img id="m-cover" alt="SEA Kingdoms: a jong sailing past a low sun"></div>
+      <div class="m-col">
+        <button class="m-cont" id="m-cont" data-m="continue" hidden>
+          <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><path d="M8 5 L22 14 L8 23 Z" fill="#fff"></path></svg>
+          <span><b>Continue</b><span id="m-cont-sub"></span></span>
+        </button>
+        <div class="m-grid">
+          <button class="m-tile" data-m="go" data-v="campaign"><b>Campaign</b><span>3 civs, 15 missions</span></button>
+          <button class="m-tile" data-m="go" data-v="skirmish"><b>Skirmish</b><span>You vs the AI</span></button>
+          <button class="m-tile" data-m="go" data-v="battles"><b>Battles</b><span>Play every civ</span></button>
+          <button class="m-tile" data-m="go" data-v="ency"><b>Encyclopedia</b><span>Units, buildings, civs</span></button>
+        </div>
+        <button class="m-learn" data-m="learn">Learn to play <span>How to play</span></button>
+        <div class="m-foot">
+          <button class="m-ico" data-m="go" data-v="settings" aria-label="Settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0c060" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+          <span class="m-ver">v0.9 &middot; offline</span>
+        </div>
       </div>
-      <button class="btn" data-do="start">Set sail</button>
-      <button class="btn alt" data-do="help">How to play</button>
     </div>
 
+    <div class="m-scr" id="m-skirmish" hidden>
+      <div class="m-top"><button class="m-back" data-m="go" data-v="home" aria-label="Back"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fbe3a5" stroke-width="3" aria-hidden="true"><path d="M13 3 L6 10 L13 17"></path></svg></button><h2>Skirmish</h2></div>
+      <div class="m-lbl">Your civ</div>
+      <div class="m-seg"><button aria-pressed="true">Melaka</button><button disabled>Majapahit (soon)</button><button disabled>Ayutthaya (soon)</button></div>
+      <div class="m-lbl">Opponent</div>
+      <p class="m-note">Majapahit AI. Their raids come on a timer; break their Town Centre to win.</p>
+      <div class="m-lbl">Difficulty</div>
+      <div class="m-seg" id="m-diff"><button data-m="diff" data-v="easy">Easy</button><button data-m="diff" data-v="normal">Normal</button><button data-m="diff" data-v="hard">Hard</button></div>
+      <div class="m-lbl">Map</div>
+      <div class="m-seg" id="m-map" style="grid-template-columns: 1fr 1fr"><button data-m="map" data-v="same">The Strait</button><button data-m="map" data-v="new">New random map</button></div>
+      <button class="m-start" data-m="start">Start battle</button>
+    </div>
+
+    <div class="m-scr" id="m-campaign" hidden>
+      <div class="m-top"><button class="m-back" data-m="go" data-v="home" aria-label="Back"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fbe3a5" stroke-width="3" aria-hidden="true"><path d="M13 3 L6 10 L13 17"></path></svg></button><h2>Campaign</h2></div>
+      <p class="m-note">Full campaigns are being built. Each civ's first finished mission is playable now.</p>
+      <div class="m-cards">
+        <a class="m-card mel" data-site="campaign/melaka-1/"><i>START HERE &middot; 1398 – 1511</i><b>Melaka</b><span>From a prince fleeing Singapura to the greatest port of the age.</span><i>Play mission 1: The Treasurer's Gate</i></a>
+        <a class="m-card maj" data-site="majapahit/"><i>1398 – 1527</i><b>Majapahit</b><span>The same war from the other side: an empire holding to the Palapa oath.</span><i>Play mission 1: The Treasurer's Gate</i></a>
+        <a class="m-card ayu" data-site="ayutthaya/"><i>1351 – 1569</i><b>Ayutthaya</b><span>The river kingdom of war elephants.</span><i>Play mission 2: The Fall of Angkor</i></a>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-battles" hidden>
+      <div class="m-top"><button class="m-back" data-m="go" data-v="home" aria-label="Back"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fbe3a5" stroke-width="3" aria-hidden="true"><path d="M13 3 L6 10 L13 17"></path></svg></button><h2>Historical Battles</h2></div>
+      <p class="m-note">One battle, one civ. Đại Việt and Khmer campaigns arrive in free updates.</p>
+      <div class="m-cards">
+        <a class="m-card dv" data-site="daiviet/"><b>The Lam Sơn Stand</b><span>Đại Việt &middot; 1427. Hold the hills against ten Ming waves.</span></a>
+        <a class="m-card km" data-site="khmer/"><b>The Gates of Angkor</b><span>Khmer &middot; 1431. Hold the gates and get the court away by river.</span></a>
+        <a class="m-card mel" data-site="melaka-ages/"><b>Rise of Melaka</b><span>Sandbox &middot; survive raids while growing from village to golden age.</span></a>
+        <a class="m-card maj" data-site="majapahit-ages/"><b>Rise of Majapahit</b><span>Sandbox &middot; survive raids while growing from village to golden age.</span></a>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-ency" hidden>
+      <div class="m-top"><button class="m-back" data-m="go" data-v="home" aria-label="Back"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fbe3a5" stroke-width="3" aria-hidden="true"><path d="M13 3 L6 10 L13 17"></path></svg></button><h2>Encyclopedia</h2></div>
+      <div class="m-tabs" id="m-tabs"><button data-m="tab" data-v="units">Units</button><button data-m="tab" data-v="ships">Ships</button><button data-m="tab" data-v="blds">Buildings</button><button data-m="tab" data-v="civs">Civs</button></div>
+      <div class="m-list" id="m-list"></div>
+    </div>
+
+    <div class="m-scr" id="m-settings" hidden>
+      <div class="m-top"><button class="m-back" data-m="go" data-v="home" aria-label="Back"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fbe3a5" stroke-width="3" aria-hidden="true"><path d="M13 3 L6 10 L13 17"></path></svg></button><h2>Settings</h2></div>
+      <div class="m-lbl">Starting game speed</div>
+      <div class="m-seg" id="m-speed"><button data-m="set" data-k="speed" data-v="1">1x</button><button data-m="set" data-k="speed" data-v="2">2x</button><button data-m="set" data-k="speed" data-v="3">3x</button></div>
+      <div class="m-lbl">Health bars</div>
+      <div class="m-seg" id="m-bars" style="grid-template-columns: 1fr 1fr"><button data-m="set" data-k="bars" data-v="auto">When hurt</button><button data-m="set" data-k="bars" data-v="always">Always</button></div>
+      <div class="m-lbl">Saved game</div>
+      <p class="m-note" id="m-savenote"></p>
+      <button class="m-learn" data-m="delsave">Delete saved game <span></span></button>
+    </div>
+  </div>
+
+  <div id="ov" hidden>
     <div class="card" id="ov-pause" hidden>
       <div class="tag">Paused</div>
       <h2>Menu</h2>
@@ -283,6 +405,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
         <button class="btn alt" data-do="newmap">New map</button>
       </div>
       <button class="btn alt" data-do="help">How to play</button>
+      <button class="btn alt" data-do="quit">Save and exit to menu</button>
     </div>
 
     <div class="card" id="ov-end" hidden>
@@ -294,6 +417,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
         <button class="btn" data-do="restart">Again</button>
         <button class="btn alt" data-do="newmap">New map</button>
       </div>
+      <button class="btn alt" data-do="home">Main menu</button>
     </div>
 
     <div class="card" id="ov-help" hidden>
@@ -323,13 +447,33 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
 const W = 64, H = 48, TILE = 32, MAXPOP = 100, STEP = 1 / 30;
 const T = { GRASS: 0, DIRT: 1, SAND: 2, SHALLOW: 3, DEEP: 4, CLIFF: 5 };
 
+const SAVE_VERSION = 1;
+const SNAP_SKIP = new Set(['byId', 'hash', 'burning', 'claims', 'pSeen', 'pClosed', 'pG', 'pPar', 'visible', 'fx', 'arrows', 'floaters', 'msgs', 'alerts', 'rng']);
+const SNAP_TA = { Uint8Array, Int32Array, Float32Array, Uint16Array, Int16Array, Float64Array };
+// Sets, Maps and typed arrays survive JSON as tagged objects
+function snapEnc(k, v) {
+  if (v instanceof Set) return { $set: Array.from(v) };
+  if (v instanceof Map) return { $map: Array.from(v) };
+  if (ArrayBuffer.isView(v)) return { $ta: v.constructor.name, d: Array.from(v) };
+  return v;
+}
+function snapDec(k, v) {
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    if (v.$set) return new Set(v.$set);
+    if (v.$map) return new Map(v.$map);
+    if (v.$ta) return new (SNAP_TA[v.$ta])(v.d);
+  }
+  return v;
+}
 function mulberry32(a) {
-  return function () {
+  const f = function () {
     a |= 0; a = a + 0x6D2B79F5 | 0;
     let t = Math.imul(a ^ a >>> 15, 1 | a);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
+  f.get = () => a; f.set = (v) => { a = v; };   // so a saved game resumes the same random sequence
+  return f;
 }
 function hash2(x, y, s) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041)) | 0;
@@ -486,6 +630,26 @@ class Game {
   }
 
   inb(x, y) { return x >= 0 && y >= 0 && x < W && y < H; }
+
+  /* ======================= save / resume ======================= */
+  /* Everything that can't be rebuilt goes into a plain JSON object. Lookup tables (byId, the spatial
+     hash, path scratch, claims) and short-lived effects are rebuilt or dropped on load. */
+  snapshot() {
+    const skip = SNAP_SKIP, o = { v: SAVE_VERSION, rngA: this.rng.get() };
+    for (const k of Object.keys(this)) if (!skip.has(k)) o[k] = this[k];
+    return JSON.parse(JSON.stringify(o, snapEnc));
+  }
+  static restore(o) {
+    if (!o || o.v !== SAVE_VERSION) return null;
+    const g = new Game({ seed: o.seed, diff: o.diff });
+    o = JSON.parse(JSON.stringify(o), snapDec);
+    for (const k of Object.keys(o)) if (k !== 'v' && k !== 'rngA') g[k] = o[k];
+    g.rng.set(o.rngA);
+    g.byId = new Map(); for (const e of g.units.concat(g.buildings, g.nodes)) g.byId.set(e.id, e);
+    g.burning = new Set(); for (const e of g.units.concat(g.buildings)) if (e.burn) g.burning.add(e);
+    g.rebuildHash(); g.updateFog();
+    return g;
+  }
 
   genMap() {
     const s = this.seed, terr = this.terrain, rng = this.rng;
@@ -3021,7 +3185,7 @@ function paintUnit(u) {
     ctx.save(); ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -an[0], -an[1]); ctx.restore();
     if (u.hit > 0) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(whiteOf(spr), -an[0], -an[1]); ctx.restore(); }
     if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px - 4, py - an[1] - 8, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px - 3, py - an[1] - 7, 6, 6); }
-    if (selected || u.hp < u.maxHp) { const hw = Math.max(20, rx * 1.2); hpBar(px - hw / 2, py - an[1] - 12, hw, u.hp / u.maxHp); }
+    if (selected || u.hp < u.maxHp || settings.bars === 'always') { const hw = Math.max(20, rx * 1.2); hpBar(px - hw / 2, py - an[1] - 12, hw, u.hp / u.maxHp); }
     return;
   }
   if (u.kind === 'deer') {
@@ -3029,7 +3193,7 @@ function paintUnit(u) {
     shadow(px, py + 4, 9, 3);
     if (selected) { ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1.5; ell(px, py + 4, 11, 5); ctx.stroke(); }
     ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -18, -26); ctx.restore();
-    if (u.hp < u.maxHp) hpBar(px - 8, py - 30, 16, u.hp / u.maxHp);
+    if (u.hp < u.maxHp || settings.bars === 'always') hpBar(px - 8, py - 30, 16, u.hp / u.maxHp);
     return;
   }
   let anim = 'idle', f = 0, tool = '';
@@ -3046,7 +3210,7 @@ function paintUnit(u) {
   if (u.hit > 0) { ctx.globalAlpha = 0.55; ctx.drawImage(whiteOf(spr), -16, -31); }
   ctx.restore();
   if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px + 2, py - 34, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px + 3, py - 33, 6, 6); }
-  if (selected || u.hp < u.maxHp) hpBar(px - 8, py - 37, 16, u.hp / u.maxHp);
+  if (selected || u.hp < u.maxHp || settings.bars === 'always') hpBar(px - 8, py - 37, 16, u.hp / u.maxHp);
 }
 function paintNode(n) {
   const px = n.tx * TILE, py = n.ty * TILE;
@@ -3746,24 +3910,152 @@ function updateHud() {
 /* ---------------- game flow ---------------- */
 function showOv(name) {
   $('ov').hidden = !name;
-  for (const n of ['start', 'pause', 'end', 'help']) $('ov-' + n).hidden = n !== name;
+  for (const n of ['pause', 'end', 'help']) $('ov-' + n).hidden = n !== name;
 }
 function startGame(seed) {
   seedUsed = seed; G = new Game({ seed, diff });
-  terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
-  sel = []; mode = null; markers = []; boxRect = null; panelKey = ''; ended = false; acc = 0; seenMsgs = new WeakSet(); idleIdx = 0;
+  enterGame();
   const tc = G.buildings.find(b => b.team === 0 && b.kind === 'towncentre');
   view.zoom = view.w > 700 ? 1.5 : 1; resize(); centerOn(tc.x, tc.y + 1);
   const v = G.units.find(u => u.team === 0 && u.kind === 'villager'); if (v) select([v]);
-  started = true; paused = false; $('hud').hidden = false; showOv(null); updateHud(); updatePanel();
+  updateHud(); updatePanel(); saveGame();
 }
+/* shared by a new game and a resumed one: rebuild the view state around G */
+function enterGame() {
+  terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
+  sel = []; mode = null; markers = []; boxRect = null; panelKey = ''; ended = false; acc = 0; seenMsgs = new WeakSet(); idleIdx = 0;
+  speed = settings.speed; syncSpeedButtons(); saveT = 0;
+  started = true; paused = false; $('hud').hidden = false; showOv(null); showMenu(null);
+}
+function syncSpeedButtons() { document.querySelectorAll('[data-do="speed"]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === speed ? 'true' : 'false')); }
+
+/* ---------------- save / resume ---------------- */
+const SAVE_KEY = 'seak-save-v1', SET_KEY = 'seak-settings';
+// storage can be missing (private windows, previews): the game still runs, it just can't resume
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nothing to do */ } }
+let saveT = 0;
+const settings = Object.assign({ speed: 1, bars: 'auto' }, (() => { try { return JSON.parse(lsGet(SET_KEY)) || {}; } catch (e) { return {}; } })());
+function saveSettings() { lsSet(SET_KEY, JSON.stringify(settings)); }
+function saveGame() {
+  if (!started || ended || !G || G.over) return;
+  const rec = { snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() };
+  lsSet(SAVE_KEY, JSON.stringify(rec));
+}
+function readSave() { try { const r = JSON.parse(lsGet(SAVE_KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
+function continueGame() {
+  const r = readSave(); const g = r && Game.restore(r.snap);
+  if (!g) { lsDel(SAVE_KEY); refreshHome(); return; }
+  G = g; seedUsed = r.seed; diff = r.diff;
+  enterGame();
+  view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
+  updateHud(); updatePanel();
+}
+function quitToMenu() { saveGame(); started = false; paused = true; showOv(null); $('hud').hidden = true; showMenu('home'); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame(); });
+window.addEventListener('pagehide', saveGame);
+
+/* ---------------- main menu ---------------- */
+// links to the demos: relative on the live site, absolute anywhere else (the playable artifact)
+const SITE = /github\.io$/.test(location.hostname) ? './' : 'https://therediris0827.github.io/SEA-RTS/';
+let mapChoice = 'same', encyTab = 'units';
+function showMenu(name) {
+  $('menu').hidden = !name;
+  for (const n of ['home', 'skirmish', 'campaign', 'battles', 'ency', 'settings']) $('m-' + n).hidden = n !== name;
+  if (name === 'home') refreshHome();
+  if (name === 'skirmish') syncMenuSegs();
+  if (name === 'settings') { syncMenuSegs(); const r = readSave(); $('m-savenote').textContent = r ? 'A game from ' + new Date(r.when).toLocaleString() + ' is saved.' : 'No game saved. Games save by themselves while you play.'; }
+  if (name === 'ency') renderEncy();
+  if (name) $('menu').scrollTop = 0;
+}
+function refreshHome() {
+  const r = readSave();
+  $('m-cont').hidden = !r;
+  if (r) $('m-cont-sub').textContent = 'Melaka vs Majapahit \u00b7 ' + fmtTime(r.snap.t) + ' \u00b7 ' + r.diff[0].toUpperCase() + r.diff.slice(1);
+}
+function syncMenuSegs() {
+  const press = (box, attr, val) => document.querySelectorAll('#' + box + ' button').forEach((b) => b.setAttribute('aria-pressed', b.dataset[attr] === String(val) ? 'true' : 'false'));
+  press('m-diff', 'v', diff); press('m-map', 'v', mapChoice); press('m-speed', 'v', settings.speed); press('m-bars', 'v', settings.bars);
+}
+const ENCY_UNITS = {
+  villager: 'Gathers food, wood and gold, and builds. Fishes from the shore with a boat.',
+  keris: 'Cheap, fast swordsman. Runs down archers.',
+  tombak: 'Spearman. Holds the line and hits elite units hard.',
+  archer: 'Shoots from range. Strong against spearmen, weak when swords reach it.',
+  pahlawan: 'Melaka\u2019s champion warriors, trained at the Istana. Few, costly and deadly.',
+  bhaya: 'Majapahit\u2019s royal guard, trained at the Kraton. Tough and hard to shoot down.',
+  tabib: 'Melaka physician. Heals one wounded soldier at a time, fast.',
+  acaraki: 'Majapahit jamu maker. Slowly heals everyone around.',
+  boat: 'Fishes at sea and brings the catch to a port.',
+  trade: 'Jong Dagang. Sails between your port and a trading post for gold; the longer the route, the more gold.',
+  fireship: 'Perahu Api. Sails into enemy ships and bursts into flame. Kills frigates; sloops shoot it down first.',
+  light: 'Fast raider. Arrows, then fire arrows and swivel guns. Hunts fire ships and trade ships.',
+  galley: 'Packed with fighters who board enemy ships. Beats sloops; frigates shoot it before it closes.',
+  frigate: 'Cannon ship and harbour breaker. Ignores building armour. Beats galleys, fears fire ships.',
+  flagship: 'One only. Cannon and archers; Melaka\u2019s Mendam Berahi lifts nearby ships.'
+};
+const ENCY_BLDS = {
+  towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
+  house: '+5 population.', farm: 'Endless food for one or two farmers.', mill: 'Drop-off for wood.', goldmine: 'Drop-off for gold.',
+  granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
+  tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
+  patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
+  palace: 'One only. Trains the civ\u2019s unique unit.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
+};
+const ENCY_CIVS = [
+  ['mel', 'Melaka', 'Maritime trade. Fewer, better soldiers paid for by the harbour. Timber buildings burn fast.'],
+  ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate.'],
+  ['ayu', 'Ayutthaya', 'The river kingdom: raft houses, households and war elephants. Coming to Skirmish.'],
+  ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.'],
+  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Battles.']
+];
+function renderEncy() {
+  document.querySelectorAll('#m-tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === encyTab ? 'true' : 'false'));
+  const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const cost = (c) => Object.keys(c || {}).map((k) => c[k] + ' ' + k).join(', ');
+  let h = '';
+  if (encyTab === 'civs') {
+    for (const [cls, name, txt] of ENCY_CIVS) h += '<div class="m-ent m-card ' + cls + '" style="box-shadow:none"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
+  } else if (encyTab === 'blds') {
+    for (const k in ENCY_BLDS) {
+      const d = BD[k], teams = d.civ == null ? [0, 1] : [d.civ];
+      for (const t of teams) h += '<div class="m-ent"><img alt="" src="' + bldIcon(k, t) + '"><div><b>' + esc(civName(k, t)) + '</b><span>' + ENCY_BLDS[k] + '</span><em>' + (d.hp ? d.hp + ' hp' : '') + (d.cost ? ' \u00b7 ' + cost(d.cost) : '') + '</em></div></div>';
+    }
+  } else {
+    const ships = encyTab === 'ships';
+    for (const k in ENCY_UNITS) {
+      const d = UD[k]; if (!!d.layer !== ships) continue;
+      const teams = d.civ == null ? [0, 1] : [d.civ];
+      for (const t of teams) {
+        const hp = d.civHp ? d.civHp[t] : d.hp;
+        h += '<div class="m-ent"><img alt="" src="' + unitIcon(k, t) + '"><div><b>' + esc(civName(k, t)) + '</b><span>' + ENCY_UNITS[k] + '</span><em>' + hp + ' hp' + (d.atk ? ' \u00b7 ' + d.atk + ' attack' : '') + ' \u00b7 ' + cost(d.cost) + '</em></div></div>';
+      }
+    }
+  }
+  $('m-list').innerHTML = h;
+}
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-m]'); if (!el) return;
+  const a = el.dataset.m, v = el.dataset.v;
+  if (a === 'go') showMenu(v);
+  else if (a === 'continue') continueGame();
+  else if (a === 'learn') { helpBack = 'menu'; showOv('help'); }
+  else if (a === 'diff') { diff = v; syncMenuSegs(); }
+  else if (a === 'map') { mapChoice = v; syncMenuSegs(); }
+  else if (a === 'start') startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
+  else if (a === 'tab') { encyTab = v; renderEncy(); }
+  else if (a === 'set') { settings[el.dataset.k] = el.dataset.k === 'speed' ? +v : v; saveSettings(); syncMenuSegs(); }
+  else if (a === 'delsave') { lsDel(SAVE_KEY); showMenu('settings'); }
+});
+document.querySelectorAll('[data-site]').forEach((a) => { a.href = SITE + a.dataset.site; if (SITE !== './') { a.target = '_blank'; a.rel = 'noopener'; } });
 function togglePause() {
   if (!started || ended) return;
   paused = !paused;
   if (paused) { $('speed-val').textContent = speed + 'x'; showOv('pause'); } else showOv(null);
 }
 function endGame() {
-  ended = true; paused = true;
+  ended = true; paused = true; lsDel(SAVE_KEY);
   const win = G.over === 'win';
   $('end-title').textContent = win ? 'Victory' : 'Defeat';
   $('end-title').className = win ? 'win' : 'lose';
@@ -3780,10 +4072,12 @@ document.addEventListener('click', (e) => {
   else if (a === 'restart') startGame(seedUsed);
   else if (a === 'newmap') startGame(1 + Math.floor(Math.random() * 900000));
   else if (a === 'speed') { speed = +el.dataset.v; document.querySelectorAll('[data-do="speed"]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === speed ? 'true' : 'false')); }
-  else if (a === 'help') { helpBack = !$('ov-pause').hidden ? 'pause' : (!$('ov-end').hidden ? 'end' : 'start'); showOv('help'); }
-  else if (a === 'back') showOv(helpBack);
+  else if (a === 'help') { helpBack = !$('ov-pause').hidden ? 'pause' : (!$('ov-end').hidden ? 'end' : 'menu'); showOv('help'); }
+  else if (a === 'back') { if (helpBack === 'menu') showOv(null); else showOv(helpBack); }
+  else if (a === 'quit') quitToMenu();
+  else if (a === 'home') { started = false; showOv(null); $('hud').hidden = true; showMenu('home'); }
 });
-let helpBack = 'start';
+let helpBack = 'menu';
 $('btn-menu').addEventListener('click', togglePause);
 $('btn-idle').addEventListener('click', () => { if (started && !paused) cycleIdle(); });
 $('btn-army').addEventListener('click', () => { if (started && !paused) selectArmy(); });
@@ -3804,6 +4098,7 @@ function frame(ts) {
       for (const m of markers) m.t -= dt; markers = markers.filter(m => m.t > 0);
     }
     if (G.over && !ended) endGame();
+    if (!paused && !ended) { saveT += dt; if (saveT > 30) { saveT = 0; saveGame(); } }
     render();
     hudT += dt; if (hudT > 0.12) { hudT = 0; updateHud(); updatePanel(); drawMini(); }
   }
@@ -3814,7 +4109,8 @@ window.addEventListener('resize', () => { resize(); });
   const set = (id, name) => { const e = $(id); if (e) e.src = resIcon(name); };
   set('i-food', 'food'); set('i-wood', 'wood'); set('i-gold', 'gold'); set('i-pop', 'pop'); set('i-idle', 'idle'); set('i-army', 'army');
   set('i-zin', 'plus'); set('i-zout', 'minus'); set('i-menu', 'menu');
-  $('hud').hidden = true; resize(); showOv('start');
+  $('hud').hidden = true; resize(); showMenu('home');
+  $('m-cover').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABQAAAAKACAIAAABMkUL2AAAWfmNhQlgAABZ+anVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAAFlhqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOjE2Nzg4NGU2LWVhMDQtNDlhNC1hZWU1LWQ0NjYxMTJmYmQ0ZgAAAAOTanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAAuGp1bWIAAABEanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5pbmdyZWRpZW50LnYzAAAAABhjMnNoJFeHqQ5dMZK+t+ognKX08wAAAGxjYm9yo2lkYzpmb3JtYXRpaW1hZ2UvcG5namluc3RhbmNlSUR4LHhtcDppaWQ6ZDhkMmFlNmUtNTAzNy00Mzc0LTg4MjctYTlmMTk0MTdiMDQ2bHJlbGF0aW9uc2hpcGhwYXJlbnRPZgAAAeJqdW1iAAAAQWp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuYWN0aW9ucy52MgAAAAAYYzJzaNWShiBgfMZYWkpZPYgVCuYAAAGZY2JvcqJnYWN0aW9uc4KiZmFjdGlvbmtjMnBhLm9wZW5lZGpwYXJhbWV0ZXJzoWtpbmdyZWRpZW50c4GiY3VybHgtc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5pbmdyZWRpZW50LnYzZGhhc2hYIHzsv4AIf0MKp+V1NRVTqUVQn3aAKDdREvn3dXgk0XY7pGZhY3Rpb254HWNvbS5hbnRocm9waWMuY2xhdWRlLnByb3ZpZGVkanBhcmFtZXRlcnOheB9jb20uYW50aHJvcGljLm9yaWdpbi1jb25maWRlbmNlZ3Vua25vd25rZGVzY3JpcHRpb254ZkNsYXVkZSBwcm92aWRlZCB0aGlzIGZpbGUgYXQgdGhlIHJlcXVlc3Qgb2YgYSB1c2VyIGFuZCBtYXkgaGF2ZSBjcmVhdGVkIG9yIG1vZGlmaWVkIHRoZSBmaWxlIGNvbnRlbnRzLm1zb2Z0d2FyZUFnZW50oWRuYW1lZkNsYXVkZXJhbGxBY3Rpb25zSW5jbHVkZWT1AAAAyGp1bWIAAABAanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5oYXNoLmRhdGEAAAAAGGMyc2i5fGNWBf3nZvriC72uyWVyAAAAgGNib3KlY2FsZ2ZzaGEyNTZjcGFkTQAAAAAAAAAAAAAAAABkaGFzaFggH3v40+hiRPpR4DJGHQYEbJ+Bnv7Nc52W1dVDM5l0T05kbmFtZW5qdW1iZiBtYW5pZmVzdGpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZFooAAAI+anVtYgAAACdqdW1kYzJjbAARABCAAACqADibcQNjMnBhLmNsYWltLnYyAAAAAg9jYm9ypWNhbGdmc2hhMjU2aXNpZ25hdHVyZXhNc2VsZiNqdW1iZj0vYzJwYS91cm46YzJwYToxNjc4ODRlNi1lYTA0LTQ5YTQtYWVlNS1kNDY2MTEyZmJkNGYvYzJwYS5zaWduYXR1cmVqaW5zdGFuY2VJRHgseG1wOmlpZDoyYjg2YjZkMy1iODdjLTRjNTctOGZmYy03MmEwNDVmYjM1NjNyY3JlYXRlZF9hc3NlcnRpb25zg6JjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggfOy/gAh/Qwqn5XU1FVOpRVCfdoAoN1ES+fd1eCTRdjuiY3VybHgqc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5hY3Rpb25zLnYyZGhhc2hYIB9C4KiivvjULBNsWFOILanTHhiZWDMqLvZvGn+ANIO8omN1cmx4KXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaGFzaC5kYXRhZGhhc2hYIKSAUUP7jviglVvKQoj+eyAmeNCUjJQ+3SZ4iIMFvrOedGNsYWltX2dlbmVyYXRvcl9pbmZvo2RuYW1lb0FudGhyb3BpYyBGaWxlc2d2ZXJzaW9uZTEuMC4wa3NwZWNWZXJzaW9uZTIuNC4wAAAQOGp1bWIAAAAoanVtZGMyY3MAEQAQgAAAqgA4m3EDYzJwYS5zaWduYXR1cmUAAAAQCGNib3LShFkCEqIBJhghWQIKMIICBjCCAY2gAwIBAgIUQOWgCu7COdC+uIP6BkIFPWdVEwAwCgYIKoZIzj0EAwMwSTEXMBUGA1UEChMOQW50aHJvcGljLCBQQkMxLjAsBgNVBAMTJUFudGhyb3BpYyBDb250ZW50IENyZWRlbnRpYWxzIFJvb3QgQ0EwHhcNMjYwODA3MTg0MzU2WhcNMjgwODA2MTk0MzU2WjBEMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEpMCcGA1UEAxMgQW50aHJvcGljIENsYXVkZSBDb250ZW50IFNpZ25pbmcwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASYegpry1AYBRTVNL1CpTlbROnY3dey+UrsF9C3phYrATN3ZHf93Mo8RQN0KOUuOn19P4oWNFWe5n2/She9N7eTo1gwVjAOBgNVHQ8BAf8EBAMCB4AwFQYDVR0lBA4wDAYKKwYBBAGD6F4CATAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFM5R4gSBTmRbI/jjxM+aPpzB11zCMAoGCCqGSM49BAMDA2cAMGQCMDFzHRSeAXrSy1WOzkbhPZ6Km2wGTmZ/2gK18k8BQGXyqz88Rdrz6CTX9flAnYNVxgIwcF9c3fVhqmJKpi+UhasNUMko69cyX6STPfta3Q8EjyzDjzoyrol46FP6VFHhvUcJoWNwYWRZDZ4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA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';
   // a quiet preview behind the title screen
   G = new Game({ seed: seedUsed, diff }); terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
   view.zoom = view.w > 700 ? 1.5 : 1; const tc = G.buildings[0]; centerOn(tc.x, tc.y + 1);
