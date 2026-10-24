@@ -3560,8 +3560,9 @@ function ayuPerson(P, kind, anim, f) {
 
   // weapons
   if (kind === 'dap') {
-    // small round shield (purple, gold boss) on the left arm
-    disc({ r: B }, 4, 10, 2, AYU.dark); disc({ r: B }, 4, 10, 1, AYU.main); B(4, 10, 1, 1, AYU_G); B(3, 9, 1, 1, AYU_LT);
+    // daab song mue: a second dap in the left hand, raised while the right blade strikes
+    if (atk && f === 1) { B(3, 1, 1, 7, STEEL); B(2, 2, 1, 6, STEEL_D); B(2, 8, 3, 1, AYU_G); B(3, 9, 1, 1, WOOD_D); }
+    else { B(3, 3, 1, 7, STEEL); B(2, 4, 1, 6, STEEL_D); B(2, 10, 3, 1, AYU_G); B(3, 11, 1, 1, WOOD_D); }
     // dap: long straight single-edged blade (light edge, darker back), gold guard, wrapped grip
     if (!atk || f === 2) { B(12, 2, 1, 7, STEEL); B(13, 3, 1, 6, STEEL_D); B(11, 9, 3, 1, AYU_G); B(12, 10, 1, 1, WOOD_D); }
     else if (f === 0) { B(12, 0, 1, 7, STEEL); B(13, 1, 1, 6, STEEL_D); B(11, 7, 3, 1, AYU_G); B(12, 8, 1, 1, WOOD_D); }
@@ -5540,7 +5541,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.14 \u00b7 24 Oct 2026';
+const BUILD = '0.9.15 \u00b7 24 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
