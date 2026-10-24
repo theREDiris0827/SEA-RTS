@@ -5196,7 +5196,7 @@ const _damage = Game.prototype.damage;
 Game.prototype.damage = function (att, tgt, w) {
   const ad = att.kind ? UD[att.kind] : null;
   if (tgt.isBld && ad && ad.fire) {
-    tgt.hp -= ad.fire; tgt.hit = 0.15; tgt.lastHit = this.t; tgt.burn = this.t + 4;
+    tgt.hp -= ad.fire; tgt.hit = 0.15; tgt.lastHit = this.t; tgt.torch = this.t + 4;
     if (tgt.team === 0 && this.t - this.lastAlert > 5) { this.lastAlert = this.t; this.alerts.push({ x: tgt.x, y: tgt.y, t: 3 }); this.msg('Torches! They are burning the ' + (tgt.kind === 'wall' || tgt.kind === 'gate' ? 'wall' : civName(tgt.kind, 0)) + '.'); }
     if (this.rng() < 0.5) this.fx.push({ k: 'smoke', x: tgt.x + (this.rng() - 0.5) * tgt.size * 0.6, y: tgt.y - 0.2, vy: -0.8 - this.rng() * 0.6, t: 1.4, max: 1.4 });
     if (tgt.hp <= 0) this.onKilled(tgt, att);
@@ -5278,7 +5278,7 @@ Game.prototype.doRepair = function (u, dt) {
   if (rectDist(u.x, u.y, b.rect) <= 0.95) {
     u.path = null; u.working = true;
     const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
-    b.hp = Math.min(b.maxHp, b.hp + 14 * dt); b.burn = 0;
+    b.hp = Math.min(b.maxHp, b.hp + 14 * dt); b.torch = 0; if (b.burn) b.burn.t = 0;
     if (b.hp >= b.maxHp) { b.scorch = false; this.idleOrder(u); }
     return;
   }
@@ -5699,7 +5699,7 @@ function paintUnit(u) {
 }
 function paintBuilding(b) {
   basePaintBuilding(b);
-  if (b.burn > G.t && b.hp > 0) {
+  if (b.torch > G.t && b.hp > 0) {
     const w = b.size * TILE, px = b.tx * TILE, py = b.ty * TILE;
     for (let i = 0; i < 2 + b.size; i++) {
       const fx = px + 6 + hash2(b.id, i, 3) * (w - 12), fy = py + w * 0.25 + hash2(b.id, i, 4) * w * 0.4, h = 6 + ((Math.floor(nowS * 8) + i) % 3) * 3;

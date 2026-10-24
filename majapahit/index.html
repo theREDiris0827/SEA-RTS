@@ -5507,7 +5507,7 @@ Game.prototype.doRepair = function (u, dt) {
   if (rectDist(u.x, u.y, b.rect) <= 0.95) {
     u.path = null; u.working = true;
     const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
-    b.hp = Math.min(b.maxHp, b.hp + 14 * dt); b.burn = 0;
+    b.hp = Math.min(b.maxHp, b.hp + 14 * dt); b.torch = 0; if (b.burn) b.burn.t = 0;
     if (b.hp >= b.maxHp) this.idleOrder(u);
     return;
   }
@@ -5662,7 +5662,7 @@ Game.prototype.damage = function (att, tgt, w) {
     const mul = tgt.kind === 'cwall' ? 0.45 : tgt.kind === 'gate' ? 0.7 : 1, arrow = ad.cls === 'archer';
     if (arrow) { const last = this.arrows[this.arrows.length - 1]; if (last && last.x0 === att.x && last.y0 === att.y - 0.4) last.k = 'fire'; }
     else this.arrows.push({ k: 'torch', x0: att.x, y0: att.y - 0.5, x1: tgt.x + (this.rng() - 0.5) * 0.6, y1: tgt.y - 0.2, t: 0, dur: 0.3 });
-    tgt.hp -= fire * mul; tgt.hit = 0.15; tgt.lastHit = this.t; tgt.burn = this.t + 6; tgt.burnDps = Math.max(tgt.burnDps && tgt.burn > this.t ? tgt.burnDps : 0, (arrow ? 1.5 : 2.5) * mul); tgt.burnBy = att;
+    tgt.hp -= fire * mul; tgt.hit = 0.15; tgt.lastHit = this.t; tgt.torch = this.t + 6; tgt.torchDps = Math.max(tgt.torchDps && tgt.torch > this.t ? tgt.torchDps : 0, (arrow ? 1.5 : 2.5) * mul); tgt.torchBy = att;
     if (this.rng() < 0.5) this.fx.push({ k: 'smoke', x: tgt.x + (this.rng() - 0.5) * tgt.size * 0.6, y: tgt.y - 0.2, vy: -0.8 - this.rng() * 0.6, t: 1.4, max: 1.4 });
     if (!tgt._ign || this.t - tgt._ign > 3) { tgt._ign = this.t; this.sfx('ignite', tgt.x, tgt.y); }
     if (tgt.hp <= 0) this.onKilled(tgt, att);
@@ -5893,7 +5893,7 @@ function missionTick(g, dt) {
   g.flagTick(dt);
   g.messengerTick(dt);
   // buildings set alight keep burning for a few seconds after the torch lands
-  if ((g.tickN % 30) === 0) for (const b of g.buildings) if (b.burnDps && b.burn > g.t && b.hp > 0 && b.team !== 0) { b.hp -= b.burnDps; b.lastHit = g.t; if (b.hp <= 0) g.onKilled(b, b.burnBy && b.burnBy.hp > 0 ? b.burnBy : { team: 0 }); }
+  if ((g.tickN % 30) === 0) for (const b of g.buildings) if (b.torchDps && b.torch > g.t && b.hp > 0 && b.team !== 0) { b.hp -= b.torchDps; b.lastHit = g.t; if (b.hp <= 0) g.onKilled(b, b.torchBy && b.torchBy.hp > 0 ? b.torchBy : { team: 0 }); }
   M.hut = g.buildings.some(b => b.team === 0 && b.kind === 'granary' && b.done && b.hp > 0) || M.hut;
   // the Orang Laut raid: drive the Siamese off before they burn the village
   if (M.olRaid && M.ol === 'neutral') {
@@ -6137,7 +6137,7 @@ function paintUnit(u) {
 function paintBuilding(b) {
   basePaintBuilding(b);
   const w = b.size * TILE, px = b.tx * TILE, py = b.ty * TILE;
-  if (b.burn > G.t && b.hp > 0) {
+  if (b.torch > G.t && b.hp > 0) {
     for (let i = 0; i < 2 + b.size; i++) {
       const fx = px + 6 + hash2(b.id, i, 3) * (w - 12), fy = py + w * 0.25 + hash2(b.id, i, 4) * w * 0.4, h = (b.size === 1 ? 10 : 6) + ((Math.floor(nowS * 8) + i) % 3) * 3;
       ctx.fillStyle = '#e2562c'; ctx.fillRect(fx - 3, fy - h, 6, h); ctx.fillStyle = '#f6b33a'; ctx.fillRect(fx - 2, fy - h + 2, 4, h - 3); ctx.fillStyle = '#fff3a0'; ctx.fillRect(fx - 1, fy - 3, 2, 2);
