@@ -511,8 +511,10 @@ const UD = {
   trade: { name: 'Armed Trade Ship', hp: 150, spd: 2.6, atk: 4, rng: 4.5, rate: 2.0, ma: 1, pa: 2, sight: 7, cost: { wood: 100, gold: 60 }, time: 18, cls: 'ship', ranged: true, layer: 1, slot: 'trade', civ: 0, trader: true, wpn: 'arrow', swivel: true, kb: { boat: 4 } },
   fireship: { name: 'Fire Ship', hp: 55, spd: 3.5, atk: 0, rng: 0.7, rate: 1, ma: 0, pa: 0, sight: 6, cost: { wood: 70, gold: 10 }, time: 10, cls: 'ship', layer: 1, slot: 'trade', civ: 1, boom: { dmg: 105, r: 1.7, big: 1.8 } },
   light: { name: 'Sloop', hp: 90, spd: 3.4, atk: 7, rng: 5.5, rate: 1.2, ma: 1, pa: 1, sight: 7.5, cost: { wood: 70, gold: 20 }, time: 14, cls: 'ship', ranged: true, layer: 1, slot: 'light', wpn: 'arrow', fireA: true, swivel: true, kb: { fireship: 40, trade: 6, boat: 6 } },
-  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 22, rng: 1.2, rate: 2.0, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', layer: 1, slot: 'galley', wpn: 'board', scan: 5.5, sec: { atk: 4, rng: 4, rate: 1.5 }, swivel: true, kb: { light: 8, trade: 8, boat: 8 } },
-  frigate: { name: 'Frigate', hp: 300, spd: 2.4, atk: 30, rng: 7, rate: 4.0, ma: 2, pa: 3, sight: 8, cost: { wood: 200, gold: 120 }, time: 30, cls: 'ship', ranged: true, layer: 1, slot: 'frigate', wpn: 'cannon', kb: { galley: 10 }, miss: { light: 0.35, fireship: 0.35 } },
+  galley: { name: 'Galley', hp: 170, spd: 2.9, atk: 22, rng: 1.2, rate: 2.0, ma: 1, pa: 2, sight: 7.5, cost: { wood: 120, gold: 40 }, time: 20, cls: 'ship', layer: 1, slot: 'galley', wpn: 'board', scan: 5.5, sec: { atk: 4, rng: 4, rate: 1.5 }, swivel: true, kb: { light: 8, trade: 8, boat: 8 }, carry: 5 },
+  // a burning raft a Port pushes out at enemy ships; it can't be steered and burns out on its own
+  raft: { name: 'Fire Raft', hp: 60, spd: 1.7, atk: 0, rng: 0.6, rate: 1, ma: 0, pa: 3, sight: 6, cost: { wood: 40 }, time: 0, cls: 'ship', layer: 1, scan: 8, boom: { dmg: 35, r: 1.4 }, life: 30, nosel: true },
+  frigate: { name: 'Frigate', hp: 300, spd: 2.4, atk: 30, rng: 7, rate: 4.0, ma: 2, pa: 3, sight: 8, cost: { wood: 200, gold: 120 }, time: 30, cls: 'ship', ranged: true, layer: 1, slot: 'frigate', wpn: 'cannon', kb: { galley: 10 }, miss: { light: 0.35, fireship: 0.35, raft: 0.5 } },
   flagship: { name: 'Flagship', hp: 650, spd: 2.0, atk: 24, rng: 7, rate: 3.5, ma: 3, pa: 4, sight: 9, cost: { wood: 450, gold: 300 }, time: 45, cls: 'ship', ranged: true, layer: 1, slot: 'flagship', one: true, civHp: [650, 1100], wpn: 'cannon', sec: { atk: 6, rng: 7, rate: 1.5 }, fireA: true },
   deer: { name: 'Deer', hp: 14, spd: 1.3, atk: 0, rng: 0, rate: 1, ma: 0, pa: 0, sight: 3, cost: {}, time: 0, cls: 'animal' }
 };
@@ -529,7 +531,7 @@ const BURNMAT = [1, 0.5, 1];
 const CIV_NAMES = {
   keris: [null, 'Golok Warrior'], tombak: [null, 'Galah Warrior'],
   boat: ['Sampan (Fishing Boat)', 'Jukung (Fishing Boat)'], trade: ['Jong Dagang (Armed Trade Ship)', null], fireship: [null, 'Perahu Api (Fire Ship)'],
-  light: ['Penjajap (Sloop)', 'Jukung Perang (Sloop)'], galley: ['Lancaran (Galley)', 'Kelulus (Galley)'],
+  light: ['Penjajap (Sloop)', 'Jukung Perang (Sloop)'], raft: ['Rakit Api (Fire Raft)', 'Rakit Api (Fire Raft)'], galley: ['Lancaran (Galley)', 'Kelulus (Galley)'],
   frigate: ['Ghali (Frigate)', 'Jong Perang (Frigate)'], flagship: ['Mendam Berahi (Flagship)', 'Jong Raya (Flagship)'],
   granary: ['Jelapang (Granary)', 'Lumbung (Granary)'], tower: ['Menara Kawal (Watchtower)', 'Bale Kulkul (Watchtower)'],
   palace: ['Istana (Palace)', 'Kraton (Palace)'], tradepost: ['Pangkalan (Trading Post)', 'Bandar (Tribute Post)'],
@@ -564,7 +566,8 @@ const BD = {
 const TRADE = { k: 1 / 40, melaka: 1.2 };
 const TRIBUTE = 0.55;   // gold per second from each Majapahit Bandar
 const BARM = { ma: 2, pa: 6 };
-const WALL_MAX = 24;   // longest wall line laid in one go, in tiles
+const WALL_MAX = 24;
+const RAFT = { cd: 45, r: 12 };   // Port fire raft: cooldown in seconds, how far it looks for ships   // longest wall line laid in one go, in tiles
 const NK = {
   tree: { type: 'wood', amt: 100, rate: 1.2 }, berry: { type: 'food', amt: 120, rate: 1.3 },
   gold: { type: 'gold', amt: 500, rate: 1.0 }, fish: { type: 'food', amt: 260, rate: 1.4 },
@@ -1130,7 +1133,7 @@ class Game {
     this.unitsNear(u.x, u.y, r, (o) => {
       if (o.hp <= 0 || o.team === team || o.team === 2) return;
       if (o.layer === 1 && !u.ranged && !sea) return;
-      if ((u.kind === 'fireship' || (UD[u.kind].wpn === 'board' && !UD[u.kind].sec)) && o.layer !== 1) return;
+      if ((u.kind === 'fireship' || u.kind === 'raft' || (UD[u.kind].wpn === 'board' && !UD[u.kind].sec)) && o.layer !== 1) return;
       const d = Math.hypot(o.x - u.x, o.y - u.y); if (d > r) return;
       if (team === 0 && !this.isVisible(o.x, o.y)) return;
       const s = d + (o.cls === 'vil' || o.cls === 'boat' ? 3 : 0);
@@ -1167,6 +1170,83 @@ class Game {
   orderAttack(u, target, extra) {
     u.order = Object.assign({ t: 'attack', id: target.id }, extra || {}); u.path = null; u.rp = 0;
   }
+  orderBoard(u, g) { u.order = { t: 'board', id: g.id }; u.path = null; u.wait = 0; u.rp = 0; }
+  orderLand(g, x, y) { g.order = { t: 'land', x, y }; g.path = null; g.wait = 0; }
+  /* the water tile next to a beach nearest (x, y), leaning towards (bx, by) */
+  shoreTile(x, y, bx, by) {
+    let best = null, bd = 1e9;
+    for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+      if (!this.walkable(tx, ty, 1)) continue;
+      let beach = false;
+      for (let dy = -1; dy <= 1 && !beach; dy++) for (let dx = -1; dx <= 1; dx++) if (this.walkable(tx + dx, ty + dy, 0)) { beach = true; break; }
+      if (!beach) continue;
+      const d = Math.hypot(tx + 0.5 - x, ty + 0.5 - y) + (bx != null ? Math.hypot(tx + 0.5 - bx, ty + 0.5 - by) * 0.15 : 0);
+      if (d < bd) { bd = d; best = { x: tx, y: ty }; }
+    }
+    return best;
+  }
+  /* a land unit climbs aboard once it reaches the galley */
+  doBoard(u, dt) {
+    const g = this.byId.get(u.order.id);
+    if (!g || g.hp <= 0 || g.team !== u.team) { this.idleOrder(u); return; }
+    if ((g.cargo || []).length >= UD[g.kind].carry) { if (u.team === 0) this.msg('The ' + civName(g.kind, g.team).split(' (')[0] + ' is full.'); this.idleOrder(u); return; }
+    if (Math.hypot(g.x - u.x, g.y - u.y) <= 1.9) {
+      (g.cargo = g.cargo || []).push(u); u.aboard = g.id; u.order = { t: 'idle' }; u.path = null; u.carry = u.carry || { type: null, amt: 0 };
+      return;
+    }
+    u.rp = (u.rp || 0) - dt;
+    if (!u.path || u.rp <= 0) {
+      if (u.wait > 0 && !u.path) return;
+      u.rp = 1;
+      if (!this.setPath(u, this.pathToRect(u, { ax: g.x, ay: g.y, bx: g.x, by: g.y }, 1.5))) { u.wait = 0.8; return; }
+    }
+    if (this.stepMove(u, dt)) u.path = null;
+  }
+  /* a galley sails to the beach nearest (x, y) and puts its troops ashore */
+  doLand(g, dt) {
+    const o = g.order;
+    if (!g.cargo || !g.cargo.length) { this.idleOrder(g); return; }
+    let shore = null, sd = 1e9;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const tx = Math.floor(g.x) + dx, ty = Math.floor(g.y) + dy;
+      if (!this.walkable(tx, ty, 0)) continue;
+      const d = Math.hypot(tx + 0.5 - g.x, ty + 0.5 - g.y) + Math.hypot(tx + 0.5 - o.x, ty + 0.5 - o.y) * 0.2;
+      if (d < sd && Math.hypot(tx + 0.5 - g.x, ty + 0.5 - g.y) <= 2.2) { sd = d; shore = { x: tx, y: ty }; }
+    }
+    const near = Math.hypot(g.x - o.x, g.y - o.y);
+    if (shore && (near < 4 || (o.s && !g.path))) {
+      this.wt = g.team;
+      for (const u of g.cargo) {
+        const p = this.openSpot(shore.x + 0.5, shore.y + 0.5, 0);
+        u.x = p.x; u.y = p.y; u.aboard = null; u.path = null; u.order = { t: 'idle', hx: u.x, hy: u.y };
+        this.units.push(u); this.byId.set(u.id, u);
+        if (this.isLand(Math.floor(o.x), Math.floor(o.y)) && Math.hypot(o.x - u.x, o.y - u.y) > 1.5) this.orderMove(u, o.x, o.y);
+      }
+      if (g.team === 0) this.msg(g.cargo.length + ' landed.');
+      g.cargo = []; this.idleOrder(g); return;
+    }
+    if (!g.path) {
+      if (g.wait > 0) return;
+      const w = this.shoreTile(o.x, o.y);
+      if (!w || !this.setPath(g, this.pathToPoint(g, w.x + 0.5, w.y + 0.5))) { if (g.team === 0) this.msg('No beach the galley can reach there.'); this.idleOrder(g); return; }
+      o.s = 1;
+    }
+    if (this.stepMove(g, dt)) g.path = null;
+  }
+  /* a Port pushes a burning raft out at the nearest enemy ship */
+  launchRaft(b) {
+    if (!b || b.kind !== 'port' || !b.done || b.hp <= 0) return 'Not available.';
+    if (b.raftCd > 0) return 'Next fire raft in ' + Math.ceil(b.raftCd) + ' s.';
+    if (!this.canAfford(b.team, UD.raft.cost)) return 'Not enough wood.';
+    this.pay(b.team, UD.raft.cost); b.raftCd = RAFT.cd;
+    const sp = this.findSpawn(b, null, 1), u = this.addUnit('raft', b.team, sp.x, sp.y);
+    u.life = UD.raft.life;
+    let t = null, td = RAFT.r;
+    for (const o of this.units) if (o.hp > 0 && o.layer === 1 && o.team !== b.team && o.team !== 2 && o.kind !== 'raft') { const d = Math.hypot(o.x - b.x, o.y - b.y); if (d < td) { td = d; t = o; } }
+    if (t) this.orderAttack(u, t);
+    else { const dx = sp.x - b.x, dy = sp.y - b.y, l = Math.hypot(dx, dy) || 1; this.orderMove(u, sp.x + dx / l * 5, sp.y + dy / l * 5); }
+    return null;
+  }
   orderTrade(u, post) { u.order = { t: 'trade', post: post.id, s: 'out' }; u.path = null; u.wait = 0; }
   orderBuild(u, b) { u.order = { t: 'build', id: b.id }; u.path = null; u.wait = 0; }
   orderMove(u, x, y) { u.order = { t: 'move', x, y }; u.path = null; u.wait = 0; }
@@ -1175,10 +1255,26 @@ class Game {
   /* group order from the player (or the AI). ids -> units owned by `team` */
   command(ids, wx, wy, target, opts) {
     opts = opts || {};
-    const us = ids.map(id => this.byId.get(id)).filter(u => u && u.isUnit && u.hp > 0 && (u.team === 0 || opts.any));
+    let us = ids.map(id => this.byId.get(id)).filter(u => u && u.isUnit && u.hp > 0 && (u.team === 0 || opts.any));
     if (!us.length) return;
+    // a galley with troops aboard, sent to a beach, lands them
+    const landing = us.filter(u => u.cargo && u.cargo.length);
+    if (landing.length && this.isLand(Math.floor(wx), Math.floor(wy)) && !(target && target.hp > 0 && target.team !== landing[0].team && target.team !== 2)) {
+      for (const g of landing) this.orderLand(g, wx, wy);
+      us = us.filter(u => !landing.includes(u)); if (!us.length) return;
+    }
     if (target && target.hp > 0) {
       const team = us[0].team;
+      // land units tapped onto their own galley go aboard; the galley comes to the nearest beach
+      if (target.isUnit && target.team === team && UD[target.kind].carry && us.some(u => u.layer === 0)) {
+        const land = us.filter(u => u.layer === 0 && u.cls !== 'animal');
+        for (const u of land) this.orderBoard(u, target);
+        if (target.order.t === 'idle' || target.order.t === 'move') {
+          const cx = land.reduce((a, u) => a + u.x, 0) / land.length, cy = land.reduce((a, u) => a + u.y, 0) / land.length;
+          const w = this.shoreTile(cx, cy, target.x, target.y); if (w) this.orderMove(target, w.x + 0.5, w.y + 0.5);
+        }
+        return;
+      }
       if (target.isUnit && target.team !== team) {
         for (const u of us) {
           if (u.cls === 'boat') this.orderMove(u, target.x, target.y);
@@ -1360,7 +1456,7 @@ class Game {
     this.refund(b.team, this.costOf(q.kind, b.team));
     if (idx === 0) b.qt = 0;
   }
-  popOf(team) { let n = 0; for (const u of this.units) if (u.team === team && u.hp > 0) n++; return n; }
+  popOf(team) { let n = 0; for (const u of this.units) if (u.team === team && u.hp > 0 && u.kind !== 'raft') { n++; if (u.cargo) n += u.cargo.length; } return n; }
   popCap(team) { let c = 0; for (const b of this.buildings) if (b.team === team && b.done && b.hp > 0) c += BD[b.kind].pop || 0; return Math.min(MAXPOP, c); }
   dropOffs(team, type, layer) {
     return this.buildings.filter(b => b.team === team && b.done && b.hp > 0 && BD[b.kind].drop && BD[b.kind].drop.includes(type) &&
@@ -1433,7 +1529,7 @@ class Game {
 
   updateBuilding(b, dt) {
     if (b.hp <= 0 || b.team === 2) return;
-    b.hit = Math.max(0, b.hit - dt);
+    b.hit = Math.max(0, b.hit - dt); if (b.raftCd > 0) b.raftCd -= dt;
     const d = BD[b.kind];
     if (!b.done) {
       b.nb = b._bn; b._bn = 0;
@@ -1514,6 +1610,11 @@ class Game {
     u.cd = Math.max(0, u.cd - dt); if (u.cd2) u.cd2 = Math.max(0, u.cd2 - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
     u.wait = Math.max(0, u.wait - dt); u.rp = Math.max(0, u.rp - dt);
     if (u.psn) { u.psn.t -= dt; u.hp -= u.psn.dps * dt; if (u.psn.t <= 0) u.psn = null; if (u.hp <= 0) { this.onKilled(u, { team: u.psnBy, isUnit: false }); return; } }
+    if (u.life != null) {
+      u.life -= dt;
+      if ((this.tickN + u.id) % 12 === 0) this.fx.push({ k: 'flame', x: u.x + (this.rng() - 0.5) * 0.4, y: u.y - 0.3, n: 1, t: 0.6, max: 0.6 });
+      if (u.life <= 0) { u.hp = 0; this.onKilled(u, null); return; }
+    }
     u.anim += dt; u.moving = false; u.working = false; this.wt = u.team;
     const o = u.order;
     switch (o.t) {
@@ -1530,6 +1631,8 @@ class Game {
       case 'flee': this.doFlee(u, dt); break;
       case 'trade': this.doTrade(u, dt); break;
       case 'heal': this.doHeal(u, dt); break;
+      case 'board': this.doBoard(u, dt); break;
+      case 'land': this.doLand(u, dt); break;
     }
     // stuck check: walking but barely moved for a while -> try the other side, then re-path
     if (u.moving) {
@@ -1983,7 +2086,12 @@ class Game {
   onKilled(t, att) {
     if (t.isUnit) {
       if (t.team === 1 && att && att.team === 0) this.stats.kills++;
-      if (t.team === 0) this.stats.lost++;
+      if (t.team === 0 && t.kind !== 'raft') this.stats.lost++;
+      if (t.cargo && t.cargo.length) {
+        if (t.team === 0) { this.stats.lost += t.cargo.length; this.msg(t.cargo.length + ' soldiers went down with the ' + civName(t.kind, 0).split(' (')[0] + '.'); }
+        else if (att && att.team === 0) this.stats.kills += t.cargo.length;
+        t.cargo = [];
+      }
       this.fx.push({ k: 'corpse', x: t.x, y: t.y, face: t.face, kind: t.kind, team: t.team, t: 3, max: 3 });
       if (t.cls === 'animal') {
         const c = this.addNode('carcass', Math.floor(t.x), Math.floor(t.y));
@@ -2001,8 +2109,8 @@ class Game {
 
   cleanup() {
     let dead = false;
-    for (const u of this.units) if (u.hp <= 0) { dead = true; this.byId.delete(u.id); }
-    if (dead) this.units = this.units.filter(u => u.hp > 0);
+    for (const u of this.units) if (u.hp <= 0 || u.aboard) { dead = true; this.byId.delete(u.id); }
+    if (dead) this.units = this.units.filter(u => u.hp > 0 && !u.aboard);
     let bd = false;
     for (const b of this.buildings) if (b.hp <= 0) {
       bd = true; this.byId.delete(b.id);
@@ -2080,6 +2188,7 @@ class Game {
     const myB = (k) => this.buildings.filter(b => b.team === 1 && b.kind === k && b.hp > 0);
     const pop = this.popOf(1), cap = this.popCap(1);
     const barracks = myB('barracks').filter(b => b.done);
+    for (const p of myB('port')) if (p.done && !(p.raftCd > 0) && r.wood >= 120 && this.units.some(o => o.team === 0 && o.hp > 0 && o.layer === 1 && o.kind !== 'raft' && Math.hypot(o.x - p.x, o.y - p.y) < 8)) this.launchRaft(p);
 
     // 1. train villagers
     const vq = tc.queue.length;
@@ -2985,8 +3094,20 @@ const CIVB = (() => {
 const CIVB_KIND = { granary: ['jelapang', 'lumbung'], tower: ['menara', 'kulkul'], palace: ['istana', 'kraton'], tradepost: ['pangkalan', 'bandar'] };
 /* where each ship sprite sits on the water: [hull centre x, waterline y] in sprite pixels (Majapahit fire ship differs) */
 const SHIP_ANCHOR = { trade: [35, 50], fire: [22, 40], light: [30, 40], galley: [37, 48], frigate: [43, 64], flagship: [53, 76] };
-function shipSprite(u) { return u.kind === 'boat' ? boatSprite(u.team) : NAVAL.navalSprite(UD[u.kind].slot, u.team); }
-function shipAnchor(kind) { return kind === 'boat' ? [20, 34] : kind === 'fireship' ? SHIP_ANCHOR.fire : SHIP_ANCHOR[UD[kind].slot]; }
+function shipSprite(u) { return u.kind === 'boat' ? boatSprite(u.team) : u.kind === 'raft' ? raftSprite(u.team) : NAVAL.navalSprite(UD[u.kind].slot, u.team); }
+/* rakit api: a bamboo raft heaped with dry fronds and husks, already alight */
+function raftSprite(team) {
+  const T = TEAMC[team] || TEAMC[0];
+  return sprite('raft|' + team, 18, 14, 2, (P) => {
+    const r = P.r;
+    for (let i = 0; i < 3; i++) { r(1, 9 + i * 1, 16, 1, i % 2 ? '#a08040' : '#c9a85a'); }
+    r(1, 12, 16, 1, '#7a6030'); r(4, 9, 1, 4, '#5e3b1c'); r(13, 9, 1, 4, '#5e3b1c');
+    r(4, 7, 10, 2, '#7a5a2a'); r(5, 6, 8, 1, '#5e3b1c'); r(6, 5, 2, 1, '#8a6a32'); r(10, 5, 2, 1, '#8a6a32');
+    r(6, 2, 2, 4, '#e8522f'); r(9, 1, 2, 5, '#f2a23a'); r(11, 3, 2, 3, '#e8522f'); r(9, 3, 1, 2, '#ffe27a'); r(7, 4, 1, 1, '#ffe27a');
+    r(15, 4, 1, 5, WOOD_D); r(16, 4, 2, 2, T.main);
+  });
+}
+function shipAnchor(kind) { return kind === 'boat' ? [20, 34] : kind === 'raft' ? [18, 22] : kind === 'fireship' ? SHIP_ANCHOR.fire : SHIP_ANCHOR[UD[kind].slot]; }
 
 /* ------------------------------ buildings ------------------------------ */
 /* one wall tile. mask: 1 N, 2 E, 4 S, 8 W neighbours of the same side; open: a gate with friends close by.
@@ -3362,6 +3483,10 @@ function paintUnit(u) {
     if (selected) { ctx.strokeStyle = TEAMC[u.team].ring; ctx.lineWidth = 2; ell(px, py + 3, rx + 2, 7); ctx.stroke(); }
     ctx.save(); ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -an[0], -an[1]); ctx.restore();
     if (u.hit > 0) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(px, py + bob); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(whiteOf(spr), -an[0], -an[1]); ctx.restore(); }
+    if (u.cargo && u.cargo.length) {
+      const n = u.cargo.length, x0 = px - n * 4;
+      for (let i = 0; i < n; i++) { ctx.fillStyle = '#17110c'; ctx.fillRect(x0 + i * 8, py - an[1] - 6, 7, 8); ctx.fillStyle = SKIN; ctx.fillRect(x0 + i * 8 + 1, py - an[1] - 3, 5, 4); ctx.fillStyle = TEAMC[u.team].main; ctx.fillRect(x0 + i * 8 + 1, py - an[1] - 5, 5, 2); }
+    }
     if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px - 4, py - an[1] - 8, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px - 3, py - an[1] - 7, 6, 6); }
     if (selected || u.hp < u.maxHp || settings.bars === 'always') { const hw = Math.max(20, rx * 1.2); hpBar(px - hw / 2, py - an[1] - 12, hw, u.hp / u.maxHp); }
     return;
@@ -3695,8 +3820,8 @@ function drawMini() {
 }
 
 /* ---------------- selection and orders ---------------- */
-function selUnits() { return sel.filter(o => o.isUnit && o.team === 0 && o.hp > 0); }
-function select(list) { sel = list.filter(Boolean); panelKey = ''; }
+function selUnits() { return sel.filter(o => o.isUnit && o.team === 0 && o.hp > 0 && !o.aboard); }
+function select(list) { sel = list.filter(o => o && !(o.isUnit && UD[o.kind].nosel)); panelKey = ''; }
 function addMarker(x, y, kind, o) { const t = o ? 1.3 : 0.7; markers.push({ x, y, kind, t, max: t, o }); }
 function issue(wx, wy, hit) {
   const us = selUnits(); if (!us.length) return false;
@@ -3819,7 +3944,7 @@ function handleTap(wx, wy, o) {
   }
   const us = selUnits(), single = sel.length === 1 ? sel[0] : null;
   if (us.length && !(single && single.isBld)) {
-    if (hit && hit.isUnit && hit.team === 0) { select([hit]); return; }
+    if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].carry && us.some(u => u.layer === 0))) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
     const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
     if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || hit.kind === 'farm'))) { select([hit]); return; }
@@ -3860,7 +3985,7 @@ function selectArmy() {
 }
 /* every warship (fishing boats and trade ships keep working) */
 function selectNavy() {
-  const l = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls === 'ship' && !UD[u.kind].trader);
+  const l = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls === 'ship' && !UD[u.kind].trader && !UD[u.kind].nosel);
   if (!l.length) { toast('You have no warships yet. Build them at the Port.'); return; }
   select(l);
 }
@@ -4001,6 +4126,8 @@ function describeOrder(u) {
     case 'amove': return 'Attack-moving';
     case 'attack': return o.hunt ? 'Hunting' : 'Fighting';
     case 'build': return 'Building';
+    case 'board': return 'Boarding';
+    case 'land': return 'Landing troops';
     case 'wander': return 'Grazing';
     case 'gather': {
       const n = G.byId.get(o.id);
@@ -4044,7 +4171,7 @@ function buildPanel() {
         '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
       pdyn.push(() => {
         const u = first; $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = describeOrder(u) + '  ' + Math.ceil(u.hp) + '/' + u.maxHp;
-        $('p-l1').textContent = u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : UD[u.kind].trader ? 'Tap your Trade Post to start a trade route.' : u.cls === 'healer' ? 'Heals hurt allies nearby once they are out of the fight.' : 'Tap an enemy to attack.');
+        $('p-l1').textContent = UD[u.kind].carry ? ((u.cargo && u.cargo.length) ? u.cargo.length + '/' + UD[u.kind].carry + ' aboard. Tap a beach to land them.' : 'Select soldiers, then tap this ship to take up to ' + UD[u.kind].carry + ' aboard.') : u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : UD[u.kind].trader ? 'Tap your Trade Post to start a trade route.' : u.cls === 'healer' ? 'Heals hurt allies nearby once they are out of the fight.' : 'Tap an enemy to attack.');
       });
     } else {
       info = '<div class="p-head"><div class="chips">' + names.map(k => '<button class="chip" data-a="selkind" data-k="' + k + '" title="Select only this type"><img alt="" src="' + unitIcon(k, 0) + '"><b>' + kinds[k] + '</b></button>').join('') + '</div>' +
@@ -4060,6 +4187,7 @@ function buildPanel() {
       cmds += '<button class="cmd" data-a="fmt" title="Formation (F)"><img alt="" src="' + resIcon('form') + '"><span class="nm" id="p-fmt">' + formation + '</span><span class="ct">&nbsp;</span></button>';
       cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
+    if (us.some(u => UD[u.kind].carry)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
     cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
     cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isBld) {
@@ -4073,6 +4201,7 @@ function buildPanel() {
     if (own && b.done && d.train) {
       for (const k of G.trainable(b.kind, 0)) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), TRAIN_SHORT[k], c, G.unitName({ kind: k, team: 0 }) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
       extra = '<div class="queue" id="p-q">' + b.queue.map((q, i) => '<button class="qi" data-a="cancel" data-i="' + i + '" title="Cancel"><img alt="" src="' + unitIcon(q.kind, 0) + '"><i id="p-qb' + i + '"></i></button>').join('') + '</div>';
+      if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), 'Fire Raft', UD.raft.cost, 'Rakit Api: push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
     if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
@@ -4114,6 +4243,8 @@ $('panel').addEventListener('click', (e) => {
   const el = e.target.closest('[data-a]'); if (!el || !started || paused) return;
   const a = el.dataset.a, k = el.dataset.k;
   if (a === 'build') startPlace(k);
+  else if (a === 'raft') { const b = sel[0]; const err = b && b.isBld ? G.launchRaft(b) : 'Not available.'; if (err) toast(err); }
+  else if (a === 'unload') { for (const g of selUnits()) if (g.cargo && g.cargo.length) G.orderLand(g, g.x, g.y); }
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
   else if (a === 'cancel') { const b = sel[0]; if (b && b.isBld) G.cancelQueue(b, +el.dataset.i); panelKey = ''; }
   else if (a === 'fmt') cycleFormation();
@@ -4240,9 +4371,10 @@ const ENCY_UNITS = {
   trade: 'Jong Dagang. Sails between your port and a trading post for gold; the longer the route, the more gold.',
   fireship: 'Perahu Api. Sails into enemy ships and bursts into flame. Kills frigates; sloops shoot it down first.',
   light: 'Fast raider. Arrows, then fire arrows and swivel guns. Hunts fire ships and trade ships.',
-  galley: 'Packed with fighters who board enemy ships. Beats sloops; frigates shoot it before it closes.',
+  galley: 'Packed with fighters who board enemy ships. Beats sloops; frigates shoot it before it closes. Carries 5 soldiers to land on a beach.',
   frigate: 'Cannon ship and harbour breaker. Ignores building armour. Beats galleys, fears fire ships.',
-  flagship: 'One only. Cannon and archers; Melaka\u2019s Mendam Berahi lifts nearby ships.'
+  flagship: 'One only. Cannon and archers; Melaka\u2019s Mendam Berahi lifts nearby ships.',
+  raft: 'Rakit Api. Pushed out from a Port at the nearest enemy ship; it can\u2019t be steered and burns out after half a minute.'
 };
 const ENCY_BLDS = {
   towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
