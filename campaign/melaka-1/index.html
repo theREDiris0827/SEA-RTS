@@ -6536,7 +6536,9 @@ window.MSAVE_CFG = { opts: (g) => g.map === 'bertam' ? { carry: { units: [], boa
     cur = i;
     diff = r.diff; seedUsed = r.seed;
     if (CFG.before) CFG.before(ex, g);
-    loadMap(g);
+    // older pages have loadMap; pages built from the newer game set the view up inline (as its enterGame does)
+    if (typeof loadMap === 'function') loadMap(g);
+    else { G = g; terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog(); sel = []; mode = null; markers = []; boxRect = null; panelKey = ''; ended = false; acc = 0; seenMsgs = new WeakSet(); idleIdx = 0; }
     storyOpen = null; try { objStarted = false; } catch (e) { /* not on this page */ }
     started = true; paused = false; ended = false; $('hud').hidden = false; showOv(null);
     view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
