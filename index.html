@@ -140,6 +140,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 .p-name .en { text-transform: none; color: var(--muted); font-weight: 600; letter-spacing: 0; }
 .cmd .ct { font-family: var(--font-num); font-weight: 700; font-size: 13px; display: flex; gap: 4px; line-height: 1.05; min-height: 13px; }
 .cmd.no { opacity: .5; }
+.cmd.demo .nm { color: #ff8a7a; }
 .cmd.on, .cmd.ok { background: var(--jade-deep); box-shadow: inset 0 0 0 1px var(--jade), 0 3px 0 rgba(0, 0, 0, .45); }
 .cmd.ok.no { background: var(--panel-2); }
 .queue { display: flex; gap: 5px; flex-wrap: wrap; min-height: 0; }
@@ -756,8 +757,8 @@ const BARM = { ma: 2, pa: 6 };
 const WALL_MAX = 24;
 const RAFT = { cd: 45, r: 12 };   // Port fire raft: cooldown in seconds, how far it looks for ships   // longest wall line laid in one go, in tiles
 const NK = {
-  tree: { type: 'wood', amt: 100, rate: 1.2 }, berry: { type: 'food', amt: 120, rate: 1.3 },
-  gold: { type: 'gold', amt: 500, rate: 1.0 }, fish: { type: 'food', amt: 260, rate: 1.4 },
+  tree: { type: 'wood', amt: 200, rate: 1.2 }, berry: { type: 'food', amt: 250, rate: 1.3 },
+  gold: { type: 'gold', amt: 1000, rate: 1.0 }, fish: { type: 'food', amt: 400, rate: 1.4 },
   carcass: { type: 'food', amt: 120, rate: 1.8 }
 };
 const FARM_RATE = 0.9;
@@ -1626,6 +1627,12 @@ class Game {
         if (movers.length) this.groupMove(movers, target.x, target.y, opts);
         return;
       }
+      if (target.isBld && target.team === team && target.done && target.hp < target.maxHp && !FIELD[target.kind] && us.some(u => u.cls === 'vil')) {
+        const movers = [];
+        for (const u of us) { if (u.cls === 'vil') { u.order = { t: 'repair', id: target.id }; u.path = null; u.wait = 0; } else movers.push(u); }
+        if (movers.length) this.groupMove(movers, target.x, target.y, opts);
+        return;
+      }
       if (target.isBld && target.team === team && !target.done) {
         const movers = [];
         for (const u of us) { if (u.cls === 'vil') this.orderBuild(u, target); else movers.push(u); }
@@ -2002,6 +2009,7 @@ class Game {
       case 'board': this.doBoard(u, dt); break;
       case 'land': this.doLand(u, dt); break;
       case 'fishhouse': this.doFishHouse(u, dt); break;
+      case 'repair': this.doRepair(u, dt); break;
     }
     // stuck check: walking but barely moved for a while -> try the other side, then re-path
     if (u.moving) {
@@ -2381,6 +2389,36 @@ class Game {
     o.wx = qx + dx / l * 0.22; o.wy = qy + dy / l * 0.22;
   }
 
+  /* repair: a full fix takes 1.5x the build time for one villager (more help, faster) and costs half the
+     building's price in wood (at least 25), paid as the work goes */
+  doRepair(u, dt) {
+    const b = this.byId.get(u.order.id);
+    if (!b || b.hp <= 0 || !b.done || b.hp >= b.maxHp) { this.idleOrder(u); return; }
+    if (rectDist(u.x, u.y, b.rect) <= 0.95) {
+      u.path = null;
+      const c = BD[b.kind].cost || {}, perHp = Math.max(b.kind === 'towncentre' ? 300 : 40, (c.wood || 0) + (c.gold || 0)) * 0.5 / b.maxHp, r = this.res[u.team];
+      if (r.wood < 1) { u.working = false; if (u.team === 0 && !(u.noWood > 0)) { this.msg('Not enough wood to repair.'); u.noWood = 5; } u.noWood -= dt; return; }
+      u.working = true; const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
+      b._bn++;
+      const f = Math.pow(Math.max(1, b.nb), -0.3), hp = Math.min(b.maxHp - b.hp, b.maxHp * dt / (Math.max(b.kind === 'towncentre' ? 60 : 20, BD[b.kind].time || 0) * 1.5) * f);
+      b.hp += hp; b.rpw = (b.rpw || 0) + hp * perHp;
+      if (b.rpw >= 1) { const w = Math.floor(b.rpw); r.wood = Math.max(0, r.wood - w); b.rpw -= w; }
+      return;
+    }
+    u.working = false;
+    if (!u.path) { if (u.wait > 0) return; if (!this.setPath(u, this.pathToRect(u, b.rect, 0.85))) { u.wait = 0.8; return; } }
+    if (this.stepMove(u, dt)) u.path = null;
+  }
+  /* knock down your own building: nothing comes back. The Town Centre can't be (losing it loses the game) */
+  canDemolish(b) { return b && b.isBld && b.hp > 0 && b.team === 0 && b.kind !== 'towncentre'; }
+  demolish(b) {
+    if (!this.canDemolish(b)) return false;
+    for (let i = 0; i < 14; i++) this.fx.push({ k: 'smoke', x: b.x + (this.rng() - 0.5) * b.size, y: b.y + (this.rng() - 0.5) * b.size, vy: -0.6 - this.rng() * 0.8, t: 1.4 + this.rng(), max: 2.4 });
+    this.fx.push({ k: 'rubble', x: b.x, y: b.y, size: b.size, t: 8, max: 8 });
+    if (BD[b.kind].site) for (const v of this.villages) if (v.post === b.id) v.post = 0;
+    b.hp = 0; this.msg(civName(b.kind, 0) + ' demolished.');
+    return true;
+  }
   doBuild(u, dt) {
     const o = u.order, b = this.byId.get(o.id);
     if (!b || b.hp <= 0 || b.done) { this.idleOrder(u); return; }
@@ -4791,7 +4829,7 @@ function isSel(o) { return sel.indexOf(o) >= 0; }
 
 function toolFor(u) {
   const o = u.order;
-  if (o.t === 'build') return 'hammer';
+  if (o.t === 'build' || o.t === 'repair') return 'hammer';
   if (o.t === 'gather') { const n = G.byId.get(o.id); if (!n) return 'hand'; return n.kind === 'tree' ? 'axe' : n.kind === 'gold' ? 'pick' : FIELD[n.kind] ? 'hoe' : 'hand'; }
   return 'hand';
 }
@@ -5493,6 +5531,7 @@ function describeOrder(u) {
     case 'amove': return 'Attack-moving';
     case 'attack': return o.hunt ? 'Hunting' : 'Fighting';
     case 'build': return 'Building';
+    case 'repair': return 'Repairing';
     case 'board': return 'Boarding';
     case 'land': return 'Landing troops';
     case 'fishhouse': return 'Fishing from the deck';
@@ -5577,6 +5616,7 @@ function buildPanel() {
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
     if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
+    if (own && G.canDemolish(b)) cmds += '<button class="cmd demo" data-a="demolish" title="Demolish: tap twice. Nothing comes back."><img alt="" src="' + resIcon('x') + '"><span class="nm" id="p-demo">Demolish</span><span class="ct">&nbsp;</span></button>';
     if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isNode) {
     const n = single;
@@ -5616,6 +5656,11 @@ $('panel').addEventListener('click', (e) => {
   const el = e.target.closest('[data-a]'); if (!el || !started || paused) return;
   const a = el.dataset.a, k = el.dataset.k;
   if (a === 'build') startPlace(k);
+  else if (a === 'demolish') {
+    const b = sel[0]; if (!b || !b.isBld || b.team !== 0) return;
+    if (b._demoT && performance.now() - b._demoT < 3000) { b._demoT = 0; if (G.demolish(b)) { select([]); panelKey = ''; } }
+    else { b._demoT = performance.now(); const e = $('p-demo'); if (e) e.textContent = 'Tap again'; setTimeout(() => { const e2 = $('p-demo'); if (e2 && sel[0] === b) e2.textContent = 'Demolish'; }, 3000); }
+  }
   else if (a === 'gatelock') { const b = sel[0]; if (b && b.isBld && b.team === 0) { G.setGateLock(b, !b.locked); toast(b.locked ? 'Gate closed. No one passes.' : 'Gate open. Your people can pass, enemies cannot.'); } panelKey = ''; }
   else if (a === 'raft') { const b = sel[0]; const err = b && b.isBld ? G.launchRaft(b) : 'Not available.'; if (err) toast(err); }
   else if (a === 'unload') { for (const g of selUnits()) if (g.cargo && g.cargo.length) G.orderLand(g, g.x, g.y); }
@@ -5764,7 +5809,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.26 \u00b7 25 Oct 2026';
+const BUILD = '0.9.27 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
