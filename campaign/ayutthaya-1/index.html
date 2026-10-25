@@ -401,6 +401,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 #obj .obj-i.ok { color: var(--jade); } #obj .obj-i.ok span { color: var(--jade); }
 #obj .obj-i.opt { color: var(--muted); }
 #obj .obj-i.tip { color: var(--muted); font-size: 13px; }
+#obj .obj-how { color: #e8d48a; font-size: 12px; line-height: 1.25; margin-top: 1px; }
 #vignette { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); width: min(80%, 260px); display: flex; flex-direction: column; gap: 6px; padding: 6px; background: rgba(8, 17, 13, .94); border: 2px solid var(--edge); color: var(--text); font-size: 13px; line-height: 1.35; text-align: center; pointer-events: none; animation: tin .25s ease-out; z-index: 2; }
 #vignette canvas { width: 100%; height: auto; image-rendering: pixelated; border: 2px solid var(--edge-dark); }
 #st-art canvas { display: block; }
@@ -7862,28 +7863,31 @@ function objList() {
   const M = G.M; if (!M) return null;
   const pct = (u) => u && u.hp > 0 ? Math.ceil(u.hp / u.maxHp * 100) + '%' : 'fallen';
   const items = [], hero = heroUnit(G);
-  items.push({ t: 'Ferry the families to the island' + (M.phase === 1 ? ' (' + M.landed + ' of ' + M.need + ')' : ''), ok: M.phase > 1 });
+  items.push({ t: 'Ferry the families to the island' + (M.phase === 1 ? ' (' + M.landed + ' of ' + M.need + ')' : ''), ok: M.phase > 1,
+    how: 'Select a barge and tap Load to take people aboard, then tap the island shore (gold arrow) to land them.' });
   if (M.phase >= 2) {
     const tc = G.byId.get(M.tc);
-    items.push({ t: 'Build the Sala Klang' + (tc && !tc.done ? ' (' + Math.floor(tc.progress * 100) + '%)' : ''), ok: !!(tc && tc.done) });
-    items.push({ t: 'A fishing household (raft house)', ok: M.hhFish });
-    items.push({ t: 'A paddy household (house by a worked field)', ok: M.hhPaddy });
+    items.push({ t: 'Build the Sala Klang' + (tc && !tc.done ? ' (' + Math.floor(tc.progress * 100) + '%)' : ''), ok: !!(tc && tc.done), how: 'Select villagers on the island and tap the building site to help build it.' });
+    items.push({ t: 'A fishing household (raft house)', ok: M.hhFish, how: 'Build a Ruean (House) touching the water: it becomes a raft house. Then tap it with a villager to fish.' });
+    items.push({ t: 'A paddy household (house by a worked field)', ok: M.hhPaddy, how: 'Build a Na (Field) right next to a house, then put a villager to work in it.' });
   }
   if (M.phase >= 3) {
     for (const id in M.towns) {
       const T0 = M.towns[id], st = T0.st === 'joined' ? (T0.how === 'force' ? 'taken' : 'joined') : T0.st === 'trade' ? T0.n + ' of 3 gift boats' : T0.st === 'wed' ? 'procession on the road' : T0.st === 'force' ? 'break the hall' : 'select its hall';
-      items.push({ t: 'Win over ' + TOWNS[id].name + ' (' + st + ')', ok: T0.st === 'joined' });
+      const how = T0.st === 'trade' ? 'Send more gift boats from the hall, and guard them from bandit boats on the river.' : T0.st === 'wed' ? 'Guard the bride on the road with soldiers until she reaches Suphanburi.' : T0.st === 'force' ? 'Send soldiers to break the town hall.'
+        : 'Tap the town hall (gold arrow), then choose ' + (id === 'lavo' ? 'Gift boat (3 boats, 100 gold each)' : 'Wedding (100 food, 60 gold)') + ' or By force.';
+      items.push({ t: 'Win over ' + TOWNS[id].name + ' (' + st + ')', ok: T0.st === 'joined', how });
     }
     if (M.rainOn) items.push({ t: 'The rains: ' + fmtTime(M.rainEnd - M.t) + ' left', tip: true });
     else if (!M.rainDone && M.rainAt) items.push({ t: 'The rains come in ' + fmtTime(Math.max(0, M.rainAt - M.t)), tip: true });
   }
   if (M.phase >= 5) {
-    items.push({ t: 'Reach the Kingdom Age (Mueang)' + (M.aging ? ': ' + Math.floor((1 - M.aging.left / M.aging.tot) * 100) + '%' : ''), ok: G.age[0] >= 2 });
-    items.push({ t: 'Build the Wang', ok: !!M.palace });
-    items.push({ t: 'Crown U Thong at the Wang (' + Math.floor(M.crown) + ' of ' + CROWN + ' s)', ok: M.crown >= CROWN });
+    items.push({ t: 'Reach the Kingdom Age (Mueang)' + (M.aging ? ': ' + Math.floor((1 - M.aging.left / M.aging.tot) * 100) + '%' : ''), ok: G.age[0] >= 2, how: 'Select the Sala Klang and tap Age. It needs ' + AGES[2].need.text + '.' });
+    items.push({ t: 'Build the Wang', ok: !!M.palace, how: 'Select villagers and build the Wang (Palace) from their build buttons.' });
+    items.push({ t: 'Crown U Thong at the Wang (' + Math.floor(M.crown) + ' of ' + CROWN + ' s)', ok: M.crown >= CROWN, how: 'Move U Thong next to the Wang and keep him there. Hold off the raiders until the time fills.' });
     if (M.finalOn && M.cmdr && M.cmdr.hp > 0) items.push({ t: 'The rival lord: ' + pct(M.cmdr), opt: true });
   }
-  if (M.camp && M.phase >= 3) items.push({ t: 'Optional: burn the rival lord\'s stockade (south-east hills)', ok: !!M.campDown, opt: !M.campDown });
+  if (M.camp && M.phase >= 3) items.push({ t: 'Optional: burn the rival lord\'s stockade (south-east hills)', ok: !!M.campDown, opt: !M.campDown, how: 'Send an army to the south-east hills and burn the stockade. His raids get smaller after that.' });
   items.push({ t: 'Keep U Thong alive (' + pct(hero) + ')', ok: false });
   return { title: 'The Island City · ' + AGES[G.age[0]].local, items };
 }
@@ -7895,7 +7899,7 @@ function updateObj() {
   $('obj-tog').textContent = objOpen ? '▴' : '▾';
   if (!L || !objOpen) { if (!box.hidden) box.hidden = true; objKey = ''; return; }
   const html = '<div class="obj-h">' + L.title + '</div>' + L.items.map(i =>
-    '<div class="obj-i' + (i.ok ? ' ok' : '') + (i.opt ? ' opt' : '') + (i.tip ? ' tip' : '') + '"><span>' + (i.tip ? '·' : i.ok ? '✓' : '○') + '</span>' + i.t + '</div>').join('');
+    '<div class="obj-i' + (i.ok ? ' ok' : '') + (i.opt ? ' opt' : '') + (i.tip ? ' tip' : '') + '"><span>' + (i.tip ? '·' : i.ok ? '✓' : '○') + '</span><div>' + i.t + (i.how && !i.ok ? '<div class="obj-how">' + i.how + '</div>' : '') + '</div></div>').join('');
   if (html !== objKey) { objKey = html; box.innerHTML = html; }
   box.hidden = false;
 }

@@ -242,6 +242,7 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
 #obj .obj-i.ok { color: var(--jade); } #obj .obj-i.ok span { color: var(--jade); }
 #obj .obj-i.opt { color: var(--muted); }
 #obj .obj-i.tip { color: var(--muted); font-size: 13px; }
+#obj .obj-how { color: #e8d48a; font-size: 12px; line-height: 1.25; margin-top: 1px; }
 #vignette { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); width: min(80%, 260px); display: flex; flex-direction: column; gap: 6px; padding: 6px; background: rgba(8, 17, 13, .94); border: 2px solid var(--edge); color: var(--text); font-size: 13px; line-height: 1.35; text-align: center; pointer-events: none; animation: tin .25s ease-out; z-index: 2; }
 #vignette canvas { width: 100%; height: auto; image-rendering: pixelated; border: 2px solid var(--edge-dark); }
 #st-art canvas { display: block; }
@@ -6250,26 +6251,26 @@ function objList() {
   if (M.phase === 1) {
     const pal = G.buildings.find(b => b.kind === 'palace' && b.team === 0);
     return { title: 'Defend Singapura', items: [
-      { t: 'Hold the walls until dawn (' + fmtTime(Math.max(0, MS.dawn - M.t)) + ')', ok: false },
-      { t: 'Keep Bukit Larangan standing (' + pct(pal) + ')', ok: false },
-      { t: 'Keep Parameswara alive', ok: false },
-      { t: 'Villagers repair walls. The Barracks trains soldiers.', tip: true }] };
+      { t: 'Hold the walls until dawn (' + fmtTime(Math.max(0, MS.dawn - M.t)) + ')', ok: false, how: 'Select villagers and tap a damaged wall to repair it. Train soldiers at the Barracks and send them where the enemy climbs.' },
+      { t: 'Keep Bukit Larangan standing (' + pct(pal) + ')', ok: false, how: 'Keep a few soldiers by the palace to catch anyone who gets through the walls.' },
+      { t: 'Keep Parameswara alive', ok: false, how: 'Keep him back from the fighting, behind the walls.' }] };
   }
   if (M.phase === 2) {
     const st = G.royalState(), tm = M.temenggung;
     return { title: 'Escape by sea', items: [
-      { t: 'Get Parameswara aboard an Orang Laut boat', ok: st !== 'land' },
-      { t: 'Sail his boat west to the gold line', ok: st === 'out' },
-      { t: 'Optional: save more people (' + M.saved.length + ' safe, ' + G.units.filter(u => u.kind === 'olboat' && u.team === 0).reduce((a, b) => a + (b.cargo ? b.cargo.length : 0), 0) + ' aboard)', ok: false, opt: true },
+      { t: 'Get Parameswara aboard an Orang Laut boat', ok: st !== 'land', how: 'Select Parameswara, then tap an Orang Laut boat at the harbour.' },
+      { t: 'Sail his boat west to the gold line', ok: st === 'out', how: 'Select his boat and tap the water past the gold line in the west. Hug the shore to stay out of the warships\' reach.' },
+      { t: 'Optional: save more people (' + M.saved.length + ' safe, ' + G.units.filter(u => u.kind === 'olboat' && u.team === 0).reduce((a, b) => a + (b.cargo ? b.cargo.length : 0), 0) + ' aboard)', ok: false, opt: true, how: 'Select people, tap an empty boat to take them aboard, then sail it west too.' },
       { t: 'Optional: the Temenggung holds the gate (' + (M.tempDead == null ? pct(tm) : 'fallen') + ')', ok: false, opt: true }] };
   }
   const d = M.done, items = [
-    { t: 'Build a Town Centre near the flag', ok: !!d.tc },
-    { t: 'Build two Houses (' + Math.min(2, d.houses || 0) + '/2)', ok: (d.houses || 0) >= 2 },
-    { t: 'Build a Port and a fishing boat', ok: !!d.boat },
-    { t: M.raid && M.raid.ids ? 'Drive off the raiders' + (d.raid ? '' : ' (' + M.raid.left + ' left)') : 'Defend the new town', ok: !!d.raid },
-    { t: M.proclaim && !d.proclaim ? 'Proclaiming Melaka (' + Math.ceil(M.proclaim.left) + 's)' : 'Proclaim Melaka at the Town Centre (400 food, wood, gold)', ok: !!d.proclaim },
-    { t: 'Keep Parameswara alive', ok: false }];
+    { t: 'Build a Town Centre near the flag', ok: !!d.tc, how: 'Select villagers and build a Balai (Town Centre) next to the gold flag.' },
+    { t: 'Build two Houses (' + Math.min(2, d.houses || 0) + '/2)', ok: (d.houses || 0) >= 2, how: 'Select villagers and build two Rumah (House).' },
+    { t: 'Build a Port and a fishing boat', ok: !!d.boat, how: 'Build a Pelabuhan (Port) on the shore, then select it and train a Sampan (fishing boat).' },
+    { t: M.raid && M.raid.ids ? 'Drive off the raiders' + (d.raid ? '' : ' (' + M.raid.left + ' left)') : 'Defend the new town', ok: !!d.raid, how: 'Gather your soldiers and send them at the raiders where they land.' },
+    { t: M.proclaim && !d.proclaim ? 'Proclaiming Melaka (' + Math.ceil(M.proclaim.left) + 's)' : 'Proclaim Melaka at the Town Centre (400 food, wood, gold)', ok: !!d.proclaim,
+      how: M.proclaim ? 'Guard the Balai until the count ends.' : 'Gather 400 food, wood and gold, then select the Balai and tap Proclaim.' },
+    { t: 'Keep Parameswara alive', ok: false, how: 'Keep him away from the raiders.' }];
   return { title: 'Found Melaka', items };
 }
 function updateObj() {
@@ -6281,7 +6282,7 @@ function updateObj() {
   $('obj-tog').textContent = objOpen ? '▴' : '▾';
   if (!L || !objOpen) { if (!box.hidden) box.hidden = true; objKey = ''; return; }
   const html = '<div class="obj-h">' + L.title + '</div>' + L.items.map(i =>
-    '<div class="obj-i' + (i.ok ? ' ok' : '') + (i.opt ? ' opt' : '') + (i.tip ? ' tip' : '') + '"><span>' + (i.tip ? '·' : i.ok ? '✓' : '○') + '</span>' + i.t + '</div>').join('');
+    '<div class="obj-i' + (i.ok ? ' ok' : '') + (i.opt ? ' opt' : '') + (i.tip ? ' tip' : '') + '"><span>' + (i.tip ? '·' : i.ok ? '✓' : '○') + '</span><div>' + i.t + (i.how && !i.ok ? '<div class="obj-how">' + i.how + '</div>' : '') + '</div></div>').join('');
   if (html !== objKey) { objKey = html; box.innerHTML = html; }
   box.hidden = false;
 }
