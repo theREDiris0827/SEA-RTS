@@ -3846,8 +3846,6 @@ function ayBuilding(kind) {
       r(23, 41, 4, 4, '#7a4a24'); r(23, 41, 4, 1, '#a0693a'); r(1, 43, 3, 2, '#c9a05a');                       // water jar, rice basket
     } else if (kind === 'raft') {
       // Ruean Phae: the same house on a bamboo raft, moored on the river
-      r(0, 33, 32, 7, AY.WATER); r(0, 37, 32, 3, AY.WATER_D);
-      for (const [x, y] of [[2, 35], [12, 38], [22, 36], [28, 38]]) r(x, y, 4, 1, AY.WATER_L);
       for (let i = 0; i < 6; i++) { r(1 + i * 5, 30, 5, 3, AY.BAMB); r(1 + i * 5, 32, 5, 1, AY.BAMB_D); r(1 + i * 5, 30, 1, 3, AY.BAMB_D); }   // bamboo floats
       r(1, 28, 30, 2, '#8f6232'); r(1, 28, 30, 1, AY.TEAK_L);
       ayHouse(P, 1, 6, true);
@@ -4687,6 +4685,7 @@ function toolFor(u) {
   return 'hand';
 }
 function paintUnit(u) {
+  if (u.order.t === 'fishhouse' && u.working && !u.moving && G.byId.get(u.order.id)) return;   // drawn on her raft house's deck
   const px = u.x * TILE, py = u.y * TILE;
   const selected = isSel(u);
   if (u.layer === 1) {
@@ -4762,7 +4761,43 @@ function wallMask(b) {
   if (BD[b.kind].gate && b.done && !b.locked && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
   return m;
 }
+function raftSide(b) {
+  if (b.wd) return b.wd;
+  let sx = 0, sy = 0;
+  for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) if (G.isWater(x, y)) { sx += x + 0.5 - b.x; sy += y + 0.5 - b.y; }
+  const l = Math.hypot(sx, sy) || 1; return (b.wd = { x: sx / l, y: sy / l });
+}
+function paintRaftHouse(b) {
+  const d = raftSide(b), spr = buildingSprite(b.kind, b.team, 2), w = b.size * TILE;
+  const cx = b.x * TILE + d.x * 12, by = b.ty * TILE + w + Math.max(0, d.y) * 12;
+  // ripples where the floats meet the water
+  ctx.strokeStyle = 'rgba(235,248,255,0.45)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 2; i++) { const p = ((nowS * 0.5 + i * 0.5) % 1); ctx.globalAlpha = 1 - p; ell(cx, by - 6, 30 + p * 8, 6 + p * 3); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  shadow(cx, by - 6, 30, 6, 0.22);
+  ctx.save(); ctx.translate(cx, by - spr.height + 2 + Math.sin(nowS * 1.6 + b.id) * 0.8);
+  if (d.x < -0.2) ctx.scale(-1, 1);
+  ctx.drawImage(spr, -spr.width / 2, 0);
+  if (b.hit > 0) { ctx.globalAlpha = 0.4; ctx.drawImage(whiteOf(spr), -spr.width / 2, 0); }
+  ctx.restore();
+  const fu = G.units.find(u => u.hp > 0 && u.order.t === 'fishhouse' && u.order.id === b.id && u.working && !u.moving);
+  if (fu) paintFisher(fu, cx, by - spr.height + 2, d.x < -0.2 ? -1 : 1);
+  if (isSel(b)) { const px = b.tx * TILE, py = b.ty * TILE; ctx.strokeStyle = TEAMC[CV(b.team)].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, py - 1, w + 2, w + 2); ctx.setLineDash([]); }
+}
+function paintFisher(u, x0, y0, f) {
+  // she sits at the end of the veranda deck, rod out over the water
+  const t = nowS + u.id, px = x0 + f * 17, py = y0 + 55;
+  const spr = unitSprite(u.kind, u.team, 'idle', 0, '');
+  ctx.save(); ctx.translate(px, py); if (f < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -(spr.width >> 1), 5 - spr.height); ctx.restore();
+  const sway = Math.sin(t * 1.3) * 1.5, tipX = px + f * 18, tipY = py - 22 + sway, fx = px + f * 26, fy = py + 14 + Math.sin(t * 2.4) * 1.2;
+  ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px + f * 3, py - 9); ctx.lineTo(tipX, tipY); ctx.stroke();
+  ctx.strokeStyle = 'rgba(240,240,230,0.75)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.lineTo(fx, fy); ctx.stroke();
+  ctx.fillStyle = '#e8463a'; ctx.fillRect(fx - 1.5, fy - 2, 3, 3);
+  const p = (t * 0.7) % 1; ctx.strokeStyle = 'rgba(235,248,255,' + (0.6 * (1 - p)).toFixed(2) + ')'; ctx.lineWidth = 1; ell(fx, fy + 1, 3 + p * 6, 1.5 + p * 2.5); ctx.stroke();
+  const c = (u.gt || 0) / 10; if (c > 0.8) { const q = (c - 0.8) / 0.2; ctx.fillStyle = '#d8e4ea'; ctx.fillRect(fx - 3, fy - 4 - q * 12, 6, 3); ctx.fillStyle = '#8fa4b0'; ctx.fillRect(fx + 2, fy - 4 - q * 12, 2, 3); }
+}
 function paintBuilding(b) {
+  if (b.kind === 'rafthouse' && b.done) { paintRaftHouse(b); return; }
   const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = FIELD[b.kind];
   let lvl = 2; if (flat) { const f = b.food / BD[b.kind].food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
   if (BD[b.kind].wall) lvl = 100 + wallMask(b);
@@ -5598,7 +5633,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.22 \u00b7 25 Oct 2026';
+const BUILD = '0.9.23 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {

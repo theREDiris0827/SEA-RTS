@@ -3934,8 +3934,6 @@ function ayBuilding(kind) {
       r(23, 41, 4, 4, '#7a4a24'); r(23, 41, 4, 1, '#a0693a'); r(1, 43, 3, 2, '#c9a05a');                       // water jar, rice basket
     } else if (kind === 'raft') {
       // Ruean Phae: the same house on a bamboo raft, moored on the river
-      r(0, 33, 32, 7, AY.WATER); r(0, 37, 32, 3, AY.WATER_D);
-      for (const [x, y] of [[2, 35], [12, 38], [22, 36], [28, 38]]) r(x, y, 4, 1, AY.WATER_L);
       for (let i = 0; i < 6; i++) { r(1 + i * 5, 30, 5, 3, AY.BAMB); r(1 + i * 5, 32, 5, 1, AY.BAMB_D); r(1 + i * 5, 30, 1, 3, AY.BAMB_D); }   // bamboo floats
       r(1, 28, 30, 2, '#8f6232'); r(1, 28, 30, 1, AY.TEAK_L);
       ayHouse(P, 1, 6, true);
@@ -4775,6 +4773,7 @@ function toolFor(u) {
   return 'hand';
 }
 function basePaintUnit(u) {
+  if (u.order.t === 'fishhouse' && u.working && !u.moving && G.byId.get(u.order.id)) return;   // drawn on her raft house's deck
   const px = u.x * TILE, py = u.y * TILE;
   const selected = isSel(u);
   if (u.layer === 1) {
@@ -4850,7 +4849,43 @@ function wallMask(b) {
   if (BD[b.kind].gate && b.done && !b.locked && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
   return m;
 }
+function raftSide(b) {
+  if (b.wd) return b.wd;
+  let sx = 0, sy = 0;
+  for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) if (G.isWater(x, y)) { sx += x + 0.5 - b.x; sy += y + 0.5 - b.y; }
+  const l = Math.hypot(sx, sy) || 1; return (b.wd = { x: sx / l, y: sy / l });
+}
+function paintRaftHouse(b) {
+  const d = raftSide(b), spr = buildingSprite(b.kind, b.team, 2), w = b.size * TILE;
+  const cx = b.x * TILE + d.x * 12, by = b.ty * TILE + w + Math.max(0, d.y) * 12;
+  // ripples where the floats meet the water
+  ctx.strokeStyle = 'rgba(235,248,255,0.45)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 2; i++) { const p = ((nowS * 0.5 + i * 0.5) % 1); ctx.globalAlpha = 1 - p; ell(cx, by - 6, 30 + p * 8, 6 + p * 3); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  shadow(cx, by - 6, 30, 6, 0.22);
+  ctx.save(); ctx.translate(cx, by - spr.height + 2 + Math.sin(nowS * 1.6 + b.id) * 0.8);
+  if (d.x < -0.2) ctx.scale(-1, 1);
+  ctx.drawImage(spr, -spr.width / 2, 0);
+  if (b.hit > 0) { ctx.globalAlpha = 0.4; ctx.drawImage(whiteOf(spr), -spr.width / 2, 0); }
+  ctx.restore();
+  const fu = G.units.find(u => u.hp > 0 && u.order.t === 'fishhouse' && u.order.id === b.id && u.working && !u.moving);
+  if (fu) paintFisher(fu, cx, by - spr.height + 2, d.x < -0.2 ? -1 : 1);
+  if (isSel(b)) { const px = b.tx * TILE, py = b.ty * TILE; ctx.strokeStyle = TEAMC[CV(b.team)].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, py - 1, w + 2, w + 2); ctx.setLineDash([]); }
+}
+function paintFisher(u, x0, y0, f) {
+  // she sits at the end of the veranda deck, rod out over the water
+  const t = nowS + u.id, px = x0 + f * 17, py = y0 + 55;
+  const spr = unitSprite(u.kind, u.team, 'idle', 0, '');
+  ctx.save(); ctx.translate(px, py); if (f < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -(spr.width >> 1), 5 - spr.height); ctx.restore();
+  const sway = Math.sin(t * 1.3) * 1.5, tipX = px + f * 18, tipY = py - 22 + sway, fx = px + f * 26, fy = py + 14 + Math.sin(t * 2.4) * 1.2;
+  ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px + f * 3, py - 9); ctx.lineTo(tipX, tipY); ctx.stroke();
+  ctx.strokeStyle = 'rgba(240,240,230,0.75)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.lineTo(fx, fy); ctx.stroke();
+  ctx.fillStyle = '#e8463a'; ctx.fillRect(fx - 1.5, fy - 2, 3, 3);
+  const p = (t * 0.7) % 1; ctx.strokeStyle = 'rgba(235,248,255,' + (0.6 * (1 - p)).toFixed(2) + ')'; ctx.lineWidth = 1; ell(fx, fy + 1, 3 + p * 6, 1.5 + p * 2.5); ctx.stroke();
+  const c = (u.gt || 0) / 10; if (c > 0.8) { const q = (c - 0.8) / 0.2; ctx.fillStyle = '#d8e4ea'; ctx.fillRect(fx - 3, fy - 4 - q * 12, 6, 3); ctx.fillStyle = '#8fa4b0'; ctx.fillRect(fx + 2, fy - 4 - q * 12, 2, 3); }
+}
 function basePaintBuilding(b) {
+  if (b.kind === 'rafthouse' && b.done) { paintRaftHouse(b); return; }
   const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = FIELD[b.kind];
   let lvl = 2; if (flat) { const f = b.food / BD[b.kind].food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
   if (BD[b.kind].wall) lvl = 100 + wallMask(b);
@@ -5691,7 +5726,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.22 \u00b7 25 Oct 2026';
+const BUILD = '0.9.23 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -6257,6 +6292,11 @@ MAPDEF.river = {
   fords: [[0, 0], [2, 0], [3, 0], [1, 2]],     // upriver of every boat route: barges, gift boats and raiders never cross one
   ponds: [[13, 57, 2.6, 1.7], [79, 29, 2.2, 1.4], [33, 9, 1.6, 1.2], [62, 64, 1.8, 1.2]],
   cliffs: [[86, 64, 4.5, 3], [8, 66, 4, 2.6], [64, 5, 3, 2]],
+  // khlongs: small canals and streams across the island, shallow, with plank crossings; boats can't enter them
+  khlongs: [[[[39, 26.5], [40, 31], [42, 35], [43, 37.5]], 1.2, [0.5]],              // north khlong down into the Bueng
+    [[[42.5, 39.5], [40, 42.5], [37.5, 46], [36.5, 49]], 1.1, []],                       // and on to the south-west channel
+    [[[69, 39], [64, 38.8], [60, 40.5]], 1.0, []]],                                      // a stream in from the east to a pond
+  isPonds: [[44, 38.5, 3.2, 1.9], [58.5, 41.5, 2.0, 1.4], [54, 31.5, 1.5, 1.0]],      // Bueng Phra Ram and two small ponds
   gold: [], deer: [], villages: []
 };
 // a river's course: the given points with smooth bends added between them (the same bends every game)
@@ -6296,6 +6336,19 @@ Game.prototype.genRiverlands = function (M) {
   for (const [px, py, rx, ry] of M.ponds || []) for (let y = Math.floor(py - ry - 1); y <= py + ry + 1; y++) for (let x = Math.floor(px - rx - 1); x <= px + rx + 1; x++) {
     const d = Math.hypot((x + 0.5 - px) / rx, (y + 0.5 - py) / ry) + (hash2(x, y, 17) - 0.5) * 0.35; if (d < 1) wet(x, y, d < 0.45);
   }
+  // khlongs and ponds on the island: shallow, open to raft houses; the mouths are plank crossings so boats stay out
+  const shallow = (x, y) => { if (this.inb(x, y) && terr[y * W + x] <= T.DIRT) terr[y * W + x] = T.SHALLOW; };
+  for (const [px, py, rx, ry] of M.isPonds || []) for (let y = Math.floor(py - ry - 1); y <= py + ry + 1; y++) for (let x = Math.floor(px - rx - 1); x <= px + rx + 1; x++) {
+    if (Math.hypot((x + 0.5 - px) / rx, (y + 0.5 - py) / ry) + (hash2(x, y, 23) - 0.5) * 0.3 < 1) shallow(x, y);
+  }
+  // each khlong stops a tile short of the channel, so boats stay out and the bank between is a footpath
+  M.khlongCourse = (M.khlongs || []).map(([pts], i) => meander(pts, 11 + i * 3.7).filter(([x, y]) => isleDist(x, y) < -1.7));
+  M.khlongCourse.forEach((c, i) => {
+    const w = M.khlongs[i][1];
+    c.forEach(([px, py]) => { for (let y = Math.floor(py - 2); y <= py + 2; y++) for (let x = Math.floor(px - 2); x <= px + 2; x++) if (Math.hypot(x + 0.5 - px, y + 0.5 - py) <= w && isleDist(x + 0.5, y + 0.5) < -1.4) shallow(x, y); });
+    // plank crossings partway along
+    for (const t of M.khlongs[i][2]) { const [px, py] = c[Math.floor(t * (c.length - 1))]; for (let y = Math.floor(py - 2); y <= py + 2; y++) for (let x = Math.floor(px - 2); x <= px + 2; x++) if (this.inb(x, y) && Math.abs(y + 0.5 - py) < 0.9 && Math.abs(x + 0.5 - px) <= w + 0.6 && terr[y * W + x] === T.SHALLOW) terr[y * W + x] = T.SAND; }
+  });
   // fords: sandy shallows where a river can be waded, on its bending course
   for (const [ri, si] of M.fords) {
     const [pts, w] = M.rivers[ri], a = pts[si], b = pts[si + 1], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
@@ -6319,7 +6372,7 @@ const BRIDGES = [{ y: 38, dx: -1 }, { y: 35, dx: 1 }];
 Game.prototype.layBridges = function () {
   const terr = this.terrain, isWet = (j) => terr[j] === T.SHALLOW || terr[j] === T.DEEP;
   for (const B of BRIDGES) {
-    let x = Math.round(ISLE.x), y = B.y, wet = false;
+    let x = Math.round(ISLE.x + B.dx * (isleR(B.dx < 0 ? Math.PI : 0) - 3)), y = B.y, wet = false;
     for (let i = 0; i < 40 && x > 0 && x < W - 1; i++, x += B.dx) {
       if (isWet(y * W + x) || isWet((y + 1) * W + x)) { wet = true; for (const yy of [y, y + 1]) if (isWet(yy * W + x)) { terr[yy * W + x] = T.SAND; this.bridge[yy * W + x] = 1; } }
       else if (wet) break;
@@ -6900,6 +6953,7 @@ function missionTick(g, dt) {
   // phase 2: the city and its first households
   if (M.phase === 2) {
     const tc = g.byId.get(M.tc);
+    if (tc && tc.done && !M.settled) { M.settled = true; g.msg('The Sala Klang stands. U Thong\'s levies take up the purple of Ayutthaya.'); }
     if (tc && !tc.done && !tc.helped && M.t - M.phaseAt[2] > 2) tc.helped = true;
     const hs = g.households(0);
     if (hs.some(h => h.kind === 'rafthouse')) M.hhFish = true;
@@ -7019,13 +7073,15 @@ const _popCap = Game.prototype.popCap;
 Game.prototype.popCap = function (team) { const c = _popCap.call(this, team); return team === 0 && this.M && this.M.phase === 1 ? Math.max(c, 25) : c; };
 /* ===== a1-art.js ===== */
 /* Both sides are Tai, drawn on the game's Ayutthaya roster (AYART). The enemy is told apart by colour:
-   bandits in dusty undyed cotton, the rival lord's men in his dark red. U Thong's own people wear Ayutthaya's purple throughout. */
+   bandits in dusty undyed cotton, the rival lord's men in his dark red. U Thong's soldiers set out as brown levies and
+   take up Ayutthaya's purple once the Sala Klang stands on the island. */
 const AY_PURPLE = ['#7b4bb3', '#9b6fd0', '#4e2d78', '#3a1f5c'];
 const APAL = {
   bandit: ['#5f5c48', '#7a7660', '#403e30', '#2e2d24'],
   rival: ['#9a3426', '#b84a38', '#6a2018', '#4e1610'],
   lavo: ['#c08a2a', '#d8a848', '#7a5418', '#5a3e12'],
-  suphan: ['#2f8a5a', '#4aa874', '#1d5a3a', '#14402a']
+  suphan: ['#2f8a5a', '#4aa874', '#1d5a3a', '#14402a'],
+  levy: ['#8a6b4a', '#a8885e', '#5e4630', '#4a3424']
 };
 const RC = {};
 function hexRGB(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
@@ -7046,6 +7102,9 @@ function recolor(src, pal, key, grey) {
 }
 let SCENE_AGE = 0;
 function curAge() { return SCENE_AGE || (typeof G !== 'undefined' && G && G.age ? G.age[0] : 2); }
+// brown levies until the city is founded (story scenes set SCENE_AGE 1 for the journey)
+const LEVY = { keris: 1, tombak: 1, archer: 1, namai: 1 };
+function levyLook() { if (SCENE_AGE) return SCENE_AGE === 1; const M = typeof G !== 'undefined' && G && G.M; return !!M && !M.settled && M.phase < 3; }
 
 /* ---------- people ---------- */
 function unitSprite(kind, team, anim, f, tool) {
@@ -7055,6 +7114,7 @@ function unitSprite(kind, team, anim, f, tool) {
   if (d && d.lord) return lordSprite(anim, f);
   if (d && d.ay) return recolor(baseUnitSprite(d.ay, team, anim, f, tool), d.pal, 'u|' + d.ay + '|' + anim + '|' + f);
   if (team === 1) return recolor(baseUnitSprite(kind, team, anim, f, tool), 'rival', 'u|' + kind + '|' + anim + '|' + f);
+  if (team === 0 && LEVY[kind] && levyLook()) return recolor(baseUnitSprite(kind, team, anim, f, tool), 'levy', 'u|' + kind + '|' + anim + '|' + f + '|' + (tool || ''));
   return baseUnitSprite(kind, team, anim, f, tool);
 }
 /* U Thong: the twin-sword fighter in white and gold, with a tall gold chada crown */
