@@ -1,5 +1,5 @@
 'use strict';
-const CACHE = 'melaka-rts-v11';
+const CACHE = 'melaka-rts-v12';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 // fetch the core files fresh from the server, never from the browser's HTTP cache
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });

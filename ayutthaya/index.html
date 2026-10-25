@@ -5687,7 +5687,89 @@ function ayBuilding(kind) {
 }
 if (typeof window !== 'undefined') { window.ayBuilding = ayBuilding; window.AYC = AYC; }
 
-return { ayBuilding, AYC };
+  /* Ayutthaya economy and army buildings (art thread, 2026-10-25), so none of them fall back to Melaka's art.
+     Same helpers and palette as ayBuilding. ayBuildingX(kind, level): barracks | port | granary | store | mill | farm */
+  const AYX_DIMS = { barracks: [48, 58], port: [48, 54], granary: [32, 46], store: [32, 46], mill: [32, 46], farm: [32, 32] };
+  // rack of spears with red tassels
+  function aySpears(P, x, y, n) { for (let i = 0; i < n; i++) { P.r(x + i * 3, y, 1, 10, WOOD_D); P.r(x + i * 3, y - 1, 1, 1, STEEL); P.r(x + i * 3, y + 2, 1, 1, '#b8322a'); } P.r(x - 1, y + 5, n * 3 + 1, 1, AY.TEAK_D); }
+  // small purple round shield with a gold boss
+  function ayShield(P, cx, cy) { disc(P, cx, cy, 3, AYC.dark); disc(P, cx, cy, 2, AYC.main); P.r(cx, cy, 1, 1, AY.G); P.r(cx - 1, cy - 2, 1, 1, '#9a5fc0'); }
+  function ayBuildingX(kind, level) {
+    const d = AYX_DIMS[kind];
+    return sprite(`ayx|${kind}|${level || 0}`, d[0], d[1], 2, (P) => {
+      const r = P.r, G = AY.G;
+      if (kind === 'barracks') {
+        // Rong Thahan: a long, low teak drill hall on stilts, wide tiled roof, shields on the walls, spear racks and a war drum out front
+        posts(P, [4, 12, 20, 28, 36, 43], 50, 57, 2); r(2, 48, 44, 3, '#8f6232'); r(2, 51, 44, 1, '#5a3a1e');
+        ayTeak(P, 5, 34, 38, 14);
+        r(16, 37, 16, 11, '#2f1d0e'); r(16, 36, 16, 1, G);                                   // open front
+        aySpears(P, 18, 38, 5);
+        ayShield(P, 10, 40); ayShield(P, 38, 40);
+        ayEave(P, 24, 29, 33, 20, 25, AY.TILE, AY.TILE_D, AY.GRN);
+        ayGable(P, 24, 15, 29, 13);
+        // klong yao drum on a stand, left; tall spear rack, right
+        r(0, 42, 4, 5, '#b8322a'); r(0, 42, 4, 1, '#e6dcc4'); r(0, 46, 4, 1, '#e6dcc4'); r(1, 47, 1, 3, WOOD_D); r(3, 47, 1, 3, WOOD_D);
+        ayBanner(P, 40, 6, 28);
+      } else if (kind === 'port') {
+        // Tha Ruea: teak landing on posts, an open sala with a tiled Thai roof, rope coils and water jars
+        r(0, 40, 48, 12, AY.TEAK_L); for (let x = 0; x < 48; x += 4) r(x, 40, 1, 12, AY.TEAK_D); r(0, 40, 48, 1, '#d8a868'); r(0, 51, 48, 1, '#5a3a1e');
+        posts(P, [1, 14, 28, 44], 48, 54, 3);
+        for (const x of [5, 22]) { r(x, 26, 2, 14, '#6a3a1a'); r(x, 26, 1, 14, '#4a2810'); }
+        r(4, 37, 20, 3, AY.TEAK); r(4, 37, 20, 1, AY.TEAK_L);                               // bench
+        ayEave(P, 14, 22, 25, 9, 13, AY.TILE, AY.TILE_D, AY.GRN);
+        ayGable(P, 14, 6, 22, 9, { emblem: false });
+        // jars, rope coil, a stack of crates
+        r(27, 34, 4, 6, '#9a5a32'); r(28, 33, 2, 1, '#6e3e20'); r(27, 35, 4, 1, '#b8744a');
+        r(32, 35, 4, 5, '#8a4a28'); r(33, 34, 2, 1, '#6e3e20');
+        disc(P, 39, 38, 2, '#c9b27a'); r(39, 38, 1, 1, '#9c8450');
+        ayBanner(P, 39, 10, 30);
+      } else if (kind === 'granary') {
+        // Yung Khao: a teak rice barn on tall stilts, walls flaring out toward the eaves, steep roof, ladder
+        posts(P, [5, 12, 19, 25], 34, 45, 2);
+        r(3, 32, 26, 2, '#8f6232'); r(3, 34, 26, 1, '#5a3a1e');
+        for (let y = 20; y < 32; y++) { const w = 10 + Math.round((31 - y) * 0.25); r(16 - w, y, w * 2, 1, (y & 1) ? AY.TEAK : AY.TEAK_L); r(16 - w, y, 1, 1, AY.TEAK_D); r(15 + w, y, 1, 1, AY.TEAK_D); }
+        for (let x = 9; x < 24; x += 4) r(x, 20, 1, 12, AY.TEAK_D);
+        r(13, 23, 6, 9, AY.DOOR); r(12, 22, 8, 1, G);
+        ayRoofTri(P, 16, 3, 20, 15, '#8a4a2e', '#6e3820', '#4a2a18'); r(1, 20, 30, 1, AYC.main);
+        r(15, 0, 1, 3, AY.TEAK_D); r(14, 1, 3, 1, AY.TEAK_D);
+        for (let y = 36; y < 45; y += 3) r(18, y, 4, 1, WOOD); r(18, 35, 1, 10, WOOD); r(21, 35, 1, 10, WOOD);
+        // rice sacks at the foot
+        r(4, 40, 5, 5, '#e6dcc4'); r(4, 40, 5, 1, '#fff6e0'); r(6, 39, 1, 1, '#b8ac90'); r(9, 41, 4, 4, '#d6cab0');
+      } else if (kind === 'store') {
+        // Rong Sinkha: a teak plank godown on low stilts with a tiled roof, a log stack and a gold chest at the door
+        posts(P, [3, 27], 38, 44, 2); r(1, 40, 30, 3, '#8f6232'); r(1, 43, 30, 1, '#5a3a1e');
+        ayTeak(P, 4, 24, 24, 16); r(3, 24, 1, 16, AY.TEAK_D); r(28, 24, 1, 16, AY.TEAK_D);
+        r(12, 29, 8, 11, AY.DOOR); r(11, 28, 10, 1, G); r(15, 29, 1, 11, '#2a190a');
+        r(5, 28, 4, 4, '#2b1a0c'); r(5, 27, 4, 1, AYC.main);
+        ayEave(P, 16, 21, 23, 13, 16, AY.TILE, AY.TILE_D, AY.GRN);
+        ayGable(P, 16, 6, 21, 11, { emblem: false });
+        for (let i = 0; i < 3; i++) { r(22, 38 - i * 2, 9, 2, i % 2 ? AY.TEAK_L : AY.TEAK); r(30, 38 - i * 2, 1, 2, '#d8a868'); }
+        r(2, 38, 8, 6, '#5e3b1c'); r(2, 37, 8, 2, G); r(4, 36, 3, 1, AY.GL); r(5, 39, 2, 2, '#333');
+      } else if (kind === 'mill') {
+        // timber shed: open teak frame, tiled roof, logs on trestles and a two-man saw
+        posts(P, [3, 27], 24, 44, 2); r(1, 40, 30, 3, '#8f6232'); r(1, 43, 30, 1, '#5a3a1e');
+        r(5, 24, 22, 16, '#3a2a1a');
+        ayEave(P, 16, 21, 23, 13, 16, AY.TILE, AY.TILE_D, AY.GRN);
+        ayGable(P, 16, 6, 21, 11, { emblem: false });
+        for (let i = 0; i < 3; i++) { r(17 + i * 3, 36 - (i % 2), 3, 4, AY.TEAK); r(17 + i * 3, 38 - (i % 2), 3, 1, AY.TEAK_L); }
+        r(6, 34, 10, 6, AY.TEAK_D); r(7, 33, 8, 1, STEEL); r(8, 30, 1, 4, WOOD_D); r(8, 29, 3, 1, STEEL);
+      } else if (kind === 'farm') {
+        // Na: a flooded rice paddy inside earth bunds; the rice grows taller with the field's level
+        r(0, 0, 32, 32, '#8a6a3e'); r(2, 2, 28, 28, AY.WATER_D); r(2, 2, 28, 1, AY.WATER);
+        r(2, 15, 28, 2, '#8a6a3e'); r(15, 2, 2, 28, '#8a6a3e');                               // bunds
+        r(0, 0, 32, 1, '#a8885e'); r(0, 31, 32, 1, '#5e4025');
+        const g = level === 2 ? 4 : level === 1 ? 3 : 2;
+        for (const [ox, oy] of [[3, 3], [18, 3], [3, 18], [18, 18]])
+          for (let y = 0; y < 3; y++) for (let x = 0; x < 4; x++) {
+            const px = ox + x * 3 + (y & 1), py = oy + 2 + y * 4;
+            r(px, py - g + 1, 1, g, (x + y) & 1 ? '#6bbf4f' : '#8ed06a'); r(px, py + 1, 1, 1, AY.WATER);
+          }
+        r(25, 6, 2, 1, AY.WATER_L); r(6, 24, 2, 1, AY.WATER_L);
+      }
+    });
+  }
+
+return { ayBuilding, AYC, ayBuildingX, AYX_DIMS };
 })();
 /* ---------- KMB (from lore/scenes/bld-khmer.js) ---------- */
 const KMB = (() => {
@@ -6965,10 +7047,11 @@ function buildingSprite(kind, team, level) {
   if (kind === 'kwall') return lateriteWallSprite(level || 0);
   if (kind === 'kgate') return faceGateSprite(level || 0);
   if (kind === 'phaniat') return kraalSprite();
-  if (kind === 'rong') return XB.storehouse(0);
+  if (kind === 'rong') return AYB.ayBuildingX('store', 0);   // teak storehouse
   if (kind === 'kbarracks') return baseBuildingSprite('barracks', 1, level);
   if (kind === 'kgranary') return baseBuildingSprite('granary', 1, level);
   if (team === 0 && AY_BLD[kind]) return AYB.ayBuilding(AY_BLD[kind]);
+  if (team === 0 && AYB.AYX_DIMS[kind]) return AYB.ayBuildingX(kind, level);   // Ayutthaya's own barracks, port, granary, farm, mill
   if (KM_BLD[kind]) return KMB.kmBuilding(KM_BLD[kind]);
   return baseBuildingSprite(kind, team, level);
 }
