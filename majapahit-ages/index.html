@@ -7793,6 +7793,136 @@ mrBoot();
 </script>
 
 <script>
+/* Save and continue for a mission or battle page: an autosave every 30 s and on leaving the app,
+   "Save and exit" on the pause card, "Continue saved game" on the start card. Works on any page built
+   from the game: it saves the whole Game, writing units, buildings and resources that point at each
+   other as {$r: id} and joining them up again on load. Page-specific state goes through MSAVE_CFG. */
+(function () {
+  const CFG = window.MSAVE_CFG || {};
+  const KEY = 'seak-mission-' + (CFG.id || location.pathname.replace(/index\.html$/, '').split('/').filter(Boolean).pop() || 'page');
+  const SKIP = new Set(['byId', 'hash', 'claims', 'pSeen', 'pClosed', 'pG', 'pPar', 'pOpen', 'fx', 'arrows', 'floaters', 'msgs', 'alerts', 'rng', 'burning']);
+  const TA = { Uint8Array, Int8Array, Uint16Array, Int16Array, Int32Array, Uint32Array, Float32Array, Float64Array, Uint8ClampedArray };
+  const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }, del: (k) => { try { localStorage.removeItem(k); } catch (e) { /* none */ } } };
+
+  let ENT = new Set(), stack = new Set();
+  function enc(v, own) {
+    if (v === null || typeof v !== 'object') return typeof v === 'function' ? undefined : v;
+    if (!own && ENT.has(v)) return { $r: v.id };
+    if (ArrayBuffer.isView(v)) return { $ta: v.constructor.name, d: Array.from(v) };
+    if (v instanceof WeakSet || v instanceof WeakMap || (typeof Node !== 'undefined' && v instanceof Node) || (typeof ImageBitmap !== 'undefined' && v instanceof ImageBitmap)) return undefined;
+    if (stack.has(v)) return null;
+    stack.add(v);
+    let out;
+    if (v instanceof Set) out = { $set: Array.from(v, (x) => enc(x)) };
+    else if (v instanceof Map) out = { $map: Array.from(v, ([a, b]) => [enc(a), enc(b)]) };
+    else if (Array.isArray(v)) out = v.map((x) => { const e = enc(x); return e === undefined ? null : e; });
+    else {
+      out = {};
+      for (const k of Object.keys(v)) {
+        const e = k === 'cargo' && Array.isArray(v[k]) ? v[k].map((x) => enc(x, true)) : enc(v[k]);
+        if (e !== undefined) out[k] = e;
+      }
+    }
+    stack.delete(v);
+    return out;
+  }
+  function collect(g) {
+    ENT = new Set();
+    const add = (e) => { if (!e || typeof e !== 'object' || ENT.has(e)) return; ENT.add(e); if (Array.isArray(e.cargo)) e.cargo.forEach(add); };
+    for (const k of ['units', 'buildings', 'nodes']) (g[k] || []).forEach(add);
+  }
+  function dec(v) {
+    if (v === null || typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(dec);
+    if (v.$ta) return new (TA[v.$ta] || Float64Array)(v.d);
+    if (v.$set) return new Set(v.$set.map(dec));
+    if (v.$map) return new Map(v.$map.map(([a, b]) => [dec(a), dec(b)]));
+    const o = {}; for (const k of Object.keys(v)) o[k] = dec(v[k]); return o;
+  }
+  function relink(v, byId, seen) {
+    if (v === null || typeof v !== 'object' || ArrayBuffer.isView(v) || seen.has(v)) return v;
+    if (v.$r !== undefined && Object.keys(v).length === 1) return byId.get(v.$r) || null;
+    seen.add(v);
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = relink(v[i], byId, seen); }
+    else if (v instanceof Set) { const a = Array.from(v); v.clear(); for (const x of a) v.add(relink(x, byId, seen)); }
+    else if (v instanceof Map) { const a = Array.from(v); v.clear(); for (const [p, q] of a) v.set(relink(p, byId, seen), relink(q, byId, seen)); }
+    else for (const k of Object.keys(v)) v[k] = relink(v[k], byId, seen);
+    return v;
+  }
+
+  function save() {
+    try {
+      if (!started || ended || !G || G.over) return;
+      collect(G);
+      const snap = {};
+      for (const k of Object.keys(G)) {
+        if (SKIP.has(k)) continue;
+        const e = (k === 'units' || k === 'buildings' || k === 'nodes') && Array.isArray(G[k]) ? G[k].map((x) => enc(x, true)) : enc(G[k]);
+        if (e !== undefined) snap[k] = e;
+      }
+      const rec = { v: 1, snap, opts: Object.assign({ seed: G.seed, diff: G.diff, map: G.map }, CFG.opts ? CFG.opts(G) : {}), extra: CFG.extra ? enc(CFG.extra()) : null,
+        seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, t: G.t, when: Date.now() };
+      ENT = new Set();
+      ls.set(KEY, JSON.stringify(rec));
+    } catch (e) { console.warn('save', e); }
+  }
+  function read() { try { const r = JSON.parse(ls.get(KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
+  function restore(r) {
+    const g = new Game(r.opts);
+    const s = dec(r.snap), extra = dec(r.extra);
+    for (const k of Object.keys(s)) g[k] = s[k];
+    g.byId = new Map();
+    const reg = (e) => { if (!e || typeof e !== 'object' || e.id === undefined) return; g.byId.set(e.id, e); if (Array.isArray(e.cargo)) e.cargo.forEach(reg); };
+    for (const k of ['units', 'buildings', 'nodes']) (g[k] || []).forEach(reg);
+    const seen = new Set();
+    for (const k of Object.keys(s)) g[k] = relink(g[k], g.byId, seen);
+    const ex = relink(extra, g.byId, seen);
+    if (g.burning instanceof Set) { g.burning.clear(); for (const e of g.units.concat(g.buildings)) if (e.burn) g.burning.add(e); }
+    if (g.rebuildHash) g.rebuildHash();
+    if (g.updateFog) g.updateFog();
+    return [g, ex];
+  }
+  function cont() {
+    const r = read(); if (!r) return;
+    let g, ex;
+    try { [g, ex] = restore(r); } catch (e) { console.warn('load', e); ls.del(KEY); sync(); if (typeof toast === 'function') toast('That saved game could not be loaded.'); return; }
+    diff = r.diff; seedUsed = r.seed;
+    if (CFG.before) CFG.before(ex, g);
+    loadMap(g);
+    storyOpen = null; try { objStarted = false; } catch (e) { /* not on this page */ }
+    started = true; paused = false; ended = false; $('hud').hidden = false; showOv(null);
+    view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
+    if (CFG.after) CFG.after(ex, g);
+    updateHud(); updatePanel();
+    G.msg('Saved game loaded.');
+  }
+  function sync() {
+    const b = document.getElementById('msave-cont'); if (!b) return;
+    const r = read(); b.hidden = !r;
+    if (r) b.textContent = 'Continue saved game (' + fmtTime(r.t || 0) + ' in, ' + r.diff + ')';
+  }
+  // the start card: Continue sits above Begin
+  const start = document.querySelector('#ov-start [data-do="start"]');
+  if (start) {
+    const b = document.createElement('button'); b.className = 'btn'; b.id = 'msave-cont'; b.type = 'button'; b.hidden = true;
+    b.addEventListener('click', cont); start.before(b); sync();
+  }
+  // leaving: every exit-to-menu button saves first; the one on the pause card says so
+  document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.exit-home')) save(); }, true);
+  setTimeout(() => { const p = document.querySelector('#ov-pause .exit-home'); if (p) { p.textContent = 'Save and exit to main menu'; p.classList.remove('alt'); } }, 0);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+  window.addEventListener('pagehide', save);
+  // every 30 s of play; a finished mission clears its save
+  let last = Date.now();
+  setInterval(() => {
+    if (typeof G === 'undefined' || !G) return;
+    if (started && G.over) { ls.del(KEY); return; }
+    if (started && !paused && Date.now() - last > 30000) { last = Date.now(); save(); }
+  }, 2000);
+  window.MSAVE = { save, read, cont, key: KEY };
+})();
+</script>
+<script>
 /* Exit to main menu: on the start, pause and end cards of every mission */
 (function () {
   const home = /github\.io$/.test(location.hostname) ? '../' : 'https://therediris0827.github.io/SEA-RTS/';
