@@ -7951,7 +7951,8 @@ kmBoot();
   /* the 3 save slots, shared with the main menu */
   function metas() { try { const a = JSON.parse(ls.get(SLOTS)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
   function pick(cur) { if (cur != null) return cur; const m = metas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
-  function slotWrite(i, meta, rec) { if (!ls.set('seak-slot-' + i, JSON.stringify(rec))) return false; const m = metas(); m[i] = Object.assign(meta, { when: Date.now() }); ls.set(SLOTS, JSON.stringify(m)); return true; }
+  const bak = {};   // what each slot held before this visit first wrote to it, for Exit without saving
+  function slotWrite(i, meta, rec) { if (!(i in bak)) bak[i] = [metas()[i], ls.get('seak-slot-' + i)]; if (!ls.set('seak-slot-' + i, JSON.stringify(rec))) return false; const m = metas(); m[i] = Object.assign(meta, { when: Date.now() }); ls.set(SLOTS, JSON.stringify(m)); return true; }
   function slotRead(i) { try { const r = JSON.parse(ls.get('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
   function slotDel(i) { ls.del('seak-slot-' + i); const m = metas(); m[i] = null; ls.set(SLOTS, JSON.stringify(m)); }
   // this page's newest save
@@ -8006,9 +8007,10 @@ kmBoot();
     return v;
   }
 
+  let discarded = false;
   function save() {
     try {
-      if (!started || ended || !G || G.over) return;
+      if (discarded || !started || ended || !G || G.over) return;
       collect(G);
       const snap = {};
       for (const k of Object.keys(G)) {
@@ -8077,6 +8079,30 @@ kmBoot();
   // leaving: every exit-to-menu button saves first; the one on the pause card says so
   document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.exit-home')) save(); }, true);
   setTimeout(() => { const p = document.querySelector('#ov-pause .exit-home'); if (p) { p.textContent = 'Save and exit to main menu'; p.classList.remove('alt'); } }, 0);
+  // Exit without saving: asks first, then puts every slot this visit wrote back as it was and leaves
+  function discard() {
+    discarded = true; started = false;
+    const m = metas();
+    for (const i of Object.keys(bak)) { const [meta, rec] = bak[i]; if (rec == null) ls.del('seak-slot-' + i); else ls.set('seak-slot-' + i, rec); m[i] = meta || null; }
+    ls.set(SLOTS, JSON.stringify(m));
+    const home = /github\.io$/.test(location.hostname) ? new URL('../'.repeat(Math.max(1, PAGE.split('/').filter(Boolean).length)), location.href).href : 'https://therediris0827.github.io/SEA-RTS/';
+    location.replace(home);
+  }
+  function ask() {
+    if (!document.getElementById('xconf-css')) { const st = document.createElement('style'); st.id = 'xconf-css'; st.textContent = '.xconf{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,11,9,.72)}.xconf .card{max-width:340px}.xconf .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}'; document.head.appendChild(st); }
+    const o = document.createElement('div'); o.className = 'xconf';
+    o.innerHTML = '<div class="card"><h2>Exit without saving?</h2><p class="lead">Nothing from this game will be saved. Your saved games stay as they were before you started it.</p><div class="row"><button class="btn alt" type="button">Cancel</button><button class="btn" type="button">Exit</button></div></div>';
+    const [no, yes] = o.querySelectorAll('button');
+    no.addEventListener('click', () => o.remove()); yes.addEventListener('click', discard);
+    o.addEventListener('click', (e) => { if (e.target === o) o.remove(); });
+    document.body.appendChild(o);
+  }
+  setTimeout(() => {
+    const p = document.getElementById('ov-pause'); if (!p) return;
+    p.querySelectorAll('[data-do="discard"]').forEach((b) => b.remove());   // the main game's own button goes to its menu, not the site's
+    const b = document.createElement('button'); b.className = 'btn alt exit-nosave'; b.type = 'button'; b.textContent = 'Exit without saving';
+    b.addEventListener('click', ask); p.appendChild(b);
+  }, 0);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
   window.addEventListener('pagehide', save);
   // every 30 s of play; a finished mission clears its save
@@ -8086,7 +8112,7 @@ kmBoot();
     if (started && G.over) { if (cur != null && metas()[cur] && metas()[cur].page === PAGE) slotDel(cur); cur = null; return; }
     if (started && !paused && Date.now() - last > 30000) { last = Date.now(); save(); }
   }, 2000);
-  window.MSAVE = { save, cont, metas, slot: () => cur, page: PAGE };
+  window.MSAVE = { save, cont, metas, slot: () => cur, page: PAGE, discard };
 })();
 </script>
 <script>

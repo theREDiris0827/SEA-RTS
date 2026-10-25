@@ -136,6 +136,8 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 .cmd:active { transform: translateY(2px); box-shadow: inset 0 0 0 1px var(--edge), 0 1px 0 rgba(0, 0, 0, .45); }
 .cmd img { width: 32px; height: 32px; }
 .cmd .nm { font-size: 12px; line-height: 1.1; text-transform: capitalize; }
+.cmd .en { display: block; font-size: 9px; line-height: 1.05; letter-spacing: -.02em; overflow-wrap: anywhere; text-transform: none; color: var(--muted); }
+.p-name .en { text-transform: none; color: var(--muted); font-weight: 600; letter-spacing: 0; }
 .cmd .ct { font-family: var(--font-num); font-weight: 700; font-size: 13px; display: flex; gap: 4px; line-height: 1.05; min-height: 13px; }
 .cmd.no { opacity: .5; }
 .cmd.on, .cmd.ok { background: var(--jade-deep); box-shadow: inset 0 0 0 1px var(--jade), 0 3px 0 rgba(0, 0, 0, .45); }
@@ -172,6 +174,8 @@ h2.lose { color: var(--bad); text-shadow: 0 3px 0 #5a1612; }
 .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--jade-deep), 0 1px 0 2px var(--edge-dark); }
 .btn.alt { background: var(--panel-2); color: var(--text); box-shadow: 0 4px 0 #0c1a14, 0 4px 0 2px var(--edge-dark); }
 .btn.alt:active { box-shadow: 0 1px 0 #0c1a14, 0 1px 0 2px var(--edge-dark); }
+.xconf { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 11, 9, .72); }
+.xconf .card { max-width: 340px; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #end-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #end-stats div { background: var(--panel-2); border: 2px solid var(--edge-dark); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
@@ -531,6 +535,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
       </div>
       <button class="btn alt" data-do="help">How to play</button>
       <button class="btn alt" data-do="quit">Save and exit to menu</button>
+      <button class="btn alt" data-do="discard">Exit without saving</button>
     </div>
 
     <div class="card" id="ov-end" hidden>
@@ -694,6 +699,24 @@ function civEntry(kind, team) { const n = CIV_NAMES[kind]; return n && n[CI(team
 function civRole(kind, team) { const r = CIV_ROLE[kind]; return (r && r[CI(team)]) || (UD[kind] || BD[kind]).name; }
 function civName(kind, team) { const e = civEntry(kind, team); return e ? e[0] : civRole(kind, team); }
 function shortName(kind, team) { const e = civEntry(kind, team); return e ? e[1] || e[0] : civRole(kind, team); }
+/* what each unit and building is for, in a few words: shown beside its English name in the panel */
+const BRIEF = {
+  villager: 'Gathers food, wood and gold, and builds', keris: 'Fast swordsman, runs down archers', tombak: 'Spearman, holds the line against elites',
+  archer: 'Shoots from range, beats spearmen', sumpit: 'Poison darts, no gold needed', lembing: 'Heavy javelins, no gold needed', namai: 'Quick crossbow bolts, no gold needed',
+  pahlawan: 'Champion warrior, few and deadly', bhaya: 'Royal guard, tough to shoot down', tabib: 'Heals one soldier at a time', mo: 'Heals one soldier at a time',
+  acaraki: 'Slowly heals everyone nearby', chang: 'War elephant, huge and armoured', boat: 'Fishes at sea', trade: 'Sails to a trading post for gold',
+  fireship: 'Burns enemy ships it rams', light: 'Fast raider, hunts fire and trade ships', galley: 'Boards enemy ships, carries 5 soldiers',
+  raft: 'Burning raft pushed at enemy ships', frigate: 'Cannon ship, breaks harbours', flagship: 'One only, cannon and archers',
+  towncentre: 'Trains villagers, takes every resource', house: 'Room for 5 more people', rafthouse: 'House on the water, a woman fishes from it',
+  mill: 'Drop-off for food', goldmine: 'Drop-off for gold', store: 'Stores wood and gold', granary: 'Stores food, build near farms',
+  farm: 'Grows food', sawah: 'Rice terraces, more food', barracks: 'Trains troops', port: 'Builds ships, takes fish', tower: 'Shoots arrows at enemies',
+  rumahtabib: 'Trains healers', patirthan: 'Heals units nearby, trains healers', wat: 'Trains healers, monks tend the wounded', palace: 'One only, trains the elite unit',
+  tradepost: 'Trade ships bring gold here', palisade: 'Cheap wooden wall', wall: 'Strong wall, needs a Barracks', gate: 'Lets your people through the wall'
+};
+// the English name, when the local name differs from it
+function enName(kind, team) { const r = civRole(kind, team); return r !== civName(kind, team) && r !== shortName(kind, team) ? r : ''; }
+function btnName(kind, team) { const e = enName(kind, team); return shortName(kind, team) + (e ? '<small class="en">(' + e + ')</small>' : ''); }
+function fullName(kind, team) { const e = enName(kind, team); return civName(kind, team) + (e ? ' (' + e + ')' : ''); }
 
 const BD = {
   towncentre: { name: 'Town Centre', size: 3, hp: 1200, pop: 8, drop: ['food', 'wood', 'gold'], train: ['villager'], atk: { dmg: 5, range: 7, rate: 2 }, sight: 10, cost: {}, time: 0 },
@@ -5414,13 +5437,14 @@ function bldNote(b) {
   if (b.kind === 'patirthan') return 'Units resting by the pool heal slowly.';
   return '';
 }
+function pName(kind, team, base) { const e = enName(kind, team), n = base || civName(kind, team); return n + (e && n === civName(kind, team) ? ' <span class="en">(' + e + ')</span>' : ''); }
 function buildPanel() {
   const P = $('panel'); pdyn = [];
   let info = '', cmds = '', extra = '';
   const us = selUnits(), single = sel.length === 1 ? sel[0] : null;
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(mode.bkind, 0) + '"><div><div class="p-name">Place ' + civName(mode.bkind, 0) + '</div><div class="p-sub">' + costTitle(d.cost) + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(mode.bkind, 0) + '"><div><div class="p-name">Place ' + pName(mode.bkind, 0) + '</div><div class="p-sub">' + (BRIEF[mode.bkind] ? BRIEF[mode.bkind] + ' \u00b7 ' : '') + costTitle(d.cost) + '</div></div></div>' +
       '<div class="p-line">' + (d.line ? ((hover && hover.mouse) ? 'Click where the wall starts, then click where it ends. Esc cancels.' : 'Drag either end of the wall (or tap near it), then tap the green tick to build.')
         : d.gate ? 'Set it into your own wall, or anywhere on open ground. Your people walk through; enemies have to break it.'
         : (hover && hover.mouse) ? 'Click to place. Shift-click keeps building. Esc cancels.' : 'Drag the building (or tap the map) to move it, then tap the green tick to build.') + '</div>';
@@ -5434,8 +5458,8 @@ function buildPanel() {
     const kinds = {}; us.forEach(u => { kinds[u.kind] = (kinds[u.kind] || 0) + 1; });
     const first = us[0], names = Object.keys(kinds);
     if (us.length === 1) {
-      info = '<div class="p-head"><img alt="" src="' + unitIcon(first.kind, 0) + '"><div><div class="p-name">' + G.unitName(first) + '</div><div class="p-sub" id="p-s1"></div></div></div>' +
-        '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
+      info = '<div class="p-head"><img alt="" src="' + unitIcon(first.kind, 0) + '"><div><div class="p-name">' + pName(first.kind, 0, G.unitName(first)) + '</div><div class="p-sub" id="p-s1"></div></div></div>' +
+        '<div class="bar"><i id="p-hp"></i></div>' + (BRIEF[first.kind] ? '<div class="p-line">' + BRIEF[first.kind] + '.</div>' : '') + '<div class="p-line" id="p-l1"></div>';
       pdyn.push(() => {
         const u = first; $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = describeOrder(u) + '  ' + Math.ceil(u.hp) + '/' + u.maxHp;
         $('p-l1').textContent = UD[u.kind].troops ? ((u.cargo && u.cargo.length) ? u.cargo.length + '/' + UD[u.kind].troops + ' aboard. Tap a beach to land them.' : 'Select soldiers, then tap this ship to take up to ' + UD[u.kind].troops + ' aboard.') : u.carry.amt > 0 ? 'Carrying ' + u.carry.amt + ' ' + u.carry.type : (u.cls === 'vil' ? 'Tap a tree, berries or gold to gather.' : u.cls === 'boat' ? 'Tap a school of fish.' : UD[u.kind].trader ? 'Tap your Trade Post to start a trade route.' : u.cls === 'healer' ? 'Heals hurt allies nearby once they are out of the fight.' : 'Tap an enemy to attack.');
@@ -5447,7 +5471,7 @@ function buildPanel() {
     const hasVil = us.some(u => u.cls === 'vil'), hasMil = us.some(u => u.cls !== 'vil' && u.cls !== 'boat');
     if (hasVil) {
       for (const k of BUILD_ORDER) {
-        const d = BD[k]; if (!civOk(d, 0)) continue; cmds += cmdBtn('build', k, bldIcon(k, 0), shortName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
+        const d = BD[k]; if (!civOk(d, 0)) continue; cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
     }
     if (hasMil) {
@@ -5459,16 +5483,16 @@ function buildPanel() {
     cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + civName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + pName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';
       $('p-l1').textContent = !b.done ? 'Under construction ' + Math.floor(b.progress * 100) + '%' : b.stall ? 'Population limit. Build Houses.' : own && d.train ? ((hover && hover.mouse) ? 'Right-click the map to set a rally point.' : 'Double-tap the map to set a rally point.') : own && FIELD[b.kind] ? b.food + ' food left' : own && d.pop ? '+' + d.pop + ' population' : bldNote(b) || Math.ceil(b.hp) + '/' + b.maxHp + ' HP';
     });
     if (own && b.done && d.train) {
-      for (const k of G.trainable(b.kind, 0)) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), shortName(k, 0), c, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
+      for (const k of G.trainable(b.kind, 0)) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), btnName(k, 0), c, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
       extra = '<div class="queue" id="p-q">' + b.queue.map((q, i) => '<button class="qi" data-a="cancel" data-i="' + i + '" title="Cancel"><img alt="" src="' + unitIcon(q.kind, 0) + '"><i id="p-qb' + i + '"></i></button>').join('') + '</div>';
-      if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), shortName('raft', 0), UD.raft.cost, civName('raft', 0) + ': push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
+      if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), btnName('raft', 0), UD.raft.cost, civName('raft', 0) + ': push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
     if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
@@ -5480,7 +5504,7 @@ function buildPanel() {
     cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isUnit) {
     const u = single;
-    info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? CIV_TITLE[CV(1)] + ' ' : '') + G.unitName(u) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
+    info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? CIV_TITLE[CV(1)] + ' ' : '') + pName(u.kind, u.team, G.unitName(u)) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
     pdyn.push(() => { $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = Math.ceil(u.hp) + '/' + u.maxHp + ' HP'; });
     cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   }
@@ -5570,6 +5594,7 @@ function startGame(seed) {
 }
 /* shared by a new game and a resumed one: rebuild the view state around G */
 function enterGame() {
+  slotBak = {};
   terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
   sel = []; mode = null; markers = []; boxRect = null; panelKey = ''; ended = false; acc = 0; seenMsgs = new WeakSet(); idleIdx = 0;
   speed = settings.speed; syncSpeedButtons(); saveT = 0;
@@ -5590,9 +5615,10 @@ function saveSettings() { lsSet(SET_KEY, JSON.stringify(settings)); }
    description of each, seak-slot-N the game itself. A new game takes a free slot, or the oldest. */
 const SLOTS_KEY = 'seak-slots', SLOT_N = 3;
 let curSlot = null;
+let slotBak = {};   // what each slot held before this game first wrote to it, so Exit without saving can put it back
 function slotMetas() { try { const a = JSON.parse(lsGet(SLOTS_KEY)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
 function slotPick(cur) { if (cur != null) return cur; const m = slotMetas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
-function slotWrite(i, meta, rec) { if (!lsSet('seak-slot-' + i, JSON.stringify(rec))) return false; const m = slotMetas(); m[i] = Object.assign(meta, { when: Date.now() }); lsSet(SLOTS_KEY, JSON.stringify(m)); return true; }
+function slotWrite(i, meta, rec) { if (!(i in slotBak)) slotBak[i] = [slotMetas()[i], lsGet('seak-slot-' + i)]; if (!lsSet('seak-slot-' + i, JSON.stringify(rec))) return false; const m = slotMetas(); m[i] = Object.assign(meta, { when: Date.now() }); lsSet(SLOTS_KEY, JSON.stringify(m)); return true; }
 function slotRead(i) { try { const r = JSON.parse(lsGet('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
 function slotDel(i) { lsDel('seak-slot-' + i); const m = slotMetas(); m[i] = null; lsSet(SLOTS_KEY, JSON.stringify(m)); }
 function slotNewest() { const m = slotMetas(); let b = -1; m.forEach((x, i) => { if (x && (b < 0 || x.when > m[b].when)) b = i; }); return b; }
@@ -5621,6 +5647,23 @@ function continueGame(i) {
   updateHud(); updatePanel();
 }
 function quitToMenu() { saveGame(); started = false; paused = true; showOv(null); $('hud').hidden = true; showMenu('home'); }
+// leave without keeping anything from this game: every slot it wrote goes back to what it held before
+function discardGame() {
+  started = false; paused = true;
+  const m = slotMetas();
+  for (const i of Object.keys(slotBak)) { const [meta, rec] = slotBak[i]; if (rec == null) lsDel('seak-slot-' + i); else lsSet('seak-slot-' + i, rec); m[i] = meta || null; }
+  lsSet(SLOTS_KEY, JSON.stringify(m)); slotBak = {}; curSlot = null;
+  showOv(null); $('hud').hidden = true; showMenu('home');
+}
+/* a yes/no box over whatever is on screen */
+function confirmBox(title, text, okLabel, onOk) {
+  const o = document.createElement('div'); o.className = 'xconf';
+  o.innerHTML = '<div class="card"><h2></h2><p class="lead"></p><div class="row"><button class="btn alt" type="button">Cancel</button><button class="btn" type="button"></button></div></div>';
+  o.querySelector('h2').textContent = title; o.querySelector('.lead').textContent = text; const [no, yes] = o.querySelectorAll('button'); yes.textContent = okLabel;
+  no.addEventListener('click', () => o.remove()); yes.addEventListener('click', () => { o.remove(); onOk(); });
+  o.addEventListener('click', (e) => { if (e.target === o) o.remove(); });
+  document.body.appendChild(o);
+}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame(); });
 window.addEventListener('pagehide', saveGame);
 
@@ -5640,7 +5683,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.24 \u00b7 25 Oct 2026';
+const BUILD = '0.9.25 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -6138,6 +6181,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'help') { helpBack = !$('ov-pause').hidden ? 'pause' : (!$('ov-end').hidden ? 'end' : 'menu'); showOv('help'); }
   else if (a === 'back') { if (helpBack === 'menu') showOv(null); else showOv(helpBack); }
   else if (a === 'quit') quitToMenu();
+  else if (a === 'discard') confirmBox('Exit without saving?', 'Nothing from this game will be saved. Your saved games stay as they were before you started it.', 'Exit', discardGame);
   else if (a === 'home') { started = false; showOv(null); $('hud').hidden = true; showMenu('home'); }
 });
 let helpBack = 'menu';
