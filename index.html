@@ -467,6 +467,8 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
         <div class="m-seg two" id="m-map"><button class="px" data-m="map" data-v="same">Classic</button><button class="px" data-m="map" data-v="new">New each game</button></div>
         <div class="m-lbl">Opponent</div>
         <div class="m-seg" id="m-foe"><button class="px m-foe" data-m="foe" data-v="0"><i style="background:#2f9e5b"></i>Melaka</button><button class="px m-foe" data-m="foe" data-v="1"><i style="background:#d0392f"></i>Majapahit</button><button class="px m-foe" data-m="foe" data-v="3"><i style="background:#7b4bb3"></i>Ayutthaya</button></div>
+        <div class="m-lbl">Start in</div>
+        <div class="m-seg" id="m-sage"><button class="px" data-m="sage" data-v="1">Village</button><button class="px" data-m="sage" data-v="2">Kingdom</button><button class="px" data-m="sage" data-v="3">Commerce</button><button class="px" data-m="sage" data-v="4">Golden</button></div>
         <div class="m-lbl">Difficulty</div>
         <div class="m-seg" id="m-diff"><button class="px" data-m="diff" data-v="easy">Easy</button><button class="px" data-m="diff" data-v="normal">Normal</button><button class="px" data-m="diff" data-v="hard">Hard</button></div>
         <button class="px px-p m-start" data-m="start">Start battle</button>
@@ -755,7 +757,50 @@ const FISH_RATE = 0.5;   // raft-house fishing, food per second
 const TRIBUTE = 0.55;   // gold per second from each Majapahit Bandar
 const BARM = { ma: 2, pa: 6 };
 const WALL_MAX = 24;
-const RAFT = { cd: 45, r: 12 };   // Port fire raft: cooldown in seconds, how far it looks for ships   // longest wall line laid in one go, in tiles
+const RAFT = { cd: 45, r: 12 };
+/* ---------- ages (lore/ages.md, Iylia 2026-10-25) ----------
+   Every civ climbs Village > Kingdom > Commerce > Golden at its Town Centre. A unit or building's `age` is the
+   first age it can be made in and `maxAge` the last: the archer line turns to guns (Majapahit's into armoured
+   archers first). Names stay clear of AGES / ageOf / ageOk, which the missions declare for themselves. */
+const AGE_TABLE = [null,
+  { name: 'Village Age', local: ['Kampung', 'Wanua', 'Ban'], tc: 1200 },
+  { name: 'Kingdom Age', local: ['Kerajaan', 'Kadatwan', 'Mueang'], cost: { food: 500 }, time: 60, tc: 1700, need: { any: ['barracks', 'store', 'granary', 'port'], n: 2 } },
+  { name: 'Age of Commerce', local: ['Bandar', 'Bandar', 'Nakhon'], cost: { food: 800, gold: 200 }, time: 90, tc: 2200, need: { any: ['palace', 'rumahtabib', 'patirthan', 'wat', 'tower', 'tradepost'], n: 2 } },
+  { name: 'Golden Age', local: ['Kesultanan', 'Nusantara', 'Krung'], cost: { food: 1000, gold: 800 }, time: 120, tc: 2800, need: { all: ['palace', 'tradepost'], ayu: ['palace', 'wat'] } }
+];
+const AGE_MAX = 4;
+const AGE_START_BONUS = { food: 300, wood: 300, gold: 200 };   // per age above the first, for Start in
+Object.assign(UD, {
+  // Age of Commerce: Melaka's Pembedil and Ayutthaya's Phon Puen take up the matchlock. Majapahit armours its
+  // bowmen in the kere and gets guns only in the Golden Age (lore/ranged-units.md)
+  gunner: { name: 'Arquebusier', hp: 38, spd: 2.2, atk: 10, bonus: { sword: 2, elite: 4 }, rng: 5.5, rate: 2.2, ma: 0, pa: 1, sight: 7.5, cost: { wood: 40, gold: 45 }, time: 11, cls: 'archer', ranged: true, gun: true, age: 3, maxAge: 3, civ: [0, 3] },
+  kerearcher: { name: 'Armoured Archer', hp: 42, spd: 2.2, atk: 7, bonus: { spear: 3, elite: 3 }, rng: 6.5, rate: 1.5, ma: 1, pa: 2, sight: 8, cost: { wood: 35, gold: 40 }, time: 10, cls: 'archer', ranged: true, age: 3, maxAge: 3, civ: 1 },
+  musket: { name: 'Royal Musketeer', hp: 46, spd: 2.1, atk: 15, bonus: { sword: 3, elite: 6 }, rng: 6.5, rate: 2.8, ma: 1, pa: 2, sight: 8, cost: { wood: 45, gold: 70 }, time: 13, cls: 'archer', ranged: true, gun: true, age: 4 },
+  // bronze cannon: Melaka's Meriam and Ayutthaya's Puen Yai break walls; Majapahit's lighter cetbang is a gun
+  // for shooting troops, weaker against buildings but one more allowed
+  cannon: { name: 'Bronze Cannon', hp: 140, spd: 1.5, atk: 14, rng: 7.5, rate: 4.5, ma: 2, pa: 5, sight: 8.5, cost: { wood: 150, gold: 120 }, time: 22, cls: 'siege', ranged: true, gun: true, splash: 1.1, age: 3, civCap: [3, 4, 3], civBld: [45, 22, 45], civAtk: [14, 20, 14] }
+});
+UD.archer.maxAge = 2;
+for (const k of ['tabib', 'mo', 'acaraki', 'pahlawan', 'bhaya', 'chang', 'galley', 'fireship']) UD[k].age = 2;
+UD.frigate.age = 3; UD.flagship.age = 4;
+for (const k of ['rumahtabib', 'patirthan', 'wat', 'palace', 'tradepost', 'wall']) BD[k].age = 2;
+BD.barracks.train.push('kerearcher', 'gunner', 'musket', 'cannon');
+BD.wall.burn = 0.25; BD.gate.burn = 0.25;
+Object.assign(CIV_NAMES, {
+  gunner: [['Pembedil'], null, ['Phon Puen', 'Puen']], kerearcher: [null, ['Pamanah Kere', 'Kere']],
+  musket: [['Bedil Diraja', 'Diraja'], ['Bedil Kraton', 'Kraton'], ['Phon Puen Luang', 'P. Luang']], cannon: [['Meriam'], ['Cetbang'], ['Puen Yai']]
+});
+Object.assign(BRIEF, {
+  gunner: 'Matchlock gunner, hits armour and elites hard', kerearcher: 'Archer in a mail coat, longer range',
+  musket: 'Heavy musket, long range, slow to reload', cannon: 'Bronze gun, few allowed'
+});
+// the archer line by age, per civ column [Melaka, Majapahit, Ayutthaya]
+const ARCHER_LINE = [['archer', 'archer', 'gunner', 'musket'], ['archer', 'archer', 'kerearcher', 'musket'], ['archer', 'archer', 'gunner', 'musket']];
+function lineKind(team, age) { return ARCHER_LINE[CI(team)][Math.min(AGE_MAX, Math.max(1, age)) - 1]; }
+function ageFits(d, age) { return ((d && d.age) || 1) <= age && !(d && d.maxAge && age > d.maxAge); }
+function costWords(c) { return Object.keys(c).map(k => c[k] + ' ' + k).join(', '); }
+// light ranged units never get guns: from the Age of Commerce their darts, javelins and bolts are poisoned
+const SKIRM_PSN = { dps: 1.2, dur: 4 }, SUMPIT_PSN = { dps: 2, dur: 5 };   // Port fire raft: cooldown in seconds, how far it looks for ships   // longest wall line laid in one go, in tiles
 const NK = {
   tree: { type: 'wood', amt: 200, rate: 1.2 }, berry: { type: 'food', amt: 250, rate: 1.3 },
   gold: { type: 'gold', amt: 1000, rate: 1.0 }, fish: { type: 'food', amt: 400, rate: 1.4 },
@@ -800,6 +845,9 @@ class Game {
     this.map = MAPDEF[opts.map] ? opts.map : 'strait';
     this.civs = opts.civs ? opts.civs.slice() : opts.civ === 1 ? [1, 0] : [0, 1]; CIVMAP = this.civs.slice();
     this.init();
+    // Start in: both sides begin in a later age, with a little more in store for each age skipped
+    const sa = Math.min(AGE_MAX, opts.startAge || 1);
+    if (sa > 1) for (let t = 0; t < 2; t++) { for (let n = 2; n <= sa; n++) this.applyAge(t, n, true); for (const k in AGE_START_BONUS) this.res[t][k] += AGE_START_BONUS[k] * (sa - 1); }
   }
 
   /* ======================= setup ======================= */
@@ -810,7 +858,8 @@ class Game {
     this.visible = new Uint8Array(W * H); this.explored = new Uint8Array(W * H);
     this.units = []; this.buildings = []; this.nodes = []; this.byId = new Map();
     this.fx = []; this.arrows = []; this.floaters = []; this.msgs = []; this.alerts = [];
-    this.navTier = [NAVWPN.tierDefault, NAVWPN.tierDefault]; this.burning = new Set();
+    this.navTier = [0, 0]; this.burning = new Set();
+    this.age = [1, 1]; this.aging = [null, null];
     this.res = [{ food: 200, wood: 200, gold: 100 }, { food: 200, wood: 200, gold: 100 }];
     this.stats = { deposited: 0, kills: 0, lost: 0, built: 0, trained: 0, wood: 0 };
     this.pStamp = 0; this.pSeen = new Int32Array(W * H); this.pClosed = new Int32Array(W * H);
@@ -901,6 +950,7 @@ class Game {
     o = JSON.parse(JSON.stringify(o), snapDec);
     for (const k of Object.keys(o)) if (k !== 'v' && k !== 'rngA') g[k] = o[k];
     g.rng.set(o.rngA);
+    if (!o.age) { g.age = [AGE_MAX, AGE_MAX]; g.aging = [null, null]; g.navTier = [2, 2]; }   // saves from before ages
     if (!g.gate) { g.gate = new Uint8Array(W * H); g.wt = -1; }
     g.byId = new Map(); for (const e of g.units.concat(g.buildings, g.nodes)) g.byId.set(e.id, e);
     g.burning = new Set(); for (const e of g.units.concat(g.buildings)) if (e.burn) g.burning.add(e);
@@ -1177,13 +1227,14 @@ class Game {
     const u = {
       id: this.nextId++, isUnit: true, kind, team, x, y, layer: d.layer || 0, cls: d.cls,
       hp: Math.round(hp0 * m.hp), maxHp: Math.round(hp0 * m.hp), spd: d.spd * m.spd * (team === 2 ? 1 : 1),
-      atk: d.atk, rate: d.rate, rng: d.rng, ma: Math.max(0, d.ma - arm), pa: Math.max(0, d.pa - arm),
+      atk: d.civAtk ? d.civAtk[CI(team)] : d.atk, rate: d.rate, rng: d.rng, ma: Math.max(0, d.ma - arm), pa: Math.max(0, d.pa - arm),
       bonus: d.bonus, ranged: !!d.ranged, sight: d.sight, carryMax: (d.carry || 0) * (d.cls === 'vil' && CV(team) === AYU_CIV ? 1.25 : 1),
       order: { t: 'idle', hx: x, hy: y }, path: null, pi: 0, cd: 0, carry: { type: null, amt: 0 },
       face: 1, anim: Math.random() * 3, atkT: 0, scan: Math.random() * 0.5, rp: 0, wait: 0, hit: 0, moving: false, gt: 0,
       hx: 1, hy: 0, side: 1, stk: 0, stuckN: 0, sx: x, sy: y
     };
     this.units.push(u); this.byId.set(u.id, u);
+    if (this.age) this.armForAge(u, this.teamAge(team));
     return u;
   }
   unitName(u) { return civName(u.kind, u.team); }
@@ -1194,7 +1245,12 @@ class Game {
     return o;
   }
   /* what a building can train for this team (unique units and ships belong to one civ) */
-  trainable(kind, team) { const t = BD[kind].train; return t ? t.filter(k => civOk(UD[k], team)) : null; }
+  trainable(kind, team) { const t = BD[kind].train, age = this.teamAge(team); return t ? t.filter(k => civOk(UD[k], team) && ageFits(UD[k], age)) : null; }
+  // what this building will train in a later age (shown greyed out with the age it needs)
+  lockedTrain(kind, team) {
+    const t = BD[kind].train, age = this.teamAge(team), top = this.maxAge || AGE_MAX;
+    return t ? t.filter(k => civOk(UD[k], team) && (UD[k].age || 1) > age && UD[k].age <= top && !(UD[k].maxAge && UD[k].maxAge < (UD[k].age || 1))) : [];
+  }
   countOf(team, kind) {
     let n = 0;
     for (const u of this.units) if (u.team === team && u.hp > 0 && u.kind === kind) n++;
@@ -1204,6 +1260,68 @@ class Game {
   canAfford(team, cost) { const r = this.res[team]; for (const k in cost) if (r[k] < cost[k]) return false; return true; }
   pay(team, cost) { const r = this.res[team]; for (const k in cost) r[k] -= cost[k]; }
   refund(team, cost) { const r = this.res[team]; for (const k in cost) r[k] += cost[k]; }
+
+  /* ======================= ages ======================= */
+  teamAge(team) { return this.age ? this.age[team] || 1 : AGE_MAX; }
+  ageText(team, n) {
+    const N = AGE_TABLE[n] && AGE_TABLE[n].need; if (!N) return '';
+    if (N.all) return (CV(team) === AYU_CIV ? N.ayu : N.all).map(k => civName(k, team)).join(' and ');
+    return N.n + ' of: ' + N.any.filter(k => civOk(BD[k], team)).map(k => civName(k, team)).join(', ');
+  }
+  ageNeedMet(team, n) {
+    const A = AGE_TABLE[n]; if (!A || !A.need) return true;
+    const have = (k) => this.buildings.some(b => b.team === team && b.kind === k && b.done && b.hp > 0);
+    if (A.need.all) return (CV(team) === AYU_CIV ? A.need.ayu : A.need.all).every(have);
+    return A.need.any.filter(have).length >= A.need.n;
+  }
+  startAge(team) {
+    const n = this.teamAge(team) + 1, A = AGE_TABLE[n];
+    if (!A || n > (this.maxAge || AGE_MAX)) return 'You have reached the last age.';
+    if (this.aging[team]) return 'Already advancing to the ' + AGE_TABLE[this.aging[team].to].name + '.';
+    if (!this.ageNeedMet(team, n)) return 'The ' + A.name + ' needs ' + this.ageText(team, n) + '.';
+    if (!this.canAfford(team, A.cost)) return 'The ' + A.name + ' costs ' + costWords(A.cost) + '.';
+    this.pay(team, A.cost); this.aging[team] = { to: n, left: A.time, tot: A.time };
+    if (team === 0) this.msg('Your court begins the work of the ' + A.name + '.');
+    return null;
+  }
+  cancelAge(team) {
+    const a = this.aging && this.aging[team == null ? 0 : team]; if (!a) return;
+    this.refund(team || 0, AGE_TABLE[a.to].cost); this.aging[team || 0] = null;
+    if (!team) this.msg('Advancing to the next age is called off.');
+  }
+  ageTick(dt) {
+    for (let t = 0; t < 2; t++) {
+      const a = this.aging[t]; if (!a) continue;
+      a.left -= dt; if (a.left <= 0) { this.aging[t] = null; this.applyAge(t, a.to); }
+    }
+  }
+  applyAge(team, n, quiet) {
+    const A = AGE_TABLE[n]; this.age[team] = n;
+    this.navTier[team] = n >= 3 ? 2 : n >= 2 ? 1 : 0;
+    for (const b of this.buildings) if (b.team === team && b.kind === 'towncentre' && b.hp > 0) { const add = A.tc - b.maxHp; b.maxHp = A.tc; b.hp += Math.max(0, add); }
+    // the archer line re-arms on the spot, queued ones included
+    const line = ARCHER_LINE[CI(team)], want = lineKind(team, n);
+    for (const u of this.units) if (u.team === team && u.hp > 0) { if (line.includes(u.kind) && u.kind !== want) this.morphUnit(u, want); this.armForAge(u, n); }
+    for (const b of this.buildings) if (b.team === team) for (const q of b.queue) if (line.includes(q.kind)) q.kind = want;
+    if (quiet) return;
+    if (team === 0) this.msg('You enter the ' + A.name + ' (' + A.local[CI(0)] + ')!');
+    else this.msg(CIV_TITLE[CV(1)] + ' enters the ' + A.name + '.');
+  }
+  // swap a unit for another kind in place, keeping its share of health
+  morphUnit(u, k) {
+    const d = UD[k], m = TEAMMOD[CV(u.team)] || TEAMMOD[0], r = u.hp / u.maxHp;
+    Object.assign(u, { kind: k, cls: d.cls, maxHp: Math.round(d.hp * m.hp), atk: d.civAtk ? d.civAtk[CI(u.team)] : d.atk, rate: d.rate, rng: d.rng,
+      ma: Math.max(0, d.ma - m.arm), pa: Math.max(0, d.pa - m.arm), bonus: d.bonus, ranged: !!d.ranged, sight: d.sight, ageArm: 0, ageElite: false });
+    u.hp = Math.max(1, Math.round(u.maxHp * r));
+  }
+  // foot soldiers get mail in the Age of Commerce and more in the Golden Age; light ranged units turn elite in the Golden Age
+  armForAge(u, age) {
+    const c = u.cls;
+    if ((c === 'sword' || c === 'spear' || c === 'elite') && !UD[u.kind].big && !UD[u.kind].hero) {
+      const want = age >= 4 ? 2 : age >= 3 ? 1 : 0, have = u.ageArm || 0;
+      if (want !== have) { u.pa += want - have; u.ma += (want >= 2 ? 1 : 0) - (have >= 2 ? 1 : 0); u.ageArm = want; }
+    } else if (c === 'skirm' && age >= 4 && !u.ageElite) { u.ageElite = true; u.atk += 1; u.pa += 1; u.maxHp += 6; u.hp += 6; }
+  }
 
   addBuilding(kind, team, tx, ty, done) {
     const d = BD[kind], hp = d.civHp ? d.civHp[CI(team)] || d.civHp[0] : d.hp;
@@ -1761,6 +1879,7 @@ class Game {
     if (!this.canAfford(team, d.cost)) return { ok: false, why: 'Not enough resources.' };
     if (d.needs && !this.buildings.some(b => b.team === team && b.kind === d.needs && b.done && b.hp > 0)) return { ok: false, why: 'Build a ' + civName(d.needs, team) + ' first.' };
     if (d.one && this.countOf(team, kind) > 0) return { ok: false, why: 'You can only have one ' + civName(kind, team) + '.' };
+    if (!ageFits(d, this.teamAge(team))) return { ok: false, why: civName(kind, team) + ' comes with the ' + AGE_TABLE[d.age].name + '.' };
     if (!this.canPlace(kind, tx, ty, team)) return { ok: false, why: kind === 'port' ? 'Ports need a spot on the shore.' : d.site ? 'Build it on the landing beside a neutral village.' : 'Cannot build there.' };
     this.pay(team, d.cost);
     // a gate set into a wall takes that wall piece's place
@@ -1778,6 +1897,8 @@ class Game {
     if (!can || !can.includes(kind)) return 'Cannot train that here.';
     if (b.queue.length >= 5) return 'Queue is full.';
     if (UD[kind].one && this.countOf(b.team, kind) > 0) return 'Only one ' + civName(kind, b.team) + ' at a time.';
+    const cap = UD[kind].civCap ? UD[kind].civCap[CI(b.team)] : UD[kind].cap;
+    if (cap && this.countOf(b.team, kind) >= cap) return 'You can have ' + cap + ' ' + civName(kind, b.team) + ' at most.';
     const cost = this.costOf(kind, b.team);
     if (!this.canAfford(b.team, cost)) return 'Not enough resources.';
     this.pay(b.team, cost); b.queue.push({ kind, t: 0 });
@@ -1857,6 +1978,7 @@ class Game {
     this.updateBurning(dt);
     this.cleanup();
     this.updateFx(dt);
+    if (this.aging) this.ageTick(dt);
     this.aiAcc += dt; if (this.aiAcc >= 1) { this.aiAcc -= 1; this.aiTick(); }
     this.hhAcc = (this.hhAcc || 0) + dt; if (this.hhAcc >= HOUSEHOLD.every) { this.hhAcc -= HOUSEHOLD.every; this.householdTick(); }
     this.fogAcc += dt; if (this.fogAcc >= 0.2) { this.fogAcc = 0; this.updateFog(); }
@@ -2090,8 +2212,10 @@ class Game {
       if (u.cd <= 0) {
         u.cd = u.rate; u.atkT = Math.min(0.28, u.rate * 0.6);
         if (D.wpn) { this.shipShot(u, t, dist); return; }
-        if (u.ranged) this.arrows.push({ x0: u.x, y0: u.y - 0.4, x1: t.x, y1: t.isBld ? t.y : t.y - 0.3, t: 0, dur: 0.12 + dist * 0.035 });
+        if (u.ranged) this.arrows.push({ k: D.cls === 'siege' ? 'ball' : D.gun ? 'shot' : t.isBld && this.teamAge(u.team) >= 2 ? 'fire' : null, x0: u.x, y0: u.y - 0.4, x1: t.x, y1: t.isBld ? t.y : t.y - 0.3, t: 0, dur: 0.12 + dist * 0.035 });
+        if (D.gun) this.fx.push({ k: 'smoke', x: u.x + u.face * 0.4, y: u.y - 0.5, vy: -0.4, t: 0.7, max: 0.7 });
         this.damage(u, t);
+        if (t.isBld && t.hp > 0) this.fireOn(u, t);
       }
       return;
     }
@@ -2212,6 +2336,16 @@ class Game {
     const fire = tier >= 1 && (D.fireA || D.wpn === 'board'), swv = D.swivel && tier >= 1;
     this.arrows.push({ k: fire ? 'fire' : (swv ? 'shot' : null), x0: u.x, y0: u.y - 0.4, x1: t.x, y1: t.isBld ? t.y : t.y - 0.3, t: 0, dur: 0.12 + dist * 0.035 });
     this.damage(u, t, { wpn: 'arrow', atk: S.atk, ranged: true, swv, fire: fire && D.wpn !== 'board' });
+  }
+  /* fire on buildings (lore/siege.md, Iylia 2026-10-25), all of it automatic: foot soldiers carry obor torches,
+     gunners throw gunpowder fire pots (two fires at once), and from the Kingdom Age archers shoot fire arrows that
+     sometimes catch. Villagers standing by or repairing put fires out */
+  fireOn(u, t) {
+    if (t.team === 2 || t.team === u.team || BD[t.kind].neutral) return;
+    const D = UD[u.kind];
+    if (!u.ranged) { if ((u.cls === 'sword' || u.cls === 'spear' || u.cls === 'elite') && !D.big) this.ignite(t, u.team); }
+    else if (D.gun && u.cls === 'archer') { this.ignite(t, u.team); this.ignite(t, u.team); }
+    else if (u.cls === 'archer' && this.teamAge(u.team) >= 2 && this.rng() < 0.2) this.ignite(t, u.team);
   }
   /* set a building or wooden ship burning; stacks up to BURN.max */
   ignite(t, team) {
@@ -2399,7 +2533,7 @@ class Game {
       const c = BD[b.kind].cost || {}, perHp = Math.max(b.kind === 'towncentre' ? 300 : 40, (c.wood || 0) + (c.gold || 0)) * 0.5 / b.maxHp, r = this.res[u.team];
       if (r.wood < 1) { u.working = false; if (u.team === 0 && !(u.noWood > 0)) { this.msg('Not enough wood to repair.'); u.noWood = 5; } u.noWood -= dt; return; }
       u.working = true; const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
-      b._bn++;
+      b._bn++; if (b.burn) b.burn.t -= dt * 3;
       const f = Math.pow(Math.max(1, b.nb), -0.3), hp = Math.min(b.maxHp - b.hp, b.maxHp * dt / (Math.max(b.kind === 'towncentre' ? 60 : 20, BD[b.kind].time || 0) * 1.5) * f);
       b.hp += hp; b.rpw = (b.rpw || 0) + hp * perHp;
       if (b.rpw >= 1) { const w = Math.floor(b.rpw); r.wood = Math.max(0, r.wood - w); b.rpw -= w; }
@@ -2474,10 +2608,16 @@ class Game {
     const rg = w ? w.ranged : att.ranged;
     let arm = tgt.isBld ? (rg ? BARM.pa : BARM.ma) : (rg ? tgt.pa : tgt.ma);
     if (w && tgt.isBld) { if (w.wpn === 'cannon') { arm = 0; dmg *= NAVWPN.cannonBld; } else if (w.swv) arm = Math.floor(arm * NAVWPN.swivelArmCut); }
+    const AD = !w && att.isUnit && UD[att.kind];
+    if (AD && tgt.isBld) {
+      if (AD.civBld) { dmg = AD.civBld[CI(att.team)]; arm = 0; }                                       // cannon
+      else if (att.cls === 'archer' && !AD.gun && this.teamAge(att.team) >= 2) dmg += 2;              // fire arrows
+    }
     dmg = Math.max(1, dmg - arm);
     if (w && w.fire) this.ignite(tgt, att.team);
     // blowpipe darts: ipoh poison, a little damage over a few seconds that ignores armour (doesn't stack)
-    const pz = att.isUnit && UD[att.kind] && UD[att.kind].poison;
+    const PD = att.isUnit && UD[att.kind], a3 = PD && PD.cls === 'skirm' && this.teamAge(att.team) >= 3;
+    const pz = PD && (PD.poison ? (a3 ? SUMPIT_PSN : PD.poison) : a3 ? SKIRM_PSN : null);
     if (pz && tgt.isUnit && tgt.layer !== 1 && tgt.cls !== 'animal') { tgt.psn = { t: pz.dur, dps: pz.dps }; tgt.psnBy = att.team; }
     tgt.hp -= dmg; tgt.hit = 0.15; tgt.lastHit = this.t;
     if (tgt.isUnit && tgt.cls === 'animal') { tgt.order = { t: 'flee', t0: 3, fx: att.x != null ? att.x : tgt.x, fy: att.y != null ? att.y : tgt.y }; tgt.path = null; }
@@ -2489,6 +2629,10 @@ class Game {
     }
     this.fx.push({ k: 'spark', x: tgt.x + (tgt.isBld ? (this.rng() - 0.5) * tgt.size * 0.6 : 0), y: tgt.y - (tgt.isBld ? 0.3 : 0.3), t: 0.25, max: 0.25 });
     if (tgt.hp <= 0) this.onKilled(tgt, att);
+    // cannon shot scatters: half damage to the enemy soldiers standing around the one it hit
+    if (AD && AD.splash && tgt.isUnit) this.unitsNear(tgt.x, tgt.y, AD.splash + 0.5, (o) => {
+      if (o !== tgt && o.hp > 0 && o.team !== att.team && o.team !== 2 && o.layer === tgt.layer && Math.hypot(o.x - tgt.x, o.y - tgt.y) <= AD.splash) this.damage({ atk: Math.round(att.atk * 0.5), team: att.team, x: att.x, y: att.y, isUnit: true, kind: '' }, o);
+    });
   }
   onKilled(t, att) {
     if (t.isUnit) {
@@ -2593,6 +2737,11 @@ class Game {
       : { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'pahlawan', skirm: 'sumpit', fire: 'frigate' };
     const tc = this.buildings.find(b => b.team === 1 && b.kind === 'towncentre' && b.done && b.hp > 0);
     if (!tc) return;
+    // ageing up when the hour for this difficulty comes and the court can pay (lore/ages.md)
+    const age = this.teamAge(1), nA = age + 1, AT = { easy: [480, 1000, 1600], normal: [330, 760, 1200], hard: [240, 580, 940] }[this.diff];
+    const nextA = AGE_TABLE[nA] && nA <= (this.maxAge || AGE_MAX) ? AGE_TABLE[nA] : null;
+    if (nextA && !this.aging[1] && this.t > AT[nA - 2]) this.startAge(1);
+    const saving = nextA && !this.aging[1] && this.t > AT[nA - 2] - 150;
     const vils = this.units.filter(u => u.team === 1 && u.kind === 'villager' && u.hp > 0);
     const home = this.regionAt(tc.x, tc.y), isl = this.map === 'islands';
     const milAll = this.units.filter(u => u.team === 1 && u.hp > 0 && u.cls !== 'vil' && u.layer !== 1 && !u.aboard);
@@ -2623,10 +2772,10 @@ class Game {
     const farms = myB(K.field);
     for (const v of vils) {
       if (v.order.t !== 'idle') continue;
-      const w = { food: 0.4, wood: 0.38, gold: 0.22 };
+      const w = saving && nextA.cost.gold ? { food: 0.4, wood: 0.25, gold: 0.35 } : { food: 0.4, wood: 0.38, gold: 0.22 };
       let pick = 'wood', bs = 1e9;
       for (const k in w) { const s = (counts[k] + 0.5) / w[k]; if (s < bs) { bs = s; pick = k; } }
-      if (this.t > 100 && r.food > 400 && pick === 'food') pick = 'wood';
+      if (this.t > 100 && r.food > (saving ? nextA.cost.food + 150 : 400) && pick === 'food') pick = 'wood';
       let n = this.nearestNode(tc.x, tc.y, pick, 0, 30, 1);
       if (pick === 'food' && (!n || Math.hypot(n.x - tc.x, n.y - tc.y) > 16 || n.kind === 'carcass')) {
         const fm = farms.find(f => f.done && f.food > 0);
@@ -2650,14 +2799,16 @@ class Game {
     const has = (k) => myB(k).length > 0;
     const late = { easy: 1.4, normal: 1, hard: 0.75 }[this.diff];
     if (farms.length >= 2 && !has('granary') && r.wood >= 100 && !building.length) this.aiBuildNear('granary', farms[0], vils.slice(0, 1));
+    // the Kingdom Age needs two of Barracks, Storehouse, Granary and Port: put up whichever is quickest
+    if (nA === 2 && nextA && this.t > AT[0] - 200 && !this.ageNeedMet(1, 2) && r.wood >= 100 && !building.length) this.aiBuild(has('granary') ? 'store' : 'granary', tc, vils, 2, 4, 9);
     if (this.t > 200 * late && !has('tower') && r.wood >= 75 && r.gold >= 25 && !building.length) this.aiBuild('tower', tc, vils, 2, 4, 7);
-    if (this.t > 300 * late && !has('palace') && r.wood >= 400 && r.gold >= 200) this.aiBuild('palace', tc, vils, 4, 6, 12);
-    if (mj && this.t > 360 * late && !has('tradepost') && r.wood >= 150 && r.gold >= 50) {
+    if (age >= 2 && this.t > 300 * late && !has('palace') && r.wood >= 400 && r.gold >= 200) this.aiBuild('palace', tc, vils, 4, 6, 12);
+    if (civOk(BD.tradepost, 1) && age >= 2 && this.t > 360 * late && !has('tradepost') && r.wood >= 150 && r.gold >= 50) {
       const v = this.villages.filter(v => !v.post && v.hp > 0 && (!isl || this.regionAt(v.site.tx + 1, v.site.ty + 1) === home)).sort((a, b) => Math.hypot(a.x - tc.x, a.y - tc.y) - Math.hypot(b.x - tc.x, b.y - tc.y))[0];
       if (v) { const near = vils.slice().sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y)).slice(0, 2); this.placeBuilding(1, 'tradepost', v.site.tx, v.site.ty, near.map(u => u.id)); }
     }
 
-    if (barracks.length && this.t > 240 * late && !has(K.heal) && r.wood >= BD[K.heal].cost.wood && r.gold >= 50 && !building.length) this.aiBuild(K.heal, tc, vils, 2, 5, 10);
+    if (barracks.length && age >= 2 && this.t > 240 * late && !has(K.heal) && r.wood >= BD[K.heal].cost.wood && r.gold >= 50 && !building.length) this.aiBuild(K.heal, tc, vils, 2, 5, 10);
     const pool = myB(K.heal).find(b => b.done);
     if (pool) {
       const heal = mil.filter(m => m.cls === 'healer').length + pool.queue.length;
@@ -2667,12 +2818,14 @@ class Game {
 
     // 5. train military (Bhayangkara come from the Kraton)
     const milCap = D.milBase + Math.floor(this.t / D.milRate);
+    // saving for the next age: keep half the army's worth of training going, hold the rest back
+    const hold = saving && !this.canAfford(1, nextA.cost) && mil.length >= Math.floor(milCap / 2);
     const palace = myB('palace').find(b => b.done);
-    if (palace && palace.queue.length < 1 && mil.length < milCap && pop < cap && this.rng() < 0.5) this.queueUnit(palace, K.elite, 1);
+    if (palace && !hold && palace.queue.length < 1 && mil.length < milCap && pop < cap && this.rng() < 0.5) this.queueUnit(palace, K.elite, 1);
     if (palace && !palace.rally) palace.rally = { x: tc.x - 6, y: tc.y + 2 };
     for (const b of barracks) {
-      if (b.queue.length >= 2 || mil.length + b.queue.length >= milCap) continue;
-      const roll = this.rng(), kind = roll < 0.35 ? 'keris' : roll < 0.6 ? K.skirm : roll < 0.82 ? 'tombak' : 'archer';
+      if (hold || b.queue.length >= 2 || mil.length + b.queue.length >= milCap) continue;
+      const roll = this.rng(), kind = age >= 3 && roll > 0.9 ? 'cannon' : roll < 0.35 ? 'keris' : roll < 0.6 ? K.skirm : roll < 0.82 ? 'tombak' : lineKind(1, age);
       if (pop + b.queue.length < cap) this.queueUnit(b, kind, 1);
       if (!b.rally) b.rally = { x: tc.x - 6, y: tc.y + 2 };
     }
@@ -2796,7 +2949,7 @@ class Game {
     return false;
   }
 }
-const ORDER_CLS = { spear: 0, sword: 1, elite: 1, vil: 2, archer: 3, healer: 3.5, boat: 4, ship: 4, animal: 5 };
+const ORDER_CLS = { spear: 0, sword: 1, elite: 1, vil: 2, archer: 3, healer: 3.5, siege: 3.8, boat: 4, ship: 4, animal: 5 };
 const HEAL_CALM = 3;   // a unit hit within the last 3 s can't be healed (no healing mid-fight)
 if (typeof module !== 'undefined') module.exports = { Game, UD, BD, NK, W, H, T, STEP, STARTS, rectDist };
 
@@ -2995,7 +3148,9 @@ function drawUnit(P, kind, team, anim, f, tool) {
   }
 }
 
-function unitSprite(kind, team, anim, f, tool) { return civUnitSprite(kind, CV(team), anim, f, tool); }
+// the team's age picks the look (AGEART, below); neutral and pre-age callers get the Kingdom Age roster
+function unitAge(team) { return typeof G !== 'undefined' && G && G.age && started && (team === 0 || team === 1) ? G.teamAge(team) : 2; }
+function unitSprite(kind, team, anim, f, tool) { return AGEART.unit(kind, CV(team), unitAge(team), anim, f) || civUnitSprite(kind, CV(team), anim, f, tool); }
 function civUnitSprite(kind, team, anim, f, tool) {
   if (team === AYU_CIV) { const s = AYART.unit(kind, anim, f); if (s) return s; }
   if (UD[kind] && UD[kind].cls === 'healer') return CIVB.healerSprite(UD[kind].civ, anim === 'attack' ? 'heal' : anim === 'work' ? 'idle' : anim, anim === 'attack' ? f : anim === 'walk' ? f : 0);
@@ -4412,7 +4567,7 @@ function womanSprite(anim, f) {
       }
     });
   }
-  const UNIT = { keris: 'dap', tombak: 'spear', archer: 'archer', namai: 'namai', mo: 'mo', chang: 'changsuek' };
+  const UNIT = { keris: 'dap', tombak: 'spear', archer: 'archer', namai: 'namai', mo: 'mo', chang: 'changsuek', gunner: 'gunner', musket: 'gunner', cannon: 'cannon' };
   function unit(kind, anim, f) {
     if (kind === 'villager') return womanSprite(anim, anim === 'walk' ? f & 3 : Math.min(1, f));
     const k = UNIT[kind]; if (!k) return null;
@@ -4423,6 +4578,318 @@ function womanSprite(anim, f) {
   function building(kind, level) { return AYX_DIMS[kind] ? ayBuildingX(kind, level) : BLD[kind] ? ayBuilding(BLD[kind]) : null; }
   function ship(slot) { return mainlandShip('ayu', slot); }
   return { unit, building, ship };
+})();
+/* ===== soldiers through the ages (unit-art/ages-all-civs, Iylia 2026-10-25) =====
+   One look per age in every mode. Age 1 a plain levy with no gold, age 2 the roster as drawn, age 3 mail (Melaka's
+   baju rantai, Majapahit's kere and bronze helmet, Ayutthaya's lacquered leather), age 4 royal-guard gold. Light
+   ranged units stay lightly dressed: plain in age 1, gold trim in age 4. Also the archer line's guns and the
+   cannon for each civ. Melaka art from lore/scenes/melaka-ages-art.js, guns from lore/scenes/units-extra.js. */
+const AGEART = (() => {
+/* ---------- Melaka (MELAGE) ---------- */
+/* Melaka age progression mockups. Runs in the game page after art.js (and heroes-art.js).
+   melAge(kind, age, anim, f): keris / tombak / archer drawn with the game's drawUnit, then
+     age 1: plain (no gold, simple headband)   age 2: as in the game today
+     age 3: baju rantai (mail shirt)           age 4: mail with gold trim, gold armbands and a taller gold-tipped tengkolok
+   melGunner(anim, f): age 3 Penembak (matchlock gunner)     melMeriam(): age 3 capped bronze cannon */
+function hexRGB(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function recolor(P, map) {
+  const c = P.x.canvas, img = P.x.getImageData(0, 0, c.width, c.height), d = img.data;
+  const m = Object.entries(map).map(([a, b]) => [hexRGB(a), hexRGB(b)]);
+  for (let i = 0; i < d.length; i += 4) for (const [a, b] of m) if (d[i] === a[0] && d[i + 1] === a[1] && d[i + 2] === a[2]) { d[i] = b[0]; d[i + 1] = b[1]; d[i + 2] = b[2]; break; }
+  P.x.putImageData(img, 0, 0);
+}
+const MAIL = '#9aa4ae', MAIL_D = '#6e7882';
+function melAge(kind, age, anim, f) {
+  return sprite(`melage|${kind}|${age}|${anim}|${f}`, 16, 18, 2, (P) => {
+    const T = TEAMC[0], bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0;
+    const B = (x, y, w, h, c) => P.r(x, y + 2 + bob, w, h, c);
+    drawUnit(P, kind, 0, anim, f);
+    if (age === 1) {
+      // village levy: no gold thread, plain wooden hilts, a simple headband instead of the tengkolok
+      recolor(P, { [GOLD]: T.main, [GOLD_D]: WOOD_D, [CREAM]: '#d8c9a0' });
+      if (kind !== 'archer') { P.x.clearRect(3, 0 + bob + 0, 9, 6); B(6, 2, 4, 1, HAIR); B(6, 3, 4, 1, SKIN); B(5, 3, 6, 1, T.dark); B(4, 3, 1, 2, T.dark); }
+    }
+    if (age >= 3) {
+      // baju rantai: a mail shirt over the baju, mail on the sleeves
+      for (let y = 7; y < 9; y++) for (let x = 5; x < 11; x++) B(x, y, 1, 1, (x + y) % 2 ? MAIL : MAIL_D);
+      B(4, 8, 1, 2, MAIL); if (!(anim === 'attack' && f === 1 && kind === 'keris')) B(11, 8, 1, 2, MAIL);
+      B(6, 7, 4, 1, age === 4 ? GOLD : MAIL_D);
+    }
+    if (age === 4) {
+      // royal guard: gold armbands, gold belt, tall gold-tipped peak on the tengkolok
+      B(4, 9, 1, 1, GOLD); if (!(anim === 'attack' && f === 1 && kind === 'keris')) B(11, 9, 1, 1, GOLD);
+      B(5, 9, 6, 1, GOLD); B(7, 9, 2, 1, '#c0392b');
+      if (kind !== 'archer') { B(9, -1, 2, 1, T.main); B(10, -2, 1, 1, GOLD); B(5, 3, 6, 1, GOLD); }
+      else { B(5, 3, 6, 1, GOLD); B(3, 4, 1, 3, T.main); }
+    }
+  });
+}
+function melGunner(anim, f, elite) {
+  return sprite(`melgun|${anim}|${f}|${elite ? 1 : 0}`, 16, 18, 2, (P) => {
+    const bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0, atk = anim === 'attack';
+    const B = (x, y, w, h, c) => P.r(x, y + 2 + bob, w, h, c);
+    drawUnit(P, 'keris', 0, anim === 'attack' ? 'idle' : anim, f);
+    P.x.clearRect(11, 0, 5, 14);                                  // drop the keris
+    for (let y = 7; y < 9; y++) for (let x = 5; x < 11; x++) B(x, y, 1, 1, (x + y) % 2 ? MAIL : MAIL_D);
+    B(11, 8, 1, 3, MAIL);
+    const BR = '#7a5a2a', MET = '#4a4a52';
+    if (elite) {
+      // musketeer: gold belt and armbands, tall gold-tipped tengkolok, heavier gun on a forked rest
+      B(6, 7, 4, 1, GOLD); B(5, 9, 6, 1, GOLD); B(7, 9, 2, 1, '#c0392b'); B(4, 9, 1, 1, GOLD);
+      B(9, -1, 2, 1, TEAMC[0].main); B(10, -2, 1, 1, GOLD); B(5, 3, 6, 1, GOLD);
+      if (!atk) { B(12, -3, 1, 12, MET); B(12, 8, 1, 3, BR); B(13, 6, 1, 1, '#c0392b'); B(14, 2, 1, 11, WOOD_D); B(13, 1, 1, 1, WOOD_D); B(15, 1, 1, 1, WOOD_D); }
+      else { B(5, 7, 11, 1, MET); B(5, 6, 1, 1, '#6a6a74'); B(4, 7, 2, 2, BR); B(8, 8, 1, 1, '#c0392b'); B(13, 8, 1, 5, WOOD_D);
+        if (f === 1) { P.r(15, 6 + 2 + bob, 1, 3, '#f6d04a'); B(13, 4, 2, 1, '#c8c8c8'); B(14, 3, 2, 1, '#e0e0e0'); B(12, 5, 1, 1, '#c8c8c8'); } }
+      return;
+    }
+    if (!atk) { B(12, -1, 1, 10, MET); B(12, 8, 1, 3, BR); B(13, 6, 1, 1, '#c0392b'); }   // matchlock shouldered, slow-match glowing
+    else { B(6, 8, 9, 1, MET); B(6, 7, 1, 1, '#6a6a74'); B(5, 8, 2, 2, BR); B(9, 9, 1, 1, '#c0392b');
+      if (f === 1) { B(15, 7, 1, 3, '#f6d04a'); B(15, 8, 1, 1, '#fff3a0'); B(13, 5, 2, 1, '#c8c8c8'); B(14, 4, 2, 1, '#e0e0e0'); } }
+  });
+}
+function melMeriam() {
+  return sprite('melmeriam', 26, 18, 2, (P) => {
+    const r = P.r, BZ = '#b8862c', BZ_L = '#e0b04a', BZ_D = '#7a5418';
+    r(3, 11, 18, 3, WOOD); r(3, 13, 18, 1, WOOD_D); r(1, 13, 3, 2, WOOD_D);                 // carriage and trail
+    disc(P, 8, 14, 3, '#3a2a1a'); disc(P, 8, 14, 1, WOOD); disc(P, 17, 14, 3, '#3a2a1a'); disc(P, 17, 14, 1, WOOD);
+    r(6, 7, 17, 4, BZ); r(6, 7, 17, 1, BZ_L); r(6, 10, 17, 1, BZ_D);                        // bronze barrel
+    r(5, 6, 2, 6, BZ_D); r(22, 6, 2, 6, BZ); r(23, 7, 1, 4, '#2a1a10');                     // breech ring and muzzle
+    for (const x of [10, 14, 18]) r(x, 7, 1, 4, BZ_D);                                        // reinforcing rings
+    r(12, 5, 3, 2, BZ_L); r(13, 4, 1, 1, BZ);                                               // ornamental handle (like a lela's)
+    r(1, 2, 1, 9, WOOD_D); r(2, 2, 4, 3, TEAMC[0].main); r(3, 3, 2, 1, GOLD);                // team pennant
+  });
+}
+
+
+/* ---------- extra units (XU) ---------- */
+const XU = (() => {
+/* Extra unit sprites in the game's style. Runs in the game page after art.js (uses sprite, drawUnit, disc,
+   TEAMC, palette constants, GOLD/GOLD_D).
+   xUnit(kind, anim, f): anim 'idle' (f 0) or 'attack' (f 0, 1, 2). Returns a sprite canvas (scale 2).
+     penyumpit  (Melaka, 16x18)    blowpipe warrior
+     lembing    (Majapahit, 16x18) javelin thrower
+     mjgunner   (Majapahit, 16x18) age-3 bedil gunner
+     cetbang    (Majapahit, 26x18) bronze cetbang on a wooden stand
+     dvcannon   (Đại Việt, 26x18)  bronze cannon on a lacquered carriage */
+const XU_DV = { main: '#e0aa22', dark: '#9a6a10', trim: '#7a2418', light: '#f4cc5a' };
+const XU_BAMBOO = '#c9b468', XU_BAMBOO_D = '#8a7a3a', XU_PIPE = '#6a4a22', XU_PIPE_L = '#8e6a34';
+const XU_GUN = '#4a4a52', XU_GUN_L = '#6a6a74', XU_STOCK = '#7a5a2a', XU_MATCH = '#c0392b';
+const XU_FLASH = '#f6d04a', XU_FLASH_W = '#fff3a0', XU_FIRE = '#e2562c', XU_SMOKE = '#c8c8c8', XU_SMOKE_L = '#e0e0e0', XU_SMOKE_D = '#9a9a9a';
+const XU_LACQ = '#2a2420', XU_LACQ_L = '#3d342d';
+
+function xuFlash(r, x, y) {       // muzzle flash pointing right, x = first pixel past the muzzle, y = bore centre
+  r(x, y - 1, 1, 3, XU_FIRE); r(x + 1, y - 2, 1, 5, XU_FLASH); r(x, y, 2, 1, XU_FLASH_W); r(x + 2, y - 1, 1, 3, XU_FLASH); r(x + 2, y, 1, 1, XU_FLASH_W);
+}
+function xuSmoke(r, x, y, late) {  // a few puffs drifting up from (x, y)
+  if (!late) { r(x, y - 3, 2, 2, XU_SMOKE); r(x + 1, y - 5, 2, 2, XU_SMOKE_L); r(x - 2, y - 4, 2, 1, XU_SMOKE); }
+  else { r(x - 1, y - 5, 3, 2, XU_SMOKE_D); r(x + 1, y - 7, 2, 2, XU_SMOKE); r(x - 3, y - 6, 2, 1, XU_SMOKE_D); }
+}
+
+function xUnit(kind, anim, f) {
+  anim = anim === 'attack' ? 'attack' : 'idle'; f = anim === 'attack' ? (f | 0) : 0;
+  const atk = anim === 'attack', big = kind === 'cetbang' || kind === 'dvcannon';
+  return sprite(`xu|${kind}|${anim}|${f}`, big ? 26 : 16, 18, 2, (P) => {
+    const r = P.r, B = (x, y, w, h, c) => r(x, y + 2, w, h, c), S = B;
+    if (kind === 'penyumpit') {
+      const T = TEAMC[0];
+      drawUnit(P, 'keris', 0, 'idle', 0);
+      P.x.clearRect(11, 0, 5, 14);                                  // drop the keris
+      P.x.clearRect(3, 0, 9, 6);                                    // drop the tengkolok
+      B(6, 3, 4, 1, SKIN); B(6, 2, 4, 1, HAIR);
+      // light clothing: bare shoulders, a pale sash over a green sarong
+      B(5, 7, 6, 2, SKIN); B(5, 8, 6, 1, SKIN_D); B(6, 7, 1, 1, '#e9dcb4'); B(7, 8, 1, 1, '#e9dcb4');
+      B(5, 9, 6, 3, T.main); B(5, 9, 6, 1, T.dark); B(7, 10, 1, 2, T.dark); B(10, 11, 1, 1, T.dark);
+      B(4, 8, 1, 3, SKIN);
+      // simple green headcloth knotted at the back
+      B(6, 2, 4, 1, T.main); B(5, 3, 5, 1, T.main); B(6, 3, 1, 1, T.dark); B(4, 3, 1, 1, T.dark); B(3, 4, 1, 2, T.dark);
+      // bamboo dart quiver at the hip
+      B(3, 9, 2, 4, XU_BAMBOO); B(3, 10, 2, 1, XU_BAMBOO_D); B(3, 12, 2, 1, XU_BAMBOO_D); B(3, 8, 1, 1, '#f4ecd4'); B(4, 8, 1, 1, WOOD_D);
+      if (!atk || f === 2) {
+        // sumpit held upright, 13 px, with a spear-blade tip lashed on
+        B(11, 8, 1, 3, SKIN);
+        S(12, -2, 1, 14, XU_PIPE); S(12, -2, 1, 1, STEEL); S(12, 3, 1, 1, XU_PIPE_L); S(12, 8, 1, 1, SKIN);
+        if (atk) S(13, -2, 1, 1, XU_PIPE_L);
+      } else {
+        // pipe at the lips, aimed level, both hands on it
+        B(10, 6, 6, 1, XU_PIPE); B(10, 5, 1, 1, XU_PIPE_L); B(14, 6, 1, 1, XU_PIPE_L);
+        B(11, 7, 1, 1, SKIN); B(12, 6, 1, 1, SKIN); B(11, 8, 1, 2, SKIN);
+        if (f === 1) { B(9, 6, 1, 1, SKIN_D); B(15, 5, 1, 1, '#f4ecd4'); B(14, 5, 1, 1, '#e05a4a'); }   // cheek puff, dart leaving
+      }
+    } else if (kind === 'lembing') {
+      const T = TEAMC[1];
+      drawUnit(P, 'keris', 1, 'idle', 0);
+      P.x.clearRect(11, 0, 5, 14);
+      // two spare javelins in the off hand
+      S(2, -1, 1, 15, WOOD); S(2, -2, 1, 1, STEEL); S(3, 0, 1, 14, WOOD_D); S(3, -1, 1, 1, STEEL);
+      B(2, 9, 3, 1, SKIN); B(4, 8, 1, 1, GOLD);
+      if (!atk) {
+        B(11, 8, 1, 3, SKIN); B(11, 8, 1, 1, GOLD);
+        S(12, 0, 1, 14, WOOD); S(12, -1, 1, 2, STEEL); S(12, 9, 1, 1, SKIN);
+      } else if (f === 0) {
+        // arm cocked back overhead, javelin level above the head
+        B(11, 3, 1, 5, SKIN); B(11, 7, 1, 1, GOLD); B(11, 8, 1, 1, SKIN);
+        B(5, 1, 9, 1, WOOD); B(14, 1, 2, 1, STEEL); B(5, 0, 1, 1, T.main);
+        B(11, 1, 1, 1, SKIN);
+      } else if (f === 1) {
+        // released: arm thrown forward, javelin leaving the frame
+        B(11, 7, 1, 1, GOLD); B(11, 6, 1, 1, SKIN); B(12, 5, 1, 1, SKIN); B(13, 4, 1, 1, SKIN);
+        B(13, 3, 2, 1, WOOD); B(15, 3, 1, 1, STEEL); B(12, 2, 1, 1, '#f3ead0'); B(11, 1, 1, 1, '#f3ead0');
+      } else {
+        // follow-through: arm down and forward
+        B(11, 8, 1, 1, GOLD); B(12, 9, 2, 1, SKIN); B(11, 8, 1, 2, SKIN);
+      }
+    } else if (kind === 'mjgunner') {
+      const T = TEAMC[1];
+      drawUnit(P, 'keris', 1, 'idle', 0);
+      P.x.clearRect(11, 0, 5, 14);
+      // red padded baju with gold collar and a crossing powder belt; kain stays below
+      B(5, 7, 6, 3, T.main); B(5, 9, 6, 1, T.dark); B(6, 7, 4, 1, GOLD); B(7, 8, 2, 1, GOLD_D);
+      B(5, 8, 1, 1, '#5a3a1e'); B(10, 9, 1, 1, '#5a3a1e');
+      B(4, 8, 1, 2, T.main); B(4, 10, 1, 1, SKIN);
+      B(3, 11, 2, 2, '#6a4a2a'); B(3, 11, 2, 1, GOLD_D);               // powder horn at the hip
+      B(5, 2, 6, 1, T.dark);                                           // red iket band under the diadem
+      if (!atk || f === 2) {
+        B(11, 8, 1, 2, T.main); B(11, 10, 1, 1, SKIN);
+        B(12, -1, 1, 10, XU_GUN); B(12, -1, 1, 1, XU_GUN_L); B(12, 8, 1, 3, XU_STOCK); B(13, 6, 1, 1, XU_MATCH);
+        if (atk) { B(13, -3, 2, 2, XU_SMOKE_D); B(11, -4, 2, 1, XU_SMOKE); }
+      } else {
+        B(11, 8, 1, 1, T.main);
+        B(6, 8, 9, 1, XU_GUN); B(6, 7, 1, 1, XU_GUN_L); B(5, 8, 2, 2, XU_STOCK); B(9, 9, 1, 1, XU_MATCH); B(11, 9, 1, 1, SKIN);
+        if (f === 1) { B(15, 7, 1, 3, XU_FLASH); B(15, 8, 1, 1, XU_FLASH_W); B(13, 5, 2, 1, XU_SMOKE); B(14, 4, 2, 1, XU_SMOKE_L); }
+        else B(10, 7, 1, 1, '#ffb040');                                // match touching the pan
+      }
+    } else if (kind === 'cetbang') {
+      const T = TEAMC[1], BZ = '#b07a30', BZ_L = '#dca452', BZ_D = '#6e4618';
+      // low wooden stand: sill beam on two feet, a forked post carrying the trunnions
+      r(4, 14, 18, 2, WOOD); r(4, 15, 18, 1, WOOD_D); r(5, 16, 2, 2, WOOD_D); r(19, 16, 2, 2, WOOD_D);
+      r(11, 10, 3, 4, WOOD); r(11, 10, 1, 4, WOOD_D); r(10, 13, 5, 1, WOOD_D);
+      // tiller at the breech
+      r(2, 10, 3, 1, WOOD); r(1, 11, 2, 1, WOOD); r(0, 12, 1, 1, WOOD_D);
+      // slim bronze barrel with a flared mouth and rings
+      r(5, 7, 15, 3, BZ); r(5, 7, 15, 1, BZ_L); r(5, 9, 15, 1, BZ_D);
+      r(4, 7, 2, 3, BZ_D); r(3, 8, 1, 1, BZ_D);
+      for (const x of [8, 15, 18]) r(x, 7, 1, 3, BZ_D);
+      r(20, 6, 3, 5, BZ); r(20, 6, 3, 1, BZ_L); r(20, 10, 3, 1, BZ_D); r(22, 7, 1, 3, '#2a1a10');
+      r(11, 7, 3, 1, GOLD); r(12, 6, 1, 1, GOLD);                     // gilt Surya boss on the trunnion
+      // red Majapahit pennant (with a white stripe) on a pole behind the breech
+      r(2, 1, 1, 9, WOOD_D); r(3, 1, 5, 2, T.main); r(3, 3, 4, 1, '#f3ead0'); r(3, 4, 3, 1, T.main); r(8, 1, 1, 1, T.main);
+      if (atk && f === 0) { r(5, 5, 1, 2, '#ffb040'); r(5, 4, 1, 1, XU_FLASH_W); }
+      if (atk && f === 1) { xuFlash(r, 23, 8); xuSmoke(r, 22, 6, false); r(5, 6, 1, 1, XU_SMOKE); }
+      if (atk && f === 2) xuSmoke(r, 22, 6, true);
+    } else if (kind === 'dvcannon') {
+      const BZ = '#a8803a', BZ_L = '#d4ac5a', BZ_D = '#6a4c1c';
+      // dark lacquered box carriage with red trim on two spoked wheels, trail to the ground
+      r(4, 11, 16, 3, XU_LACQ); r(4, 11, 16, 1, XU_LACQ_L); r(4, 13, 16, 1, XU_DV.trim);
+      r(1, 13, 4, 2, XU_LACQ); r(0, 14, 2, 1, XU_LACQ_L);
+      for (const cx of [8, 16]) { disc(P, cx, 14, 3, '#3a2a1a'); disc(P, cx, 14, 2, WOOD); disc(P, cx, 14, 1, '#3a2a1a'); r(cx, 14, 1, 1, XU_DV.main); }
+      // bronze barrel: thick stepped breech, hoops, tapering to a lipped muzzle
+      r(5, 6, 6, 5, BZ); r(5, 6, 6, 1, BZ_L); r(5, 10, 6, 1, BZ_D);
+      r(11, 7, 9, 3, BZ); r(11, 7, 9, 1, BZ_L); r(11, 9, 9, 1, BZ_D);
+      r(4, 7, 1, 3, BZ_D); r(3, 8, 1, 1, BZ_D);
+      for (const x of [7, 10, 14, 17]) r(x, x < 11 ? 6 : 7, 1, x < 11 ? 5 : 3, BZ_D);
+      r(20, 6, 2, 5, BZ); r(20, 6, 2, 1, BZ_L); r(21, 7, 1, 3, '#2a1a10');
+      r(12, 7, 2, 1, XU_DV.trim);                                     // red cord at the trunnion
+      // yellow pennant with a red border and tail
+      r(2, 0, 1, 11, WOOD_D); r(3, 0, 5, 4, XU_DV.main); r(3, 0, 5, 1, XU_DV.trim); r(3, 3, 5, 1, XU_DV.trim); r(8, 1, 1, 2, XU_DV.trim);
+      r(4, 1, 1, 2, XU_DV.light); r(6, 2, 1, 1, XU_DV.dark);
+      if (atk && f === 0) { r(5, 4, 1, 2, '#ffb040'); r(5, 3, 1, 1, XU_FLASH_W); }
+      if (atk && f === 1) { xuFlash(r, 22, 8); xuSmoke(r, 21, 6, false); r(5, 5, 1, 1, XU_SMOKE); }
+      if (atk && f === 2) xuSmoke(r, 21, 6, true);
+    }
+  });
+}
+
+return { xUnit };
+})();
+/* ---------- Majapahit: the game's Majapahit drawing, a kere (mail coat) from age 2, a bronze helmet in age 3 ---------- */
+function mpAge(kind, age, anim, f) {
+  return sprite(`mpage|${kind}|${age}|${anim}|${f}`, 16, 18, 2, (P) => {
+    const T = TEAMC[1], bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0;
+    const B = (x, y, w, h, c) => P.r(x, y + 2 + bob, w, h, c);
+    drawUnit(P, kind, 1, anim, f);
+    if (age === 1) recolor(P, { [GOLD]: T.main, [GOLD_D]: WOOD_D, [CREAM]: '#d8c9a0' });
+    if (age >= 2) {
+      for (let y = 7; y < 9; y++) for (let x = 5; x < 11; x++) B(x, y, 1, 1, (x + y) % 2 ? MAIL : MAIL_D);
+      B(4, 8, 1, 2, MAIL); if (!(anim === 'attack' && f === 1 && kind === 'keris')) B(11, 8, 1, 2, MAIL);
+      B(6, 7, 4, 1, age === 4 ? GOLD : MAIL_D);
+    }
+    if (age === 3) helmet(P, bob);
+    if (age === 4) {
+      B(4, 9, 1, 1, GOLD); if (!(anim === 'attack' && f === 1 && kind === 'keris')) B(11, 9, 1, 1, GOLD);
+      B(5, 9, 6, 1, GOLD); B(7, 9, 2, 1, T.main);
+    }
+  });
+}
+function helmet(P, bob) {
+  const BZ = '#b8862c', BZL = '#e0b04a', BZD = '#7a5418', y = bob || 0;
+  P.r(6, 3 + y, 4, 1, BZ); P.r(5, 4 + y, 6, 1, BZD); P.r(7, 3 + y, 2, 1, BZL); P.r(7, 2 + y, 2, 1, BZ); P.r(8, 1 + y, 1, 1, '#c0392b');
+}
+// the Bedil Kraton (Golden Age): the bedil gunner in a kere with a gold belt
+function mpMusket(anim, f) {
+  const a = anim === 'attack' ? 'attack' : 'idle', ff = a === 'attack' ? Math.min(2, f) : 0, base = XU.xUnit('mjgunner', a, ff);
+  return sprite('mpmusket|' + a + '|' + ff, base.width / 2, base.height / 2, 2, (P) => {
+    P.x.drawImage(base, 0, 0, base.width / 2, base.height / 2);
+    const B = (x, y, w, h, c) => P.r(x, y + 2, w, h, c);
+    for (let y = 7; y < 9; y++) for (let x = 5; x < 11; x++) B(x, y, 1, 1, (x + y) % 2 ? MAIL : MAIL_D);
+    B(6, 7, 4, 1, GOLD); B(5, 9, 6, 1, GOLD); B(7, 9, 2, 1, TEAMC[1].main);
+  }, false);
+}
+/* ---------- light ranged units: levy cloth in age 1, a gold sash and band in age 4, never mail ---------- */
+function lightAge(kind, civ, age, anim, f) {
+  return sprite(`ltage|${kind}|${civ}|${age}|${anim}|${f}`, 16, 18, 2, (P) => {
+    const T = TEAMC[civ], bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0;
+    drawUnit(P, kind, civ, anim, f);
+    if (age === 1) recolor(P, { [GOLD]: T.main, [GOLD_D]: WOOD_D, [CREAM]: '#d8c9a0' });
+    if (age >= 4) { P.r(5, 11 + bob, 6, 1, GOLD); P.r(5, 5 + bob, 6, 1, GOLD); }
+  });
+}
+/* ---------- Ayutthaya: copies of the AYART roster, recoloured and dressed by age ---------- */
+const AYC = {}, AY_LEVY_MAP = { '#7b4bb3': '#8a6b4a', '#9b6fd0': '#a8885e', '#4e2d78': '#5e4630', '#3a1f5c': '#4a3424', [GOLD]: '#a8885e', [GOLD_D]: '#5e3b1c' };
+function canvasRecolor(src, map) {
+  const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; const x = c.getContext('2d'); x.drawImage(src, 0, 0);
+  if (!map) return c;
+  const img = x.getImageData(0, 0, c.width, c.height), d = img.data, m = Object.entries(map).map(([a, b]) => [hexRGB(a), hexRGB(b)]);
+  for (let i = 0; i < d.length; i += 4) for (const [a, b] of m) if (d[i] === a[0] && d[i + 1] === a[1] && d[i + 2] === a[2]) { d[i] = b[0]; d[i + 1] = b[1]; d[i + 2] = b[2]; break; }
+  x.putImageData(img, 0, 0); return c;
+}
+function ayAge(kind, age, anim, f) {
+  const key = kind + '|' + age + '|' + anim + '|' + f; if (AYC[key]) return AYC[key];
+  const base = AYART.unit(kind, anim, f); if (!base) return null;
+  const c = canvasRecolor(base, age === 1 ? AY_LEVY_MAP : null), x = c.getContext('2d');
+  const reach = anim === 'attack' && f === 1 && kind === 'keris';
+  const B = (lx, ly, w, h, col) => { x.fillStyle = col; x.fillRect(lx * 2, (ly + 2) * 2, w * 2, h * 2); };
+  const soldier = kind === 'keris' || kind === 'tombak' || kind === 'gunner' || kind === 'musket';
+  if (age >= 3 && soldier) {
+    const L = '#5a3a22', LL = '#7a5232';
+    for (let y = 7; y < 10; y++) for (let xx = 5; xx < 11; xx++) B(xx, y, 1, 1, y === 8 ? LL : L);   // lacquered leather plates
+    B(5, 7, 1, 1, GOLD); B(10, 7, 1, 1, GOLD); B(7, 9, 2, 1, GOLD); B(4, 7, 1, 2, L); if (!reach) B(11, 7, 1, 2, L);
+    if (age >= 4) { B(6, 7, 4, 1, GOLD); B(5, 9, 6, 1, GOLD); B(7, 9, 2, 1, '#b8322a'); B(4, 9, 1, 1, GOLD); if (!reach) B(11, 9, 1, 1, GOLD); B(7, -1, 2, 1, GOLD); B(8, -2, 1, 1, '#fff3a0'); }
+  }
+  if (age >= 4 && (kind === 'namai' || kind === 'archer')) { B(5, 9, 6, 1, GOLD); B(5, 3, 6, 1, GOLD); }
+  return (AYC[key] = c);
+}
+/* ---------- the look for a unit of this civ in this age, or null for the plain roster ---------- */
+const CORE = { keris: 1, tombak: 1, archer: 1 }, LIGHT = { sumpit: 1, lembing: 1, namai: 1 };
+function unit(kind, civ, age, anim, f) {
+  age = Math.max(1, Math.min(4, age || 2));
+  const a = anim === 'work' ? 'idle' : anim, ff = a === 'walk' ? f & 3 : Math.min(2, f);
+  if (civ === AYU_CIV) {
+    if (CORE[kind] || LIGHT[kind] || kind === 'gunner' || kind === 'musket') return age === 2 && kind !== 'musket' && kind !== 'gunner' ? null : ayAge(kind, kind === 'musket' ? 4 : kind === 'gunner' ? Math.max(3, age) : age, a, ff);
+    return null;
+  }
+  if (kind === 'cannon') return civ === 1 ? XU.xUnit('cetbang', a === 'attack' ? 'attack' : 'idle', a === 'attack' ? ff : 0) : melMeriam();
+  if (civ === 1) {
+    if (kind === 'musket') return mpMusket(a, ff);
+    if (kind === 'kerearcher') return mpAge('archer', 3, a, ff);
+    if (CORE[kind]) return mpAge(kind, age, a, ff);
+  } else if (civ === 0) {
+    if (kind === 'gunner' || kind === 'musket') return melGunner(a, ff, kind === 'musket');
+    if (CORE[kind]) return age === 2 ? null : melAge(kind, age, a, ff);
+  }
+  if (LIGHT[kind] && (age === 1 || age >= 4)) return lightAge(kind, civ, age, a, ff);
+  return null;
+}
+return { unit };
 })();
 const CIVB_KIND = { granary: ['jelapang', 'lumbung'], tower: ['menara', 'kulkul'], palace: ['istana', 'kraton'], tradepost: ['pangkalan', 'bandar'] };
 /* where each ship sprite sits on the water: [hull centre x, waterline y] in sprite pixels (Majapahit fire ship differs) */
@@ -4766,7 +5233,7 @@ function fitIcon(spr, size) {
   return c;
 }
 const MINIC = [['#7dffa8', '#c8ffd9'], ['#ff5a4a', '#ff8a7a'], ['#d8d0b8', '#e8e0c8'], ['#c9a3ff', '#e4d0ff']];
-function unitIcon(kind, team) { return dataURL('ui|' + kind + CV(team), () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
+function unitIcon(kind, team) { return dataURL('ui|' + kind + CV(team) + '|a' + unitAge(team), () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
 function bldIcon(kind, team) { return dataURL('bi|' + kind + CV(team), () => fitIcon(buildingSprite(kind, team, 2), 44)); }
 function resIcon(name) { return dataURL('ri|' + name, () => iconSprite(name)); }
 function nodeIcon(n) {
@@ -5523,6 +5990,18 @@ function costTitle(cost) { return Object.keys(cost).map(k => cost[k] + ' ' + k).
 function cmdBtn(act, key, icon, label, cost, title, extra) {
   return '<button class="cmd" data-a="' + act + '" data-k="' + key + '" title="' + (title || label) + '" ' + (extra || '') + '><img alt="" src="' + icon + '"><span class="nm">' + label + '</span><span class="ct">' + (cost ? costHTML(cost) : '&nbsp;') + '</span></button>';
 }
+/* a button for something a later age brings: greyed out, tapping it says which age */
+function lockBtn(k, d, icon) {
+  const A = AGE_TABLE[d.age || 1];
+  return '<button class="cmd no lock" data-a="locked" data-k="' + k + '" title="' + civName(k, 0) + ' comes with the ' + A.name + '"><img alt="" src="' + icon + '"><span class="nm">' + btnName(k, 0) + '</span><span class="ct">' + A.name.replace('Age of ', '').replace(' Age', '') + '</span></button>';
+}
+/* the Town Centre's age-up button: the next age and its cost, or the work under way (tap to call it off) */
+function ageBtn() {
+  const a = G.aging && G.aging[0];
+  if (a) { const A = AGE_TABLE[a.to]; return '<button class="cmd on" data-a="agecancel" title="Advancing to the ' + A.name + '. Tap to call it off and get the cost back."><img alt="" src="' + resIcon('flag') + '"><span class="nm">' + A.local[CI(0)] + '</span><span class="ct" id="p-age">0%</span></button>'; }
+  const n = G.teamAge(0) + 1, A = AGE_TABLE[n]; if (!A || n > (G.maxAge || AGE_MAX)) return '';
+  return cmdBtn('ageup', 'ageup', resIcon('flag'), A.local[CI(0)] + '<small class="en">(' + A.name + ')</small>', A.cost, 'Advance to the ' + A.name + ' (' + A.local[CI(0)] + '), ' + A.time + ' s. Needs ' + G.ageText(0, n) + '.', 'data-age="' + n + '"');
+}
 function describeOrder(u) {
   const o = u.order;
   switch (o.t) {
@@ -5591,7 +6070,7 @@ function buildPanel() {
     const hasVil = us.some(u => u.cls === 'vil'), hasMil = us.some(u => u.cls !== 'vil' && u.cls !== 'boat');
     if (hasVil) {
       for (const k of BUILD_ORDER) {
-        const d = BD[k]; if (!civOk(d, 0)) continue; cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
+        const d = BD[k]; if (!civOk(d, 0)) continue; if (!ageFits(d, G.teamAge(0))) { if (!G.M) cmds += lockBtn(k, d, bldIcon(k, 0)); continue; } cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
     }
     if (hasMil) {
@@ -5612,7 +6091,10 @@ function buildPanel() {
     if (own && b.done && d.train) {
       for (const k of G.trainable(b.kind, 0)) { const c = G.costOf(k, 0); cmds += cmdBtn('train', k, unitIcon(k, 0), btnName(k, 0), c, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(c) + ')', 'data-tk="' + k + '"'); }
       extra = '<div class="queue" id="p-q">' + b.queue.map((q, i) => '<button class="qi" data-a="cancel" data-i="' + i + '" title="Cancel"><img alt="" src="' + unitIcon(q.kind, 0) + '"><i id="p-qb' + i + '"></i></button>').join('') + '</div>';
+      for (const k of G.lockedTrain(b.kind, 0)) cmds += lockBtn(k, UD[k], unitIcon(k, 0));
+      if (b.kind === 'towncentre' && !G.M) cmds += ageBtn();
       if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), btnName('raft', 0), UD.raft.cost, civName('raft', 0) + ': push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
+      pdyn.push(() => { const pa = $('p-age'), ag = G.aging && G.aging[0]; if (pa && ag) pa.textContent = Math.floor((1 - ag.left / ag.tot) * 100) + '%'; });
       pdyn.push(() => { b.queue.forEach((q, i) => { const e = $('p-qb' + i); if (e) e.style.width = (i === 0 ? Math.min(100, b.qt / UD[q.kind].time * 100) : 0) + '%'; }); });
     }
     if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
@@ -5633,7 +6115,7 @@ function buildPanel() {
 }
 function structKey() {
   const us = selUnits();
-  let k = sel.map(o => o.id + (o.isBld ? (o.done ? 'd' : 'u') + o.queue.length : '')).join(',');
+  let k = sel.map(o => o.id + (o.isBld ? (o.done ? 'd' : 'u') + o.queue.length : '')).join(',') + '|' + G.teamAge(0) + (G.aging && G.aging[0] ? 'A' : '');
   k += '|' + (mode ? mode.kind + (mode.bkind || '') : '') + '|' + formation + '|' + us.some(u => u.cls === 'vil');
   return k;
 }
@@ -5645,6 +6127,7 @@ function updatePanel() {
   const fm = $('p-fmt'); if (fm) fm.textContent = formation;
   const r = G.res[0];
   document.querySelectorAll('#panel .cmd[data-bk]').forEach((el) => { const d = BD[el.dataset.bk]; el.classList.toggle('no', !G.canAfford(0, d.cost) || !!(d.needs && !G.buildings.some(b => b.team === 0 && b.kind === d.needs && b.done && b.hp > 0))); });
+  document.querySelectorAll('#panel .cmd[data-age]').forEach((el) => { const n = +el.dataset.age; el.classList.toggle('no', !G.ageNeedMet(0, n) || !G.canAfford(0, AGE_TABLE[n].cost)); });
   document.querySelectorAll('#panel .cmd[data-tk]').forEach((el) => { el.classList.toggle('no', !G.canAfford(0, G.costOf(el.dataset.tk, 0))); });
   const place = document.querySelector('#panel .cmd.ok'); if (place) place.classList.toggle('no', !(mode && mode.valid));
   // a row of buttons wider than the panel scrolls sideways: fade its edge so the hidden ones are noticed
@@ -5661,6 +6144,9 @@ $('panel').addEventListener('click', (e) => {
     if (b._demoT && performance.now() - b._demoT < 3000) { b._demoT = 0; if (G.demolish(b)) { select([]); panelKey = ''; } }
     else { b._demoT = performance.now(); const e = $('p-demo'); if (e) e.textContent = 'Tap again'; setTimeout(() => { const e2 = $('p-demo'); if (e2 && sel[0] === b) e2.textContent = 'Demolish'; }, 3000); }
   }
+  else if (a === 'ageup') { const err = G.startAge(0); toast(err || 'Your court sets to work. The Town Centre keeps training villagers.'); panelKey = ''; }
+  else if (a === 'agecancel') { G.cancelAge(0); panelKey = ''; }
+  else if (a === 'locked') toast(el.title + '.');
   else if (a === 'gatelock') { const b = sel[0]; if (b && b.isBld && b.team === 0) { G.setGateLock(b, !b.locked); toast(b.locked ? 'Gate closed. No one passes.' : 'Gate open. Your people can pass, enemies cannot.'); } panelKey = ''; }
   else if (a === 'raft') { const b = sel[0]; const err = b && b.isBld ? G.launchRaft(b) : 'Not available.'; if (err) toast(err); }
   else if (a === 'unload') { for (const g of selUnits()) if (g.cargo && g.cargo.length) G.orderLand(g, g.x, g.y); }
@@ -5700,7 +6186,8 @@ function updateHud() {
   $('pop-chip').classList.toggle('warn', pop >= cap);
   $('hint').textContent = hintText();
   const raid = G.ai.next - G.t;
-  $('clock').textContent = fmtTime(G.t) + (G.ai.wave === 0 && raid > 0 ? '  Raid ' + fmtTime(raid) : '');
+  const AG = AGE_TABLE[G.teamAge(0)];
+  $('clock').textContent = (AG ? AG.local[CI(0)] + '  ' : '') + fmtTime(G.t) + (G.ai.wave === 0 && raid > 0 ? '  Raid ' + fmtTime(raid) : '');
   const n = idleVillagers().length; const b = $('idle-n'); b.textContent = n; b.hidden = n === 0;
   for (const m of G.msgs) if (!seenMsgs.has(m)) { seenMsgs.add(m); toast(m.text); }
 }
@@ -5711,7 +6198,7 @@ function showOv(name) {
   for (const n of ['pause', 'end', 'help']) $('ov-' + n).hidden = n !== name;
 }
 function startGame(seed) {
-  seedUsed = seed; G = new Game({ seed, diff, map: mapKind, civs: [pciv, pfoe] });
+  seedUsed = seed; G = new Game({ seed, diff, map: mapKind, civs: [pciv, pfoe], startAge });
   enterGame();
   const tc = G.buildings.find(b => b.team === 0 && b.kind === 'towncentre');
   view.zoom = view.w > 700 ? 1.5 : 1; resize(); centerOn(tc.x, tc.y + 1);
@@ -5796,7 +6283,7 @@ window.addEventListener('pagehide', saveGame);
 /* ---------------- main menu ---------------- */
 // links to the demos: relative on the live site, absolute anywhere else (the playable artifact)
 const SITE = /github\.io$/.test(location.hostname) ? './' : 'https://therediris0827.github.io/SEA-RTS/';
-let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroes';
+let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroes', startAge = 1;
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
 function showMenu(name) {
   $('menu').hidden = !name;
@@ -5809,7 +6296,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.27 \u00b7 25 Oct 2026';
+const BUILD = '0.9.28 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -5865,7 +6352,7 @@ function toastMenu(t) {
 }
 function syncMenuSegs() {
   const press = (box, attr, val) => document.querySelectorAll('#' + box + ' button').forEach((b) => b.setAttribute('aria-pressed', b.dataset[attr] === String(val) ? 'true' : 'false'));
-  press('m-diff', 'v', diff); press('m-map', 'v', mapChoice); press('m-mapk', 'v', mapKind); if ($('m-mapnote')) $('m-mapnote').textContent = MAP_NOTES[mapKind]; press('m-speed', 'v', settings.speed); press('m-bars', 'v', settings.bars); press('m-sound', 'v', settings.sound); press('m-music', 'v', settings.music);
+  press('m-diff', 'v', diff); press('m-sage', 'v', startAge); press('m-map', 'v', mapChoice); press('m-mapk', 'v', mapKind); if ($('m-mapnote')) $('m-mapnote').textContent = MAP_NOTES[mapKind]; press('m-speed', 'v', settings.speed); press('m-bars', 'v', settings.bars); press('m-sound', 'v', settings.sound); press('m-music', 'v', settings.music);
   document.querySelectorAll('#m-civpick [data-m="civ"]').forEach((b) => { const on = +b.dataset.v === pciv; b.classList.toggle('sel', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
   press('m-foe', 'v', pfoe); document.querySelectorAll('#m-foe button').forEach((b) => { b.disabled = +b.dataset.v === pciv; });
 }
@@ -5881,6 +6368,10 @@ const ENCY_UNITS = {
   tabib: 'Melaka physician. Heals one wounded soldier at a time, fast.',
   acaraki: 'Majapahit jamu maker. Slowly heals everyone around.',
   namai: 'Ayutthaya crossbowman. No gold needed. Quick bolts that pierce light armour. Beats archers and spearmen; swords cut it down.',
+  kerearcher: 'Majapahit archers in the kere mail coat, from the Age of Commerce. Tougher, with longer range. Majapahit gets guns only in the Golden Age.',
+  gunner: 'In the Age of Commerce the archer line takes up the matchlock: Melaka\u2019s Pembedil, Ayutthaya\u2019s Phon Puen. Hits armour hard, slow to reload. Throws fire pots at buildings.',
+  musket: 'Golden Age royal musketeers. Long range and heavy shot, slow to reload. Throws fire pots at buildings.',
+  cannon: 'Bronze cannon from the Age of Commerce. Melaka\u2019s Meriam and Ayutthaya\u2019s Puen Yai break buildings (3 at most). Majapahit\u2019s lighter Cetbang is better against troops (4 at most).',
   mo: 'Ayutthaya physician, trained at the Wat. Heals one soldier at a time.',
   chang: 'Ayutthaya\u2019s royal war elephant, trained at the Wang. Huge, armoured and slow; spears and massed archers bring it down.',
   boat: 'Fishes at sea and brings the catch to a port.',
@@ -6047,6 +6538,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'learn') { helpBack = 'menu'; showOv('help'); }
   else if (a === 'diff') { diff = v; syncMenuSegs(); }
   else if (a === 'map') { mapChoice = v; syncMenuSegs(); }
+  else if (a === 'sage') { startAge = +v; syncMenuSegs(); }
   else if (a === 'mapk') { mapKind = v; syncMenuSegs(); }
   else if (a === 'civ') { pciv = +v; if (pfoe === pciv) pfoe = pciv === 1 ? 0 : 1; syncMenuSegs(); }
   else if (a === 'foe') { if (+v !== pciv) pfoe = +v; syncMenuSegs(); }
