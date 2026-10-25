@@ -277,6 +277,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-del small { margin: 0; }
 .m-del.ask { --face: #a8231c; --hi: #d0392f; --lo: #6e1510; --text: #fff4e0; --sub: #ffd9c8; }
 .m-cont b { font-size: 30px; line-height: 32px; }
+.m-slot-b b { font-size: 22px; line-height: 26px; } .m-slot-empty { opacity: .6; padding: 14px 16px; margin: 0; }
 .m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 6px; }
 .m-tile { min-height: 68px; padding: 10px; }
 .m-tile small { white-space: nowrap; overflow: hidden; }
@@ -481,6 +482,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
           <button class="px m-tile" data-m="go" data-v="battles"><b>Battles</b><small>One civ each</small></button>
           <button class="px m-tile" data-m="go" data-v="ency"><b>Encyclopedia</b><small>History</small></button>
         </div>
+        <button class="px m-learn" data-m="go" data-v="load"><b>Load game</b><small id="m-load-sub">3 slots</small></button>
         <button class="px m-learn" data-m="learn"><b>Learn to play</b><small>How to</small></button>
         <div class="m-foot">
           <button class="px m-ico" data-m="go" data-v="settings" aria-label="Settings"><svg width="26" height="26" viewBox="0 0 13 13" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><path d="M5 3h3v1h1v1h1v3h-1v1h-1v1h-3v-1h-1v-1h-1v-3h1v-1h1zM5 5v3h3v-3z"></path><path d="M6 0h1v2h-1zM6 11h1v2h-1zM0 6h2v1h-2zM11 6h2v1h-2z"></path></svg></button>
@@ -542,6 +544,14 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       </div>
     </div>
 
+    <div class="m-scr" id="m-load" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Load game</h2></div>
+      <div class="m-body">
+        <div id="m-slots" style="display:contents"></div>
+        <p class="m-note">Games save by themselves while you play. A new game takes an empty slot, or the oldest one when all three are full.</p>
+      </div>
+    </div>
+
     <div class="m-scr" id="m-settings" hidden>
       <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Settings</h2></div>
       <div class="m-body">
@@ -558,7 +568,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
         <button class="px m-learn" data-m="update"><b>Check for updates</b></button>
         <div class="m-lbl">Saved game</div>
         <p class="m-note" id="m-savenote"></p>
-        <button class="px m-learn" data-m="delsave"><b>Delete saved game</b></button>
+        <button class="px m-learn" data-m="delsave"><b>Delete all saved games</b></button>
       </div>
     </div>
   </div>
@@ -575,7 +585,6 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
         <button data-do="diff" data-v="normal" aria-pressed="true">Normal</button>
         <button data-do="diff" data-v="hard" aria-pressed="false">Hard</button>
       </div>
-      <button class="btn" data-do="mcont" id="ms-cont" hidden>Continue saved game</button>
       <button class="btn" data-do="start">Begin</button>
       <div class="lbl">Practice: start later</div>
       <div class="seg">
@@ -599,7 +608,6 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
       <button class="btn alt" data-do="restart">Restart</button>
       <p class="lead tipline" id="pause-tip"></p>
       <button class="btn alt" data-do="help">How to play</button>
-      <button class="btn" data-do="msave">Save and exit to menu</button>
     </div>
 
     <div class="card" id="ov-end" hidden>
@@ -4721,10 +4729,11 @@ function resize() {
   cvs.width = Math.round(view.w * view.dpr); cvs.height = Math.round(view.h * view.dpr);
   clampCam();
 }
+// the camera may run a little past each edge, so the corners can be brought out from under the HUD
 function clampCam() {
-  const vw = view.w / view.zoom, vh = view.h / view.zoom, WW = W * TILE, HH = H * TILE;
-  cam.x = WW > vw ? clamp(cam.x, 0, WW - vw) : (WW - vw) / 2;
-  cam.y = HH > vh ? clamp(cam.y, 0, HH - vh) : (HH - vh) / 2;
+  const vw = view.w / view.zoom, vh = view.h / view.zoom, WW = W * TILE, HH = H * TILE, mx = vw * 0.3, my = vh * 0.35;
+  cam.x = WW + 2 * mx > vw ? clamp(cam.x, -mx, WW - vw + mx) : (WW - vw) / 2;
+  cam.y = HH + 2 * my > vh ? clamp(cam.y, -my, HH - vh + my) : (HH - vh) / 2;
 }
 function setZoom(z, sx, sy) {
   z = clamp(z, 0.38, 2.6);
@@ -5627,17 +5636,37 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nothing t
 let saveT = 0;
 const settings = Object.assign({ speed: 1, bars: 'auto', sound: 'on', music: 'on' }, (() => { try { return JSON.parse(lsGet(SET_KEY)) || {}; } catch (e) { return {}; } })());
 function saveSettings() { lsSet(SET_KEY, JSON.stringify(settings)); }
-function saveGame() { mSave(); }
+/* three save slots, shared with the mission pages (sea-rts-fixes/mission-save): seak-slots holds a short
+   description of each, seak-slot-N the game itself. A new game takes a free slot, or the oldest. */
+const SLOTS_KEY = 'seak-slots', SLOT_N = 3;
+let curSlot = null;
+function slotMetas() { try { const a = JSON.parse(lsGet(SLOTS_KEY)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
+function slotPick(cur) { if (cur != null) return cur; const m = slotMetas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
+function slotWrite(i, meta, rec) { if (!lsSet('seak-slot-' + i, JSON.stringify(rec))) return false; const m = slotMetas(); m[i] = Object.assign(meta, { when: Date.now() }); lsSet(SLOTS_KEY, JSON.stringify(m)); return true; }
+function slotRead(i) { try { const r = JSON.parse(lsGet('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
+function slotDel(i) { lsDel('seak-slot-' + i); const m = slotMetas(); m[i] = null; lsSet(SLOTS_KEY, JSON.stringify(m)); }
+function slotNewest() { const m = slotMetas(); let b = -1; m.forEach((x, i) => { if (x && (b < 0 || x.when > m[b].when)) b = i; }); return b; }
+function slotLine(x) { return (x.kind === 'skirmish' ? x.sub + ' \u00b7 ' : '') + fmtTime(x.t || 0) + ' \u00b7 ' + x.diff[0].toUpperCase() + x.diff.slice(1) + ' \u00b7 ' + new Date(x.when).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); }
+// the skirmish save from before the slots moves into one
+(function () { const old = lsGet(SAVE_KEY); if (!old) return; try { const r = JSON.parse(old); if (r && r.snap) slotWrite(slotPick(null), { kind: 'skirmish', title: 'Skirmish', sub: CIV_TITLE[r.snap.civs ? r.snap.civs[0] : 0] + ' vs ' + CIV_TITLE[r.snap.civs ? r.snap.civs[1] : 1], t: r.snap.t, diff: r.diff }, r); } catch (e) { /* drop it */ } lsDel(SAVE_KEY); })();
+function saveGame() { }
 function baseSaveGame() {
   if (!started || ended || !G || G.over) return;
   const rec = { snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() };
-  lsSet(SAVE_KEY, JSON.stringify(rec));
+  curSlot = slotPick(curSlot);
+  slotWrite(curSlot, { kind: 'skirmish', title: 'Skirmish', sub: CIV_TITLE[CV(0)] + ' vs ' + CIV_TITLE[CV(1)] + ' \u00b7 ' + MAPDEF[G.map || 'strait'].name, t: G.t, diff }, rec);
 }
-function readSave() { try { const r = JSON.parse(lsGet(SAVE_KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
-function continueGame() {
-  const r = readSave(); const g = r && Game.restore(r.snap);
-  if (!g) { lsDel(SAVE_KEY); refreshHome(); return; }
-  G = g; seedUsed = r.seed; diff = r.diff; mapKind = g.map || 'strait'; pciv = g.civs ? g.civs[0] : 0; pfoe = g.civs ? g.civs[1] : 1;
+// a mission save opens its own page, which loads it
+function openSlot(i) {
+  const m = slotMetas()[i]; if (!m) return;
+  if (m.kind !== 'mission') { continueGame(i); return; }
+  const url = SITE + m.page + '?slot=' + i;
+  if (SITE === './') location.replace(url); else window.open(url, '_blank', 'noopener');
+}
+function continueGame(i) {
+  const r = slotRead(i); const g = r && Game.restore(r.snap);
+  if (!g) { slotDel(i); refreshHome(); toastMenu('That saved game could not be loaded.'); return; }
+  curSlot = i; G = g; seedUsed = r.seed; diff = r.diff; mapKind = g.map || 'strait'; pciv = g.civs ? g.civs[0] : 0; pfoe = g.civs ? g.civs[1] : 1;
   enterGame();
   view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
   updateHud(); updatePanel();
@@ -5653,15 +5682,16 @@ let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroe
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
 function showMenu(name) {
   $('menu').hidden = !name;
-  for (const n of ['home', 'skirmish', 'campaign', 'brief', 'battles', 'ency', 'settings']) $('m-' + n).hidden = n !== name;
+  for (const n of ['home', 'skirmish', 'campaign', 'brief', 'battles', 'ency', 'settings', 'load']) $('m-' + n).hidden = n !== name;
   $('menu').scrollTop = 0;
   if (name === 'home') refreshHome();
   if (name === 'skirmish') syncMenuSegs();
-  if (name === 'settings') { syncMenuSegs(); setVerNote(); const r = readSave(); $('m-savenote').textContent = r ? 'A game from ' + new Date(r.when).toLocaleString() + ' is saved.' : 'No game saved. Games save by themselves while you play.'; }
+  if (name === 'settings') { syncMenuSegs(); setVerNote(); const n = slotMetas().filter(Boolean).length; $('m-savenote').textContent = n ? n + ' of 3 save slots in use. Load game lists them.' : 'No game saved. Games save by themselves while you play.'; }
+  if (name === 'load') renderSlots();
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.21 \u00b7 25 Oct 2026';
+const BUILD = '0.9.22 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -5670,10 +5700,19 @@ function delAsk(on) {
   if (on) delT = setTimeout(() => delAsk(false), 4000);
 }
 function refreshHome() {
-  const r = readSave();
+  const i = slotNewest(), m = slotMetas()[i], n = slotMetas().filter(Boolean).length;
   $('m-ver').textContent = 'v' + BUILD + (navigator.onLine === false ? ' \u00b7 offline' : '');
-  $('m-controw').hidden = !r; delAsk(false);
-  if (r) $('m-cont-sub').textContent = CIV_TITLE[r.snap.civs ? r.snap.civs[0] : 0] + ' \u00b7 ' + MAPDEF[r.snap.map || 'strait'].name + ' \u00b7 ' + fmtTime(r.snap.t) + ' \u00b7 ' + r.diff[0].toUpperCase() + r.diff.slice(1);
+  $('m-controw').hidden = !m; delAsk(false);
+  if (m) $('m-cont-sub').textContent = m.title + ' \u00b7 ' + slotLine(m);
+  $('m-load-sub').textContent = n ? n + ' of 3 saved' : 'No saves yet';
+}
+const TRASH = '<svg width="20" height="24" viewBox="0 0 10 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 2h10v1h-10zM3 0h4v2h-4zM1 3h8v9h-8z" fill="currentColor"></path><path d="M3 5h1v5h-1zM6 5h1v5h-1z" fill="var(--face)"></path></svg>';
+function renderSlots() {
+  const m = slotMetas();
+  $('m-slots').innerHTML = m.map((x, i) => x
+    ? '<div class="m-controw"><button class="px px-p m-cont m-slot-b" data-m="loadslot" data-v="' + i + '"><span><b>' + (i + 1) + '. ' + x.title + '</b><small>' + slotLine(x) + '</small></span></button>'
+      + '<button class="px m-del" data-m="delslot" data-v="' + i + '" aria-label="Delete this save">' + TRASH + '<small>Delete</small></button></div>'
+    : '<p class="px m-slot-empty">' + (i + 1) + '. Empty slot</p>').join('');
 }
 /* version, updates and exit (the installed app has no browser bar to reload or close it) */
 function setVerNote(t) { const e = $('m-vernote'); if (e) e.textContent = t || 'You have version ' + BUILD + '.'; }
@@ -5884,21 +5923,23 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-m]'); if (!el) return;
   const a = el.dataset.m, v = el.dataset.v;
   if (a === 'go') showMenu(v);
-  else if (a === 'continue') continueGame();
+  else if (a === 'continue') openSlot(slotNewest());
+  else if (a === 'loadslot') openSlot(+v);
+  else if (a === 'delslot') { if (el.classList.contains('ask')) { slotDel(+v); if (curSlot === +v) curSlot = null; renderSlots(); refreshHome(); toastMenu('Save deleted.'); } else { el.classList.add('ask'); el.querySelector('small').textContent = 'Sure?'; setTimeout(() => { if (el.isConnected) { el.classList.remove('ask'); el.querySelector('small').textContent = 'Delete'; } }, 4000); } }
   else if (a === 'learn') { helpBack = 'menu'; showOv('help'); }
   else if (a === 'diff') { diff = v; syncMenuSegs(); }
   else if (a === 'map') { mapChoice = v; syncMenuSegs(); }
   else if (a === 'mapk') { mapKind = v; syncMenuSegs(); }
   else if (a === 'civ') { pciv = +v; if (pfoe === pciv) pfoe = pciv === 1 ? 0 : 1; syncMenuSegs(); }
   else if (a === 'foe') { if (+v !== pciv) pfoe = +v; syncMenuSegs(); }
-  else if (a === 'start') startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
+  else if (a === 'start') curSlot = null, startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
   else if (a === 'tab') { encyTab = v; renderEncy(); }
   else if (a === 'hero') { heroSel = v; renderEncy(); }
   else if (a === 'brief') showBrief(v);
   else if (a === 'locked') toastMenu('This mission comes in a later update.');
   else if (a === 'set') { settings[el.dataset.k] = el.dataset.k === 'speed' ? +v : v; saveSettings(); syncMenuSegs(); SFX.apply(); }
-  else if (a === 'delsave') { lsDel(SAVE_KEY); refreshHome(); toastMenu('Saved game deleted.'); }
-  else if (a === 'delcont') { if (el.classList.contains('ask')) { lsDel(SAVE_KEY); refreshHome(); toastMenu('Saved game deleted. Pick Skirmish to start a new one.'); } else delAsk(true); }
+  else if (a === 'delsave') { for (let i = 0; i < SLOT_N; i++) slotDel(i); curSlot = null; refreshHome(); toastMenu('All saved games deleted.'); }
+  else if (a === 'delcont') { if (el.classList.contains('ask')) { const i = slotNewest(); if (i >= 0) slotDel(i); if (curSlot === i) curSlot = null; refreshHome(); toastMenu('Saved game deleted.'); } else delAsk(true); }
   else if (a === 'update') checkForUpdate();
   else if (a === 'exit') exitApp();
 });
@@ -6128,7 +6169,7 @@ function sfxTick() {
 }
 
 function baseEndGame() {
-  ended = true; paused = true; lsDel(SAVE_KEY);
+  ended = true; paused = true; if (curSlot != null) { slotDel(curSlot); curSlot = null; }
   const win = G.over === 'win';
   $('end-title').textContent = win ? 'Victory' : 'Defeat';
   $('end-title').className = win ? 'win' : 'lose';
@@ -6142,8 +6183,6 @@ document.addEventListener('click', (e) => {
   if (a === 'diff') { diff = el.dataset.v; document.querySelectorAll('[data-do="diff"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === diff ? 'true' : 'false')); }
   else if (a === 'start') startGame(seedUsed);
   else if (a === 'skipwave') skipTo(el.dataset.v);
-  else if (a === 'msave') mSaveExit();
-  else if (a === 'mcont') mContinue();
   else if (a === 'resume') togglePause();
   else if (a === 'restart') startGame(seedUsed);
   else if (a === 'newmap') startGame(1 + Math.floor(Math.random() * 900000));
@@ -6194,51 +6233,75 @@ window.addEventListener('resize', () => { resize(); });
 const DMUL = { easy: 0.7, normal: 1, hard: 1.3 };
 CIVMAP = [AYU_CIV, AYU_CIV];
 
-/* ---------- the map: three rivers meet round an island (sea-rts-fixes/maps/ayu1.py) ---------- */
-// a 96 x 72 map (build.py widens the main game's 64 x 48); the island is the heart of it
-const ISLE = { x: 48, y: 38, rx: 19, ry: 12, ring: [21.6, 14.6] };
+/* ---------- the map: three rivers meet round an island ---------- */
+// a 96 x 72 map (build.py widens the main game's 64 x 48). Like the real Ayutthaya, the island is the land
+// the rivers wrap: the Lopburi round the north, the Chao Phraya down the west and south, the Pa Sak on the east.
+// Its shore is an irregular, lobed outline and every river meanders, so nothing reads as a drawn circle.
+const ISLE = { x: 48, y: 38, rx: 18.5, ry: 11.5 };
 const FLOODP = { x: 21, y: 59, rx: 18, ry: 9 };
+// the island's radius at angle a: an east-west oval pushed in and out by a few slow waves
+function isleR(a) {
+  const k = 1 + 0.11 * Math.sin(2 * a + 0.7) + 0.08 * Math.sin(3 * a + 2.1) + 0.06 * Math.sin(5 * a + 0.4) + 0.035 * Math.sin(7 * a + 1.3);
+  return k / Math.hypot(Math.cos(a) / ISLE.rx, Math.sin(a) / ISLE.ry);
+}
+// the channel round it: narrow in places, wide where the rivers come in
+function chanW(a) { return 2.3 + 1.0 * (0.5 + 0.5 * Math.sin(3 * a + 1.1)) + 0.5 * (0.5 + 0.5 * Math.sin(5 * a + 2.6)); }
+function isleDist(x, y) { const dx = x - ISLE.x, dy = y - ISLE.y; return Math.hypot(dx, dy) - isleR(Math.atan2(dy, dx)); }   // < 0 on the island
+function onIsle(x, y) { return isleDist(x + 0.5, y + 0.5) < -0.5; }
 MAPDEF.river = {
   name: 'The Island City', starts: [{ x: 12, y: 10 }, { x: 80, y: 62 }],
-  rivers: [[[[21, -1], [23, 8], [25, 16], [34, 27], [46, 40], [47, 54], [48, 63], [50, 73]], 2.4],   // Chao Phraya, from the old town in the north
-    [[[97, 9], [90, 12], [78, 18], [63, 28], [56, 31]], 2.0],                                    // Lopburi, from Lavo
-    [[[97, 46], [91, 45.5], [75, 45], [66, 44]], 2.0]],                                          // Pa Sak, from the east
-  fords: [[0, 0], [1, 0], [2, 0], [0, 6]],     // upriver of every boat route: barges, gift boats and raiders never cross one
+  rivers: [[[[21, -1], [23, 8], [25, 16], [31, 23], [40, 27]], 2.3],                        // Chao Phraya, from the old town in the north, into the channel
+    [[[46, 49], [47, 56], [48, 63], [50, 73]], 2.5],                                           // ... and on south out of it
+    [[[97, 9], [90, 12], [78, 18], [68, 24], [60, 27.5]], 1.9],                                // Lopburi, from Lavo
+    [[[97, 46], [91, 45.5], [80, 46], [70, 43]], 1.9]],                                        // Pa Sak, from the east
+  fords: [[0, 0], [2, 0], [3, 0], [1, 2]],     // upriver of every boat route: barges, gift boats and raiders never cross one
+  ponds: [[13, 57, 2.6, 1.7], [79, 29, 2.2, 1.4], [33, 9, 1.6, 1.2], [62, 64, 1.8, 1.2]],
   cliffs: [[86, 64, 4.5, 3], [8, 66, 4, 2.6], [64, 5, 3, 2]],
   gold: [], deer: [], villages: []
 };
+// a river's course: the given points with smooth bends added between them (the same bends every game)
+function meander(pts, seed) {
+  const out = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1], L = Math.hypot(bx - ax, by - ay), n = Math.max(2, Math.ceil(L / 1.5)), nx = -(by - ay) / L, ny = (bx - ax) / L;
+    for (let k = 0; k < n; k++) {
+      const t = k / n, env = Math.sin(Math.PI * t), wob = (Math.sin(t * L * 0.33 + seed + i * 1.7) * 1.6 + Math.sin(t * L * 0.71 + seed * 2.3) * 0.7) * env;
+      out.push([ax + (bx - ax) * t + nx * wob, ay + (by - ay) * t + ny * wob]);
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
 Game.prototype.genRiverlands = function (M) {
   const s = this.seed, terr = this.terrain;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) terr[y * W + x] = fbm(x * 0.12, y * 0.12, s + 3) > 0.72 ? T.DIRT : T.GRASS;
-  const stamp = (pts, w) => {
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const [ax, ay] = pts[i], [bx, by] = pts[i + 1], n = Math.ceil(Math.hypot(bx - ax, by - ay) * 2);
-      for (let k = 0; k <= n; k++) {
-        const px = ax + (bx - ax) * k / n, py = ay + (by - ay) * k / n;
-        for (let y = Math.floor(py - w - 1); y <= py + w + 1; y++) for (let x = Math.floor(px - w - 1); x <= px + w + 1; x++) {
-          if (!this.inb(x, y)) continue;
-          const d = Math.hypot(x + 0.5 - px, y + 0.5 - py);
-          if (d <= w - 1.1) terr[y * W + x] = T.DEEP; else if (d <= w && terr[y * W + x] !== T.DEEP) terr[y * W + x] = T.SHALLOW;
-        }
+  const wet = (x, y, deep) => { if (!this.inb(x, y)) return; const i = y * W + x; if (deep) terr[i] = T.DEEP; else if (terr[i] !== T.DEEP) terr[i] = T.SHALLOW; };
+  const stamp = (pts, w0, seed) => {
+    pts.forEach(([px, py], j) => {
+      const w = w0 * (1 + 0.16 * Math.sin(j * 0.21 + seed));
+      for (let y = Math.floor(py - w - 1); y <= py + w + 1; y++) for (let x = Math.floor(px - w - 1); x <= px + w + 1; x++) {
+        const d = Math.hypot(x + 0.5 - px, y + 0.5 - py); if (d <= w) wet(x, y, d <= w - 1.1);
       }
-    }
+    });
   };
-  for (const [pts, w] of M.rivers) stamp(pts, w);
-  // the channel that rings the island, then the island itself
-  for (let a = 0; a < 360; a += 2) {
-    const r = a * Math.PI / 180, cx = ISLE.x + Math.cos(r) * ISLE.ring[0], cy = ISLE.y + Math.sin(r) * ISLE.ring[1];
-    for (let y = Math.floor(cy) - 2; y <= cy + 2; y++) for (let x = Math.floor(cx) - 2; x <= cx + 2; x++) {
-      if (!this.inb(x, y)) continue;
-      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
-      if (d <= 0.9) terr[y * W + x] = T.DEEP; else if (d <= 2.0 && terr[y * W + x] !== T.DEEP) terr[y * W + x] = T.SHALLOW;
-    }
+  M.course = M.rivers.map(([pts, w], i) => meander(pts, 3 + i * 2.9));
+  M.course.forEach((c, i) => stamp(c, M.rivers[i][1], i * 1.3));
+  // the channel round the island, then the island itself
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const dx = x + 0.5 - ISLE.x, dy = y + 0.5 - ISLE.y, a = Math.atan2(dy, dx), d = Math.hypot(dx, dy) - isleR(a), w = chanW(a);
+    if (d < 0) terr[y * W + x] = fbm(x * 0.12, y * 0.12, s + 3) > 0.78 ? T.DIRT : T.GRASS;
+    else if (d <= w) wet(x, y, d > 0.8 && d < w - 0.7);
   }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot((x + 0.5 - ISLE.x) / ISLE.rx, (y + 0.5 - ISLE.y) / ISLE.ry) < 1) terr[y * W + x] = T.GRASS;
-  // fords: sandy shallows where the rivers can be waded
+  // still ponds and old river loops on the banks
+  for (const [px, py, rx, ry] of M.ponds || []) for (let y = Math.floor(py - ry - 1); y <= py + ry + 1; y++) for (let x = Math.floor(px - rx - 1); x <= px + rx + 1; x++) {
+    const d = Math.hypot((x + 0.5 - px) / rx, (y + 0.5 - py) / ry) + (hash2(x, y, 17) - 0.5) * 0.35; if (d < 1) wet(x, y, d < 0.45);
+  }
+  // fords: sandy shallows where a river can be waded, on its bending course
   for (const [ri, si] of M.fords) {
-    const [pts, w] = M.rivers[ri], a = pts[si], b = pts[si + 1], fx = (a[0] + b[0]) / 2, fy = (a[1] + b[1]) / 2;
-    for (let y = Math.floor(fy - w - 2); y <= fy + w + 2; y++) for (let x = Math.floor(fx - w - 2); x <= fx + w + 2; x++) {
-      if (this.inb(x, y) && Math.hypot(x + 0.5 - fx, y + 0.5 - fy) <= w + 0.9 && terr[y * W + x] >= T.SHALLOW && terr[y * W + x] <= T.DEEP) terr[y * W + x] = T.SAND;
+    const [pts, w] = M.rivers[ri], a = pts[si], b = pts[si + 1], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    let f = M.course[ri][0], fd = 1e9; for (const q of M.course[ri]) { const d = Math.hypot(q[0] - mx, q[1] - my); if (d < fd) { fd = d; f = q; } }
+    for (let y = Math.floor(f[1] - w - 2); y <= f[1] + w + 2; y++) for (let x = Math.floor(f[0] - w - 2); x <= f[0] + w + 2; x++) {
+      if (this.inb(x, y) && Math.hypot(x + 0.5 - f[0], y + 0.5 - f[1]) <= w + 1.2 && terr[y * W + x] >= T.SHALLOW && terr[y * W + x] <= T.DEEP) terr[y * W + x] = T.SAND;
     }
   }
 };
@@ -6252,14 +6315,13 @@ function floodMask(g) {
   return m;
 }
 // bamboo bridges from the island to the west bank and the east bank, laid once the city is founded
-const BRIDGES = [{ x: 29, y: 38, dx: -1, dy: 0 }, { x: 66, y: 35, dx: 1, dy: 0 }];
+const BRIDGES = [{ y: 38, dx: -1 }, { y: 35, dx: 1 }];
 Game.prototype.layBridges = function () {
-  const terr = this.terrain;
+  const terr = this.terrain, isWet = (j) => terr[j] === T.SHALLOW || terr[j] === T.DEEP;
   for (const B of BRIDGES) {
-    let x = B.x, y = B.y, wet = false;
-    for (let i = 0; i < 12; i++, x += B.dx, y += B.dy) {
-      const w = [y * W + x, (y + 1) * W + x].map(j => terr[j] === T.SHALLOW || terr[j] === T.DEEP);
-      if (w[0] || w[1]) { wet = true; for (const yy of [y, y + 1]) if (terr[yy * W + x] >= T.SHALLOW && terr[yy * W + x] <= T.DEEP) { terr[yy * W + x] = T.SAND; this.bridge[yy * W + x] = 1; } }
+    let x = Math.round(ISLE.x), y = B.y, wet = false;
+    for (let i = 0; i < 40 && x > 0 && x < W - 1; i++, x += B.dx) {
+      if (isWet(y * W + x) || isWet((y + 1) * W + x)) { wet = true; for (const yy of [y, y + 1]) if (isWet(yy * W + x)) { terr[yy * W + x] = T.SAND; this.bridge[yy * W + x] = 1; } }
       else if (wet) break;
     }
   }
@@ -6367,7 +6429,10 @@ Game.prototype.populate = function () {
     }
     return placed;
   };
-  const onIsle = (x, y) => Math.hypot((x + 0.5 - ISLE.x) / ISLE.rx, (y + 0.5 - ISLE.y) / ISLE.ry) < 1;
+  // the river points boats aim for sit on the bending rivers: put each on the nearest open water
+  const toWater = (p) => { const w = g.nearestFree(p.x, p.y, 1, 7); if (w) { p.x = w.x + 0.5; p.y = w.y + 0.5; } };
+  for (const [L, a] of [[LANDINGS.n, -Math.PI / 2], [LANDINGS.s, Math.PI / 2]]) { const r = isleR(a) + 1.3; L.x = ISLE.x + Math.cos(a) * r; L.y = ISLE.y + Math.sin(a) * r; }
+  for (const p of Object.values(RIVERIN).concat(Object.values(LANDINGS), [TOWNS.lavo.land])) toWater(p);
   const keepClear = (x, y) => !onIsle(x, y) && !g.flood[y * W + x] && Math.hypot(x - OLD.x, y - OLD.y) > 5;
   // roads the towns and raiders use stay clear of trees
   g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 25, 39);
@@ -6379,7 +6444,7 @@ Game.prototype.populate = function () {
   for (let y = RIVAL.ty - 2; y <= RIVAL.ty + 6; y++) for (let x = RIVAL.tx - 3; x <= RIVAL.tx + 8; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
   // the island: room for a whole city, with groves, berries and a little gold; more wood on the banks
   place('berry', 40, 43, 1.8, 6, onIsle); place('berry', 57, 33, 1.6, 5, onIsle);
-  place('tree', 61, 43, 2.6, 14, onIsle); place('tree', 35, 33, 2.4, 12, onIsle); place('tree', 50, 48, 2.0, 8, onIsle); place('tree', 54, 28, 1.8, 6, onIsle);
+  place('tree', 61, 43, 2.6, 14, onIsle); place('tree', 35, 33, 2.4, 12, onIsle); place('tree', 50, 48, 2.0, 8, onIsle); place('tree', 54, 28, 1.8, 6, onIsle); place('tree', 42, 31, 2.0, 9, onIsle); place('tree', 62, 35, 1.8, 7, onIsle); place('berry', 47, 45, 1.4, 4, onIsle);
   { const c = g.nearestFree(58, 39, 0, 4); if (c) place('gold', c.x, c.y, 1.4, 4, onIsle); }
   // forests on the banks, gold in the hills
   for (const [cx, cy, r, n] of [[31, 9, 5, 40], [5, 21, 4.5, 32], [17, 30, 4, 24], [64, 14, 5, 36], [73, 33, 4.5, 28], [42, 15, 3.5, 18],
@@ -6954,11 +7019,9 @@ const _popCap = Game.prototype.popCap;
 Game.prototype.popCap = function (team) { const c = _popCap.call(this, team); return team === 0 && this.M && this.M.phase === 1 ? Math.max(c, 25) : c; };
 /* ===== a1-art.js ===== */
 /* Both sides are Tai, drawn on the game's Ayutthaya roster (AYART). The enemy is told apart by colour:
-   bandits in dusty undyed cotton, the rival lord's men in his dark red. U Thong's own soldiers start as a
-   village levy in brown and take the royal purple with the Kingdom Age (unit-art/ayutthaya-ages-src). */
+   bandits in dusty undyed cotton, the rival lord's men in his dark red. U Thong's own people wear Ayutthaya's purple throughout. */
 const AY_PURPLE = ['#7b4bb3', '#9b6fd0', '#4e2d78', '#3a1f5c'];
 const APAL = {
-  levy: ['#8a6b4a', '#a8885e', '#5e4630', '#4a3424'],
   bandit: ['#5f5c48', '#7a7660', '#403e30', '#2e2d24'],
   rival: ['#9a3426', '#b84a38', '#6a2018', '#4e1610'],
   lavo: ['#c08a2a', '#d8a848', '#7a5418', '#5a3e12'],
@@ -6991,7 +7054,6 @@ function unitSprite(kind, team, anim, f, tool) {
   if (kind === 'bride') return brideSprite(anim, f);
   if (d && d.lord) return lordSprite(anim, f);
   if (d && d.ay) return recolor(baseUnitSprite(d.ay, team, anim, f, tool), d.pal, 'u|' + d.ay + '|' + anim + '|' + f);
-  if (team === 0 && curAge() < 2 && (kind === 'keris' || kind === 'tombak' || kind === 'archer' || kind === 'namai')) return recolor(baseUnitSprite(kind, team, anim, f, tool), 'levy', 'u|' + kind + '|' + anim + '|' + f);
   if (team === 1) return recolor(baseUnitSprite(kind, team, anim, f, tool), 'rival', 'u|' + kind + '|' + anim + '|' + f);
   return baseUnitSprite(kind, team, anim, f, tool);
 }
@@ -7727,7 +7789,7 @@ function togglePause() {
 }
 function endGame() {
   const M = G.M;
-  ended = true; paused = true; lsDel(MSAVE_KEY);
+  ended = true; paused = true;
   const win = G.over === 'win';
   $('end-tag').textContent = win ? 'Mission complete' : 'The mission is lost';
   $('end-title').textContent = win ? 'Ramathibodi I' : 'Defeat';
@@ -7743,32 +7805,6 @@ function endGame() {
   if (!win) { const art = document.createElement('div'); try { art.appendChild(drawScene('fall')); } catch (e) { /* no art */ } art.className = 'end-art'; $('end-title').after(art); }
   showOv('end');
 }
-/* ---------- this mission's own saved game ---------- */
-const MSAVE_KEY = 'seak-mission-ayu1';
-function mSave() {
-  if (!started || ended || !G || !G.M || G.over) return;
-  lsSet(MSAVE_KEY, JSON.stringify({ snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() }));
-}
-function readMSave() { try { const r = JSON.parse(lsGet(MSAVE_KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
-function mHome() { return /github\.io$/.test(location.hostname) ? '../../' : 'https://therediris0827.github.io/SEA-RTS/'; }
-function mSaveExit() { mSave(); location.replace(mHome()); }
-function syncCont() {
-  const r = readMSave(), b = $('ms-cont'); if (!b) return;
-  b.hidden = !r;
-  if (r) b.textContent = 'Continue saved game (' + fmtTime(r.snap.t || 0) + ' in, ' + r.diff + ')';
-}
-function mContinue() {
-  const r = readMSave(), g = r && Game.restore(r.snap);
-  if (!g || !g.M) { lsDel(MSAVE_KEY); syncCont(); toast('That saved game could not be loaded.'); return; }
-  G = g; seedUsed = r.seed; diff = r.diff;
-  G.computeRegions();
-  const M = G.M; if (M.cmdr) M.cmdr = G.byId.get(M.cmdr.id) || null;
-  for (const k in RC) delete RC[k];
-  enterGame(); storyOpen = null; objStarted = false; lastMKey = '';
-  view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
-  updateHud(); updatePanel();
-  G.msg('Saved game loaded.');
-}
 function mrBoot() {
   setupObj();
   const relayout = () => setTimeout(() => { resize(); if (G && G.M) updateHud(); }, 250);
@@ -7777,7 +7813,7 @@ function mrBoot() {
   const set = (id, name) => { const e = $(id); if (e) e.src = resIcon(name); };
   set('i-food', 'food'); set('i-wood', 'wood'); set('i-gold', 'gold'); set('i-pop', 'pop'); set('i-idle', 'idle'); set('i-army', 'army');
   set('i-zin', 'plus'); set('i-zout', 'minus'); set('i-menu', 'menu');
-  $('hud').hidden = true; showMenu(null); resize(); showOv('start'); syncCont();
+  $('hud').hidden = true; showMenu(null); resize(); showOv('start');
   G = new Game({ seed: seedUsed, diff, map: 'river', civs: [AYU_CIV, AYU_CIV] }); terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
   for (let i = 0; i < W * H; i++) G.explored[i] = 1;
   view.zoom = view.w > 700 ? 0.9 : 0.7; centerOn(ISLE.x, ISLE.y);
@@ -7793,13 +7829,173 @@ mrBoot();
 </script>
 
 <script>
+window.MSAVE_CFG = { title: 'The Island City', page: 'campaign/ayutthaya-1/', id: 'ayu1', opts: (g) => ({ civs: g.civs }) };
+/* Save and continue for a mission or battle page: an autosave every 30 s and on leaving the app,
+   "Save and exit" on the pause card, "Continue saved game" on the start card. Saves go into the game's
+   3 shared slots (seak-slots / seak-slot-N), which the main menu's Load game lists; the menu opens a
+   mission save as this page with ?slot=N. Works on any page built
+   from the game: it saves the whole Game, writing units, buildings and resources that point at each
+   other as {$r: id} and joining them up again on load. Page-specific state goes through MSAVE_CFG. */
+(function () {
+  const CFG = window.MSAVE_CFG || {};
+  const folder = location.pathname.replace(/index\.html$/, '').split('/').filter(Boolean).pop() || 'page';
+  const OLDKEY = 'seak-mission-' + (CFG.id || folder);
+  const PAGE = CFG.page || ((location.pathname.match(/\/SEA-RTS\/(.*?)(index\.html)?$/i) || [])[1] || folder + '/');
+  const TITLE = CFG.title || document.title;
+  const SLOTS = 'seak-slots', SLOT_N = 3;
+  const SKIP = new Set(['byId', 'hash', 'claims', 'pSeen', 'pClosed', 'pG', 'pPar', 'pOpen', 'fx', 'arrows', 'floaters', 'msgs', 'alerts', 'rng', 'burning']);
+  const TA = { Uint8Array, Int8Array, Uint16Array, Int16Array, Int32Array, Uint32Array, Float32Array, Float64Array, Uint8ClampedArray };
+  const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }, del: (k) => { try { localStorage.removeItem(k); } catch (e) { /* none */ } } };
+
+  /* the 3 save slots, shared with the main menu */
+  function metas() { try { const a = JSON.parse(ls.get(SLOTS)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
+  function pick(cur) { if (cur != null) return cur; const m = metas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
+  function slotWrite(i, meta, rec) { if (!ls.set('seak-slot-' + i, JSON.stringify(rec))) return false; const m = metas(); m[i] = Object.assign(meta, { when: Date.now() }); ls.set(SLOTS, JSON.stringify(m)); return true; }
+  function slotRead(i) { try { const r = JSON.parse(ls.get('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
+  function slotDel(i) { ls.del('seak-slot-' + i); const m = metas(); m[i] = null; ls.set(SLOTS, JSON.stringify(m)); }
+  // this page's newest save
+  function latest() { let b = -1; metas().forEach((x, i) => { if (x && x.page === PAGE && (b < 0 || x.when > metas()[b].when)) b = i; }); return b; }
+  let cur = null;   // the slot this game saves into; a new game takes a free slot (or the oldest) on its first save
+  // a save from before the slots: move it into one
+  (function migrate() { const old = ls.get(OLDKEY); if (!old) return; try { const r = JSON.parse(old); if (r && r.snap && latest() < 0) { if (!r.opts) r.opts = { seed: r.snap.seed, diff: r.snap.diff, map: r.snap.map, civs: r.snap.civs }; slotWrite(pick(null), { kind: 'mission', page: PAGE, title: TITLE, t: r.snap.t || 0, diff: r.diff }, r); } } catch (e) { /* drop it */ } ls.del(OLDKEY); })();
+
+  let ENT = new Set(), stack = new Set();
+  function enc(v, own) {
+    if (v === null || typeof v !== 'object') return typeof v === 'function' ? undefined : v;
+    if (!own && ENT.has(v)) return { $r: v.id };
+    if (ArrayBuffer.isView(v)) return { $ta: v.constructor.name, d: Array.from(v) };
+    if (v instanceof WeakSet || v instanceof WeakMap || (typeof Node !== 'undefined' && v instanceof Node) || (typeof ImageBitmap !== 'undefined' && v instanceof ImageBitmap)) return undefined;
+    if (stack.has(v)) return null;
+    stack.add(v);
+    let out;
+    if (v instanceof Set) out = { $set: Array.from(v, (x) => enc(x)) };
+    else if (v instanceof Map) out = { $map: Array.from(v, ([a, b]) => [enc(a), enc(b)]) };
+    else if (Array.isArray(v)) out = v.map((x) => { const e = enc(x); return e === undefined ? null : e; });
+    else {
+      out = {};
+      for (const k of Object.keys(v)) {
+        const e = k === 'cargo' && Array.isArray(v[k]) ? v[k].map((x) => enc(x, true)) : enc(v[k]);
+        if (e !== undefined) out[k] = e;
+      }
+    }
+    stack.delete(v);
+    return out;
+  }
+  function collect(g) {
+    ENT = new Set();
+    const add = (e) => { if (!e || typeof e !== 'object' || ENT.has(e)) return; ENT.add(e); if (Array.isArray(e.cargo)) e.cargo.forEach(add); };
+    for (const k of ['units', 'buildings', 'nodes']) (g[k] || []).forEach(add);
+  }
+  function dec(v) {
+    if (v === null || typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(dec);
+    if (v.$ta) return new (TA[v.$ta] || Float64Array)(v.d);
+    if (v.$set) return new Set(v.$set.map(dec));
+    if (v.$map) return new Map(v.$map.map(([a, b]) => [dec(a), dec(b)]));
+    const o = {}; for (const k of Object.keys(v)) o[k] = dec(v[k]); return o;
+  }
+  function relink(v, byId, seen) {
+    if (v === null || typeof v !== 'object' || ArrayBuffer.isView(v) || seen.has(v)) return v;
+    if (v.$r !== undefined && Object.keys(v).length === 1) return byId.get(v.$r) || null;
+    seen.add(v);
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = relink(v[i], byId, seen); }
+    else if (v instanceof Set) { const a = Array.from(v); v.clear(); for (const x of a) v.add(relink(x, byId, seen)); }
+    else if (v instanceof Map) { const a = Array.from(v); v.clear(); for (const [p, q] of a) v.set(relink(p, byId, seen), relink(q, byId, seen)); }
+    else for (const k of Object.keys(v)) v[k] = relink(v[k], byId, seen);
+    return v;
+  }
+
+  function save() {
+    try {
+      if (!started || ended || !G || G.over) return;
+      collect(G);
+      const snap = {};
+      for (const k of Object.keys(G)) {
+        if (SKIP.has(k)) continue;
+        const e = (k === 'units' || k === 'buildings' || k === 'nodes') && Array.isArray(G[k]) ? G[k].map((x) => enc(x, true)) : enc(G[k]);
+        if (e !== undefined) snap[k] = e;
+      }
+      const rec = { v: 1, snap, opts: Object.assign({ seed: G.seed, diff: G.diff, map: G.map }, CFG.opts ? CFG.opts(G) : {}), extra: CFG.extra ? enc(CFG.extra()) : null,
+        seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, t: G.t, when: Date.now() };
+      ENT = new Set();
+      cur = pick(cur);
+      if (!slotWrite(cur, { kind: 'mission', page: PAGE, title: TITLE, t: G.t, diff }, rec) && typeof toast === 'function') toast('Could not save: the phone\'s storage for this app is full.');
+    } catch (e) { console.warn('save', e); }
+  }
+  function read(i) { return i != null && i >= 0 ? slotRead(i) : null; }
+  function restore(r) {
+    const g = new Game(r.opts);
+    const s = dec(r.snap), extra = dec(r.extra);
+    for (const k of Object.keys(s)) g[k] = s[k];
+    g.byId = new Map();
+    const reg = (e) => { if (!e || typeof e !== 'object' || e.id === undefined) return; g.byId.set(e.id, e); if (Array.isArray(e.cargo)) e.cargo.forEach(reg); };
+    for (const k of ['units', 'buildings', 'nodes']) (g[k] || []).forEach(reg);
+    const seen = new Set();
+    for (const k of Object.keys(s)) g[k] = relink(g[k], g.byId, seen);
+    const ex = relink(extra, g.byId, seen);
+    if (g.burning instanceof Set) { g.burning.clear(); for (const e of g.units.concat(g.buildings)) if (e.burn) g.burning.add(e); }
+    if (g.rebuildHash) g.rebuildHash();
+    if (g.updateFog) g.updateFog();
+    return [g, ex];
+  }
+  function cont(slot) {
+    const i = typeof slot === 'number' ? slot : latest(), r = read(i); if (!r) return;
+    let g, ex;
+    try { [g, ex] = restore(r); } catch (e) { console.warn('load', e); slotDel(i); sync(); if (typeof toast === 'function') toast('That saved game could not be loaded.'); return; }
+    cur = i;
+    diff = r.diff; seedUsed = r.seed;
+    if (CFG.before) CFG.before(ex, g);
+    loadMap(g);
+    storyOpen = null; try { objStarted = false; } catch (e) { /* not on this page */ }
+    started = true; paused = false; ended = false; $('hud').hidden = false; showOv(null);
+    view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
+    if (CFG.after) CFG.after(ex, g);
+    updateHud(); updatePanel();
+    G.msg('Saved game loaded.');
+  }
+  function sync() {
+    const b = document.getElementById('msave-cont'); if (!b) return;
+    const r = read(latest()); b.hidden = !r;
+    if (r) b.textContent = 'Continue saved game (' + fmtTime(r.t || 0) + ' in, ' + r.diff + ')';
+  }
+  // the start card: Continue sits above Begin
+  const start = document.querySelector('#ov-start [data-do="start"]');
+  if (start) {
+    const b = document.createElement('button'); b.className = 'btn'; b.id = 'msave-cont'; b.type = 'button'; b.hidden = true;
+    b.addEventListener('click', () => cont()); start.before(b); sync();
+  }
+  // anything else on the start card begins a new game, which gets its own slot
+  document.addEventListener('click', (e) => { const c = e.target.closest && e.target.closest('#ov-start [data-do]'); if (c && c.dataset.do !== 'diff' && c.dataset.do !== 'help') cur = null; }, true);
+  // opened from the main menu's Load game
+  const want = +new URLSearchParams(location.search).get('slot');
+  if (location.search.includes('slot=')) {
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* keep the address */ }
+    const m = metas()[want];
+    if (m && m.page === PAGE) setTimeout(() => cont(want), 300);
+  }
+  // leaving: every exit-to-menu button saves first; the one on the pause card says so
+  document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.exit-home')) save(); }, true);
+  setTimeout(() => { const p = document.querySelector('#ov-pause .exit-home'); if (p) { p.textContent = 'Save and exit to main menu'; p.classList.remove('alt'); } }, 0);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+  window.addEventListener('pagehide', save);
+  // every 30 s of play; a finished mission clears its save
+  let last = Date.now();
+  setInterval(() => {
+    if (typeof G === 'undefined' || !G) return;
+    if (started && G.over) { if (cur != null && metas()[cur] && metas()[cur].page === PAGE) slotDel(cur); cur = null; return; }
+    if (started && !paused && Date.now() - last > 30000) { last = Date.now(); save(); }
+  }, 2000);
+  window.MSAVE = { save, cont, metas, slot: () => cur, page: PAGE };
+})();
+</script>
+<script>
 /* Exit to main menu: on the start, pause and end cards of every mission */
 (function () {
   const home = /github\.io$/.test(location.hostname) ? '../../' : 'https://therediris0827.github.io/SEA-RTS/';
-  for (const id of ['ov-start', 'ov-end']) {   // the pause card has Save and exit instead
+  for (const id of ['ov-start', 'ov-pause', 'ov-end']) {
     const c = document.getElementById(id); if (!c || c.querySelector('.exit-home')) continue;
     const b = document.createElement('button'); b.className = 'btn alt exit-home'; b.type = 'button'; b.textContent = 'Exit to main menu';
-    b.addEventListener('click', () => { mSave(); location.replace(home); });
+    b.addEventListener('click', () => { location.replace(home); });
     c.appendChild(b);
   }
 })();

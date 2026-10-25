@@ -280,6 +280,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-del small { margin: 0; }
 .m-del.ask { --face: #a8231c; --hi: #d0392f; --lo: #6e1510; --text: #fff4e0; --sub: #ffd9c8; }
 .m-cont b { font-size: 30px; line-height: 32px; }
+.m-slot-b b { font-size: 22px; line-height: 26px; } .m-slot-empty { opacity: .6; padding: 14px 16px; margin: 0; }
 .m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 6px; }
 .m-tile { min-height: 68px; padding: 10px; }
 .m-tile small { white-space: nowrap; overflow: hidden; }
@@ -415,6 +416,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
           <button class="px m-tile" data-m="go" data-v="battles"><b>Battles</b><small>One civ each</small></button>
           <button class="px m-tile" data-m="go" data-v="ency"><b>Encyclopedia</b><small>History</small></button>
         </div>
+        <button class="px m-learn" data-m="go" data-v="load"><b>Load game</b><small id="m-load-sub">3 slots</small></button>
         <button class="px m-learn" data-m="learn"><b>Learn to play</b><small>How to</small></button>
         <div class="m-foot">
           <button class="px m-ico" data-m="go" data-v="settings" aria-label="Settings"><svg width="26" height="26" viewBox="0 0 13 13" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><path d="M5 3h3v1h1v1h1v3h-1v1h-1v1h-3v-1h-1v-1h-1v-3h1v-1h1zM5 5v3h3v-3z"></path><path d="M6 0h1v2h-1zM6 11h1v2h-1zM0 6h2v1h-2zM11 6h2v1h-2z"></path></svg></button>
@@ -476,6 +478,14 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
       </div>
     </div>
 
+    <div class="m-scr" id="m-load" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Load game</h2></div>
+      <div class="m-body">
+        <div id="m-slots" style="display:contents"></div>
+        <p class="m-note">Games save by themselves while you play. A new game takes an empty slot, or the oldest one when all three are full.</p>
+      </div>
+    </div>
+
     <div class="m-scr" id="m-settings" hidden>
       <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Settings</h2></div>
       <div class="m-body">
@@ -492,7 +502,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
         <button class="px m-learn" data-m="update"><b>Check for updates</b></button>
         <div class="m-lbl">Saved game</div>
         <p class="m-note" id="m-savenote"></p>
-        <button class="px m-learn" data-m="delsave"><b>Delete saved game</b></button>
+        <button class="px m-learn" data-m="delsave"><b>Delete all saved games</b></button>
       </div>
     </div>
   </div>
@@ -4631,10 +4641,11 @@ function resize() {
   cvs.width = Math.round(view.w * view.dpr); cvs.height = Math.round(view.h * view.dpr);
   clampCam();
 }
+// the camera may run a little past each edge, so the corners can be brought out from under the HUD
 function clampCam() {
-  const vw = view.w / view.zoom, vh = view.h / view.zoom, WW = W * TILE, HH = H * TILE;
-  cam.x = WW > vw ? clamp(cam.x, 0, WW - vw) : (WW - vw) / 2;
-  cam.y = HH > vh ? clamp(cam.y, 0, HH - vh) : (HH - vh) / 2;
+  const vw = view.w / view.zoom, vh = view.h / view.zoom, WW = W * TILE, HH = H * TILE, mx = vw * 0.3, my = vh * 0.35;
+  cam.x = WW + 2 * mx > vw ? clamp(cam.x, -mx, WW - vw + mx) : (WW - vw) / 2;
+  cam.y = HH + 2 * my > vh ? clamp(cam.y, -my, HH - vh + my) : (HH - vh) / 2;
 }
 function setZoom(z, sx, sy) {
   z = clamp(z, 0.55, 2.6);
@@ -5533,16 +5544,36 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nothing t
 let saveT = 0;
 const settings = Object.assign({ speed: 1, bars: 'auto', sound: 'on', music: 'on' }, (() => { try { return JSON.parse(lsGet(SET_KEY)) || {}; } catch (e) { return {}; } })());
 function saveSettings() { lsSet(SET_KEY, JSON.stringify(settings)); }
+/* three save slots, shared with the mission pages (sea-rts-fixes/mission-save): seak-slots holds a short
+   description of each, seak-slot-N the game itself. A new game takes a free slot, or the oldest. */
+const SLOTS_KEY = 'seak-slots', SLOT_N = 3;
+let curSlot = null;
+function slotMetas() { try { const a = JSON.parse(lsGet(SLOTS_KEY)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
+function slotPick(cur) { if (cur != null) return cur; const m = slotMetas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
+function slotWrite(i, meta, rec) { if (!lsSet('seak-slot-' + i, JSON.stringify(rec))) return false; const m = slotMetas(); m[i] = Object.assign(meta, { when: Date.now() }); lsSet(SLOTS_KEY, JSON.stringify(m)); return true; }
+function slotRead(i) { try { const r = JSON.parse(lsGet('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
+function slotDel(i) { lsDel('seak-slot-' + i); const m = slotMetas(); m[i] = null; lsSet(SLOTS_KEY, JSON.stringify(m)); }
+function slotNewest() { const m = slotMetas(); let b = -1; m.forEach((x, i) => { if (x && (b < 0 || x.when > m[b].when)) b = i; }); return b; }
+function slotLine(x) { return (x.kind === 'skirmish' ? x.sub + ' \u00b7 ' : '') + fmtTime(x.t || 0) + ' \u00b7 ' + x.diff[0].toUpperCase() + x.diff.slice(1) + ' \u00b7 ' + new Date(x.when).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); }
+// the skirmish save from before the slots moves into one
+(function () { const old = lsGet(SAVE_KEY); if (!old) return; try { const r = JSON.parse(old); if (r && r.snap) slotWrite(slotPick(null), { kind: 'skirmish', title: 'Skirmish', sub: CIV_TITLE[r.snap.civs ? r.snap.civs[0] : 0] + ' vs ' + CIV_TITLE[r.snap.civs ? r.snap.civs[1] : 1], t: r.snap.t, diff: r.diff }, r); } catch (e) { /* drop it */ } lsDel(SAVE_KEY); })();
 function saveGame() {
   if (!started || ended || !G || G.over) return;
   const rec = { snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() };
-  lsSet(SAVE_KEY, JSON.stringify(rec));
+  curSlot = slotPick(curSlot);
+  slotWrite(curSlot, { kind: 'skirmish', title: 'Skirmish', sub: CIV_TITLE[CV(0)] + ' vs ' + CIV_TITLE[CV(1)] + ' \u00b7 ' + MAPDEF[G.map || 'strait'].name, t: G.t, diff }, rec);
 }
-function readSave() { try { const r = JSON.parse(lsGet(SAVE_KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
-function continueGame() {
-  const r = readSave(); const g = r && Game.restore(r.snap);
-  if (!g) { lsDel(SAVE_KEY); refreshHome(); return; }
-  G = g; seedUsed = r.seed; diff = r.diff; mapKind = g.map || 'strait'; pciv = g.civs ? g.civs[0] : 0; pfoe = g.civs ? g.civs[1] : 1;
+// a mission save opens its own page, which loads it
+function openSlot(i) {
+  const m = slotMetas()[i]; if (!m) return;
+  if (m.kind !== 'mission') { continueGame(i); return; }
+  const url = SITE + m.page + '?slot=' + i;
+  if (SITE === './') location.replace(url); else window.open(url, '_blank', 'noopener');
+}
+function continueGame(i) {
+  const r = slotRead(i); const g = r && Game.restore(r.snap);
+  if (!g) { slotDel(i); refreshHome(); toastMenu('That saved game could not be loaded.'); return; }
+  curSlot = i; G = g; seedUsed = r.seed; diff = r.diff; mapKind = g.map || 'strait'; pciv = g.civs ? g.civs[0] : 0; pfoe = g.civs ? g.civs[1] : 1;
   enterGame();
   view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
   updateHud(); updatePanel();
@@ -5558,15 +5589,16 @@ let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroe
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
 function showMenu(name) {
   $('menu').hidden = !name;
-  for (const n of ['home', 'skirmish', 'campaign', 'brief', 'battles', 'ency', 'settings']) $('m-' + n).hidden = n !== name;
+  for (const n of ['home', 'skirmish', 'campaign', 'brief', 'battles', 'ency', 'settings', 'load']) $('m-' + n).hidden = n !== name;
   $('menu').scrollTop = 0;
   if (name === 'home') refreshHome();
   if (name === 'skirmish') syncMenuSegs();
-  if (name === 'settings') { syncMenuSegs(); setVerNote(); const r = readSave(); $('m-savenote').textContent = r ? 'A game from ' + new Date(r.when).toLocaleString() + ' is saved.' : 'No game saved. Games save by themselves while you play.'; }
+  if (name === 'settings') { syncMenuSegs(); setVerNote(); const n = slotMetas().filter(Boolean).length; $('m-savenote').textContent = n ? n + ' of 3 save slots in use. Load game lists them.' : 'No game saved. Games save by themselves while you play.'; }
+  if (name === 'load') renderSlots();
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.21 \u00b7 25 Oct 2026';
+const BUILD = '0.9.22 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -5575,10 +5607,19 @@ function delAsk(on) {
   if (on) delT = setTimeout(() => delAsk(false), 4000);
 }
 function refreshHome() {
-  const r = readSave();
+  const i = slotNewest(), m = slotMetas()[i], n = slotMetas().filter(Boolean).length;
   $('m-ver').textContent = 'v' + BUILD + (navigator.onLine === false ? ' \u00b7 offline' : '');
-  $('m-controw').hidden = !r; delAsk(false);
-  if (r) $('m-cont-sub').textContent = CIV_TITLE[r.snap.civs ? r.snap.civs[0] : 0] + ' \u00b7 ' + MAPDEF[r.snap.map || 'strait'].name + ' \u00b7 ' + fmtTime(r.snap.t) + ' \u00b7 ' + r.diff[0].toUpperCase() + r.diff.slice(1);
+  $('m-controw').hidden = !m; delAsk(false);
+  if (m) $('m-cont-sub').textContent = m.title + ' \u00b7 ' + slotLine(m);
+  $('m-load-sub').textContent = n ? n + ' of 3 saved' : 'No saves yet';
+}
+const TRASH = '<svg width="20" height="24" viewBox="0 0 10 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 2h10v1h-10zM3 0h4v2h-4zM1 3h8v9h-8z" fill="currentColor"></path><path d="M3 5h1v5h-1zM6 5h1v5h-1z" fill="var(--face)"></path></svg>';
+function renderSlots() {
+  const m = slotMetas();
+  $('m-slots').innerHTML = m.map((x, i) => x
+    ? '<div class="m-controw"><button class="px px-p m-cont m-slot-b" data-m="loadslot" data-v="' + i + '"><span><b>' + (i + 1) + '. ' + x.title + '</b><small>' + slotLine(x) + '</small></span></button>'
+      + '<button class="px m-del" data-m="delslot" data-v="' + i + '" aria-label="Delete this save">' + TRASH + '<small>Delete</small></button></div>'
+    : '<p class="px m-slot-empty">' + (i + 1) + '. Empty slot</p>').join('');
 }
 /* version, updates and exit (the installed app has no browser bar to reload or close it) */
 function setVerNote(t) { const e = $('m-vernote'); if (e) e.textContent = t || 'You have version ' + BUILD + '.'; }
@@ -5789,21 +5830,23 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-m]'); if (!el) return;
   const a = el.dataset.m, v = el.dataset.v;
   if (a === 'go') showMenu(v);
-  else if (a === 'continue') continueGame();
+  else if (a === 'continue') openSlot(slotNewest());
+  else if (a === 'loadslot') openSlot(+v);
+  else if (a === 'delslot') { if (el.classList.contains('ask')) { slotDel(+v); if (curSlot === +v) curSlot = null; renderSlots(); refreshHome(); toastMenu('Save deleted.'); } else { el.classList.add('ask'); el.querySelector('small').textContent = 'Sure?'; setTimeout(() => { if (el.isConnected) { el.classList.remove('ask'); el.querySelector('small').textContent = 'Delete'; } }, 4000); } }
   else if (a === 'learn') { helpBack = 'menu'; showOv('help'); }
   else if (a === 'diff') { diff = v; syncMenuSegs(); }
   else if (a === 'map') { mapChoice = v; syncMenuSegs(); }
   else if (a === 'mapk') { mapKind = v; syncMenuSegs(); }
   else if (a === 'civ') { pciv = +v; if (pfoe === pciv) pfoe = pciv === 1 ? 0 : 1; syncMenuSegs(); }
   else if (a === 'foe') { if (+v !== pciv) pfoe = +v; syncMenuSegs(); }
-  else if (a === 'start') startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
+  else if (a === 'start') curSlot = null, startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
   else if (a === 'tab') { encyTab = v; renderEncy(); }
   else if (a === 'hero') { heroSel = v; renderEncy(); }
   else if (a === 'brief') showBrief(v);
   else if (a === 'locked') toastMenu('This mission comes in a later update.');
   else if (a === 'set') { settings[el.dataset.k] = el.dataset.k === 'speed' ? +v : v; saveSettings(); syncMenuSegs(); SFX.apply(); }
-  else if (a === 'delsave') { lsDel(SAVE_KEY); refreshHome(); toastMenu('Saved game deleted.'); }
-  else if (a === 'delcont') { if (el.classList.contains('ask')) { lsDel(SAVE_KEY); refreshHome(); toastMenu('Saved game deleted. Pick Skirmish to start a new one.'); } else delAsk(true); }
+  else if (a === 'delsave') { for (let i = 0; i < SLOT_N; i++) slotDel(i); curSlot = null; refreshHome(); toastMenu('All saved games deleted.'); }
+  else if (a === 'delcont') { if (el.classList.contains('ask')) { const i = slotNewest(); if (i >= 0) slotDel(i); if (curSlot === i) curSlot = null; refreshHome(); toastMenu('Saved game deleted.'); } else delAsk(true); }
   else if (a === 'update') checkForUpdate();
   else if (a === 'exit') exitApp();
 });
@@ -6033,7 +6076,7 @@ function sfxTick() {
 }
 
 function endGame() {
-  ended = true; paused = true; lsDel(SAVE_KEY);
+  ended = true; paused = true; if (curSlot != null) { slotDel(curSlot); curSlot = null; }
   const win = G.over === 'win';
   $('end-title').textContent = win ? 'Victory' : 'Defeat';
   $('end-title').className = win ? 'win' : 'lose';

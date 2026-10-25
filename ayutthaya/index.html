@@ -7889,15 +7889,33 @@ ayBoot();
 
 <script>
 /* Save and continue for a mission or battle page: an autosave every 30 s and on leaving the app,
-   "Save and exit" on the pause card, "Continue saved game" on the start card. Works on any page built
+   "Save and exit" on the pause card, "Continue saved game" on the start card. Saves go into the game's
+   3 shared slots (seak-slots / seak-slot-N), which the main menu's Load game lists; the menu opens a
+   mission save as this page with ?slot=N. Works on any page built
    from the game: it saves the whole Game, writing units, buildings and resources that point at each
    other as {$r: id} and joining them up again on load. Page-specific state goes through MSAVE_CFG. */
 (function () {
   const CFG = window.MSAVE_CFG || {};
-  const KEY = 'seak-mission-' + (CFG.id || location.pathname.replace(/index\.html$/, '').split('/').filter(Boolean).pop() || 'page');
+  const folder = location.pathname.replace(/index\.html$/, '').split('/').filter(Boolean).pop() || 'page';
+  const OLDKEY = 'seak-mission-' + (CFG.id || folder);
+  const PAGE = CFG.page || ((location.pathname.match(/\/SEA-RTS\/(.*?)(index\.html)?$/i) || [])[1] || folder + '/');
+  const TITLE = CFG.title || document.title;
+  const SLOTS = 'seak-slots', SLOT_N = 3;
   const SKIP = new Set(['byId', 'hash', 'claims', 'pSeen', 'pClosed', 'pG', 'pPar', 'pOpen', 'fx', 'arrows', 'floaters', 'msgs', 'alerts', 'rng', 'burning']);
   const TA = { Uint8Array, Int8Array, Uint16Array, Int16Array, Int32Array, Uint32Array, Float32Array, Float64Array, Uint8ClampedArray };
   const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }, del: (k) => { try { localStorage.removeItem(k); } catch (e) { /* none */ } } };
+
+  /* the 3 save slots, shared with the main menu */
+  function metas() { try { const a = JSON.parse(ls.get(SLOTS)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
+  function pick(cur) { if (cur != null) return cur; const m = metas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
+  function slotWrite(i, meta, rec) { if (!ls.set('seak-slot-' + i, JSON.stringify(rec))) return false; const m = metas(); m[i] = Object.assign(meta, { when: Date.now() }); ls.set(SLOTS, JSON.stringify(m)); return true; }
+  function slotRead(i) { try { const r = JSON.parse(ls.get('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
+  function slotDel(i) { ls.del('seak-slot-' + i); const m = metas(); m[i] = null; ls.set(SLOTS, JSON.stringify(m)); }
+  // this page's newest save
+  function latest() { let b = -1; metas().forEach((x, i) => { if (x && x.page === PAGE && (b < 0 || x.when > metas()[b].when)) b = i; }); return b; }
+  let cur = null;   // the slot this game saves into; a new game takes a free slot (or the oldest) on its first save
+  // a save from before the slots: move it into one
+  (function migrate() { const old = ls.get(OLDKEY); if (!old) return; try { const r = JSON.parse(old); if (r && r.snap && latest() < 0) { if (!r.opts) r.opts = { seed: r.snap.seed, diff: r.snap.diff, map: r.snap.map, civs: r.snap.civs }; slotWrite(pick(null), { kind: 'mission', page: PAGE, title: TITLE, t: r.snap.t || 0, diff: r.diff }, r); } } catch (e) { /* drop it */ } ls.del(OLDKEY); })();
 
   let ENT = new Set(), stack = new Set();
   function enc(v, own) {
@@ -7958,10 +7976,11 @@ ayBoot();
       const rec = { v: 1, snap, opts: Object.assign({ seed: G.seed, diff: G.diff, map: G.map }, CFG.opts ? CFG.opts(G) : {}), extra: CFG.extra ? enc(CFG.extra()) : null,
         seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, t: G.t, when: Date.now() };
       ENT = new Set();
-      ls.set(KEY, JSON.stringify(rec));
+      cur = pick(cur);
+      if (!slotWrite(cur, { kind: 'mission', page: PAGE, title: TITLE, t: G.t, diff }, rec) && typeof toast === 'function') toast('Could not save: the phone\'s storage for this app is full.');
     } catch (e) { console.warn('save', e); }
   }
-  function read() { try { const r = JSON.parse(ls.get(KEY)); return r && r.snap ? r : null; } catch (e) { return null; } }
+  function read(i) { return i != null && i >= 0 ? slotRead(i) : null; }
   function restore(r) {
     const g = new Game(r.opts);
     const s = dec(r.snap), extra = dec(r.extra);
@@ -7977,10 +7996,11 @@ ayBoot();
     if (g.updateFog) g.updateFog();
     return [g, ex];
   }
-  function cont() {
-    const r = read(); if (!r) return;
+  function cont(slot) {
+    const i = typeof slot === 'number' ? slot : latest(), r = read(i); if (!r) return;
     let g, ex;
-    try { [g, ex] = restore(r); } catch (e) { console.warn('load', e); ls.del(KEY); sync(); if (typeof toast === 'function') toast('That saved game could not be loaded.'); return; }
+    try { [g, ex] = restore(r); } catch (e) { console.warn('load', e); slotDel(i); sync(); if (typeof toast === 'function') toast('That saved game could not be loaded.'); return; }
+    cur = i;
     diff = r.diff; seedUsed = r.seed;
     if (CFG.before) CFG.before(ex, g);
     loadMap(g);
@@ -7993,14 +8013,23 @@ ayBoot();
   }
   function sync() {
     const b = document.getElementById('msave-cont'); if (!b) return;
-    const r = read(); b.hidden = !r;
+    const r = read(latest()); b.hidden = !r;
     if (r) b.textContent = 'Continue saved game (' + fmtTime(r.t || 0) + ' in, ' + r.diff + ')';
   }
   // the start card: Continue sits above Begin
   const start = document.querySelector('#ov-start [data-do="start"]');
   if (start) {
     const b = document.createElement('button'); b.className = 'btn'; b.id = 'msave-cont'; b.type = 'button'; b.hidden = true;
-    b.addEventListener('click', cont); start.before(b); sync();
+    b.addEventListener('click', () => cont()); start.before(b); sync();
+  }
+  // anything else on the start card begins a new game, which gets its own slot
+  document.addEventListener('click', (e) => { const c = e.target.closest && e.target.closest('#ov-start [data-do]'); if (c && c.dataset.do !== 'diff' && c.dataset.do !== 'help') cur = null; }, true);
+  // opened from the main menu's Load game
+  const want = +new URLSearchParams(location.search).get('slot');
+  if (location.search.includes('slot=')) {
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* keep the address */ }
+    const m = metas()[want];
+    if (m && m.page === PAGE) setTimeout(() => cont(want), 300);
   }
   // leaving: every exit-to-menu button saves first; the one on the pause card says so
   document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.exit-home')) save(); }, true);
@@ -8011,10 +8040,10 @@ ayBoot();
   let last = Date.now();
   setInterval(() => {
     if (typeof G === 'undefined' || !G) return;
-    if (started && G.over) { ls.del(KEY); return; }
+    if (started && G.over) { if (cur != null && metas()[cur] && metas()[cur].page === PAGE) slotDel(cur); cur = null; return; }
     if (started && !paused && Date.now() - last > 30000) { last = Date.now(); save(); }
   }, 2000);
-  window.MSAVE = { save, read, cont, key: KEY };
+  window.MSAVE = { save, cont, metas, slot: () => cur, page: PAGE };
 })();
 </script>
 <script>
