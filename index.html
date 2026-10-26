@@ -3578,7 +3578,7 @@ const CIVB = (() => {
   /* ---------- common buildings in Majapahit style ----------
      majapahitBase(kind, team): kind towncentre | house | barracks | port, same canvas sizes as buildingSprite().
      Needs pier() and rack() from buildings-mainland.js. */
-  const MJBASE_DIMS = { towncentre: [48, 62], house: [32, 46], barracks: [48, 58], port: [48, 54] };
+  const MJBASE_DIMS = { towncentre: [48, 62], house: [32, 46], barracks: [48, 58], port: [48, 54], store: [32, 46] };
   // black ijuk gable roof with a thick dark edge
   function ijukRoof(P, cx, y0, y1, hw0, hw1) { roofGable(P, cx, y0, y1, hw0, hw1, IJUK, IJUK_L, '#241c19'); }
 
@@ -3600,6 +3600,13 @@ const CIVB = (() => {
         brick(P, 3, 38, 26, 6);
         planks(P, 6, 26, 20, 12, '#b88a52', '#9a6f3a'); r(13, 28, 6, 10, '#3f2713'); r(8, 29, 3, 3, '#2b1a0c'); r(21, 29, 3, 3, '#2b1a0c');
         ijukRoof(P, 16, 8, 26, 2, 14); r(2, 26, 28, 1, T.main); r(15, 5, 2, 4, GOLD);
+      } else if (kind === 'store') {
+        // Gudang: a brick-footed timber store under black ijuk, a log stack and a gold chest at the door
+        brick(P, 1, 38, 30, 6); r(1, 38, 30, 1, BRICK_L);
+        planks(P, 4, 25, 24, 13, '#b88a52', '#9a6f3a'); r(12, 28, 8, 10, '#3f2713'); r(12, 27, 8, 1, GOLD);
+        ijukRoof(P, 16, 9, 25, 3, 15); r(2, 25, 28, 1, T.main);
+        for (let i = 0; i < 3; i++) { r(22, 35 - i * 2, 8, 2, i % 2 ? '#a0693a' : '#8a5a2b'); r(29, 35 - i * 2, 1, 2, '#c99b5d'); }
+        r(2, 33, 8, 5, '#5e3b1c'); r(2, 32, 8, 2, '#f2c94c'); r(4, 31, 3, 1, '#ffe27a'); r(5, 34, 2, 2, '#333');
       } else if (kind === 'barracks') {
         // brick-walled hall with a long black roof, painted tameng shields and a weapon rack
         brick(P, 2, 36, 44, 18); r(2, 36, 44, 1, BRICK_L); r(16, 40, 16, 14, '#2f1d0e'); rack(P, 18, 41);
@@ -5032,7 +5039,7 @@ function civBuildingSprite(kind, team, level) {
   if (CIVB_KIND[kind]) return team === 1 ? CIVB.majapahitBuilding(CIVB_KIND[kind][1], team) : CIVB.melakaBuilding(CIVB_KIND[kind][0], team);
   if (kind === 'village') return CIVB.neutralSite('village');
   if (kind === 'rumahtabib' || kind === 'patirthan') return CIVB.healerBuilding(kind, team);
-  if (team === 1 && ['towncentre', 'house', 'barracks', 'port'].includes(kind)) return CIVB.majapahitBase(kind, team);
+  if (team === 1 && ['towncentre', 'house', 'barracks', 'port', 'store'].includes(kind)) return CIVB.majapahitBase(kind, team);
   const T = TEAMC[team] || TEAMC[0], key = `b|${kind}|${team}|${level || 0}`;
   const dims = { towncentre: [48, 62], house: [32, 46], mill: [32, 46], store: [32, 46], goldmine: [32, 44], farm: [32, 32], barracks: [48, 58], port: [48, 54] }[kind];
   return sprite(key, dims[0], dims[1], 2, (P) => {
@@ -6318,7 +6325,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.29 \u00b7 25 Oct 2026';
+const BUILD = '0.9.30 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
