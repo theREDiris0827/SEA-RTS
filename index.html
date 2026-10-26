@@ -732,7 +732,7 @@ const BD = {
   // Majapahit rice terraces: cheaper, richer and faster to work than a farm, but they take more room
   sawah: { name: 'Rice Terrace', size: 3, hp: 150, cost: { wood: 45 }, time: 12, walk: true, food: 500, rate: 1.2, sight: 3, civ: 1 },
   barracks: { name: 'Barracks', size: 3, hp: 800, cost: { wood: 150 }, time: 30, train: ['keris', 'tombak', 'archer', 'sumpit', 'lembing', 'namai'], sight: 6 },
-  port: { name: 'Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat', 'trade', 'fireship', 'light', 'galley', 'frigate', 'flagship'], shore: true, sight: 8 },
+  port: { name: 'Port', size: 3, hp: 900, cost: { wood: 120 }, time: 30, drop: ['food'], train: ['boat', 'trade', 'fireship', 'light', 'galley', 'frigate', 'flagship'], shore: true, fh: 1, sight: 8 },
   granary: { name: 'Granary', size: 2, hp: 350, cost: { wood: 100 }, time: 18, drop: ['food'], sight: 4 },
   tower: { name: 'Watchtower', size: 2, hp: 600, civHp: [600, 800, 750], cost: { wood: 75, gold: 25 }, time: 25, atk: { dmg: 5, range: 7, rate: 1.8 }, sight: 11, civSight: [11, 9, 10] },
   rumahtabib: { name: 'Physician\'s House', size: 3, hp: 500, cost: { wood: 120, gold: 30 }, time: 30, train: ['tabib'], needs: 'barracks', civ: 0, sight: 5 },
@@ -1326,12 +1326,12 @@ class Game {
   addBuilding(kind, team, tx, ty, done) {
     const d = BD[kind], hp = d.civHp ? d.civHp[CI(team)] || d.civHp[0] : d.hp;
     const b = {
-      id: this.nextId++, isBld: true, kind, team, tx, ty, size: d.size, x: tx + d.size / 2, y: ty + d.size / 2,
+      id: this.nextId++, isBld: true, kind, team, tx, ty, size: d.size, h: d.fh || d.size, x: tx + d.size / 2, y: ty + (d.fh || d.size) / 2,
       maxHp: hp, hp: done ? hp : Math.round(hp * 0.1), done: !!done, progress: done ? 1 : 0,
       queue: [], qt: 0, rally: null, food: d.food || 0, cd: 0, nb: 0, _bn: 0, hit: 0, stall: false
     };
-    b.rect = rectOfTiles(tx, ty, d.size, d.size);
-    for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
+    b.rect = rectOfTiles(tx, ty, d.size, b.h);
+    for (let y = ty; y < ty + b.h; y++) for (let x = tx; x < tx + d.size; x++) {
       this.occ[y * W + x] = 1; if (d.gate) this.gate[y * W + x] = team + 1; else if (!d.walk) this.block[y * W + x] = 1;
     }
     this.buildings.push(b); this.byId.set(b.id, b);
@@ -1341,7 +1341,7 @@ class Game {
   evict(b) {
     for (const u of this.units) {
       const x = Math.floor(u.x), y = Math.floor(u.y);
-      if (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + b.size) {
+      if (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + (b.h || b.size)) {
         this.wt = u.team; const p = this.nearestFree(u.x, u.y, u.layer, 10);
         u.x = p.x + 0.5; u.y = p.y + 0.5; u.path = null;
       }
@@ -1403,13 +1403,19 @@ class Game {
     this.wt = b.team;
     const tx = toward ? toward.x : b.x, ty = toward ? toward.y : b.y + 6;
     let best = null, bd = 1e9;
-    for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) {
-      if (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + b.size) continue;
+    const bh = b.h || b.size;
+    for (let y = b.ty - 1; y <= b.ty + bh; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) {
+      if (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + bh) continue;
       if (!this.walkable(x, y, layer)) continue;
       const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty) + (this.unitNear(x + 0.5, y + 0.5, 0.6, layer) ? 4 : 0);
       if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 }; }
     }
     if (!best) { const p = this.nearestFree(b.x, b.y, layer, 12); best = { x: p.x + 0.5, y: p.y + 0.5 }; }
+    // a port's ships don't wait hidden behind its hall: they come out past it
+    const top = b.ty + bh - b.size;
+    if (bh < b.size && best.y < b.ty && best.x > b.tx - 0.5 && best.x < b.tx + b.size + 0.5) {
+      const p = this.openSpot(best.x, top - 0.5, layer); if (p.y < top) best = p;
+    }
     return best;
   }
 
@@ -1806,22 +1812,37 @@ class Game {
   /* ======================= building / training ======================= */
   canPlace(kind, tx, ty, team) {
     const d = BD[kind];
-    if (tx < 1 || ty < 1 || tx + d.size > W - 1 || ty + d.size > H - 1) return false;
+    const dh = d.fh || d.size;
+    if (tx < 1 || ty < 1 || tx + d.size > W - 1 || ty + dh > H - 1) return false;
     if (d.site && !this.siteAt(tx, ty)) return false;
-    if (!d.site) for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) if (this.siteMask[y * W + x]) return false;
-    for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
+    if (this.underPortArt(tx, ty, d.size, dh, kind)) return false;
+    if (!d.site) for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) if (this.siteMask[y * W + x]) return false;
+    for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
       if (!this.freeTile(x, y) && !(d.gate && this.wallPieceAt(x, y, team, true))) return false;
       if (team === 0 && !this.explored[y * W + x]) return false;
     }
     if (d.shore) {
       let water = 0;
-      for (let y = ty - 1; y <= ty + d.size; y++) for (let x = tx - 1; x <= tx + d.size; x++) {
-        if (x >= tx && x < tx + d.size && y >= ty && y < ty + d.size) continue;
+      for (let y = ty - 1; y <= ty + dh; y++) for (let x = tx - 1; x <= tx + d.size; x++) {
+        if (x >= tx && x < tx + d.size && y >= ty && y < ty + dh) continue;
         if (this.isWater(x, y) && !this.block[y * W + x]) water++;
       }
       if (water < 3) return false;
     }
     return true;
+  }
+  /* a port's hall stands up above its deck: nothing may be built where the hall's art goes, and a port's hall
+     can't cover another building */
+  underPortArt(tx, ty, w, h, kind) {
+    const hit = (ax, ay, aw, ah, bx, by, bw, bh) => ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
+    const d = BD[kind], art = d.fh && d.fh < d.size ? [tx, ty + h - d.size, w, d.size - h] : null;
+    for (const b of this.buildings) {
+      if (b.hp <= 0) continue;
+      const bh = b.h || b.size;
+      if (bh < b.size && hit(tx, ty, w, h, b.tx, b.ty + bh - b.size, b.size, b.size - bh)) return true;
+      if (art && hit(art[0], art[1], art[2], art[3], b.tx, b.ty, b.size, bh)) return true;
+    }
+    return false;
   }
   /* water tiles around a footprint: an Ayutthaya house with 3 or more becomes a raft house */
   waterSide(tx, ty, size) {
@@ -2665,7 +2686,7 @@ class Game {
     let bd = false;
     for (const b of this.buildings) if (b.hp <= 0) {
       bd = true; this.byId.delete(b.id);
-      for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) { this.occ[y * W + x] = 0; this.block[y * W + x] = 0; this.gate[y * W + x] = 0; }
+      for (let y = b.ty; y < b.ty + (b.h || b.size); y++) for (let x = b.tx; x < b.tx + b.size; x++) { this.occ[y * W + x] = 0; this.block[y * W + x] = 0; this.gate[y * W + x] = 0; }
     }
     if (bd) this.buildings = this.buildings.filter(b => b.hp > 0);
     if (this.nodes.some(n => n.hp <= 0)) this.nodes = this.nodes.filter(n => n.hp > 0);
@@ -2717,7 +2738,7 @@ class Game {
     for (const b of this.buildings) {
       if (b.hp <= 0) continue;
       if (b.team !== 0 && !this.explored[Math.floor(b.y) * W + Math.floor(b.x)]) continue;
-      if (wx >= b.tx - 0.1 && wx < b.tx + b.size + 0.1 && wy >= b.ty - b.size * 0.45 && wy < b.ty + b.size + 0.1) { if (!best || b.y > best.y) best = b; }
+      if (wx >= b.tx - 0.1 && wx < b.tx + b.size + 0.1 && wy >= b.ty + (b.h || b.size) - b.size * 1.45 && wy < b.ty + (b.h || b.size) + 0.1) { if (!best || b.y > best.y) best = b; }
     }
     if (best) return best;
     for (const n of this.nodes) {
@@ -5414,7 +5435,7 @@ function paintFisher(u, x0, y0, f) {
 }
 function paintBuilding(b) {
   if (b.kind === 'rafthouse' && b.done) { paintRaftHouse(b); return; }
-  const px = b.tx * TILE, py = b.ty * TILE, size = b.size, w = size * TILE, flat = FIELD[b.kind];
+  const bh = b.h || b.size, px = b.tx * TILE, py = (b.ty + bh - b.size) * TILE, size = b.size, w = size * TILE, flat = FIELD[b.kind];
   let lvl = 2; if (flat) { const f = b.food / BD[b.kind].food; lvl = !b.done ? 0 : f > 0.66 ? 2 : f > 0.33 ? 1 : 0; }
   if (BD[b.kind].wall) lvl = 100 + wallMask(b);
   const spr = buildingSprite(b.kind, b.team, lvl);
@@ -5437,7 +5458,7 @@ function paintBuilding(b) {
     hpBar(px + 4, py + w + 2, w - 8, b.progress);
   }
   if (isSel(b)) {
-    ctx.strokeStyle = TEAMC[CV(b.team)].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, py - 1, w + 2, w + 2); ctx.setLineDash([]);
+    ctx.strokeStyle = TEAMC[CV(b.team)].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, b.ty * TILE - 1, w + 2, bh * TILE + 2); ctx.setLineDash([]);
   }
   if (b.done && (isSel(b) || b.hp < b.maxHp)) hpBar(px + w * 0.15, flat ? py - 4 : dy + 2, w * 0.7, b.hp / b.maxHp);
 }
@@ -5541,15 +5562,16 @@ function paintPlacement() {
   if (mode.tx == null) return;
   if (mode.line) { paintLinePlacement(d); return; }
   const tx = mode.tx, ty = mode.ty;
-  for (let y = ty; y < ty + d.size; y++) for (let x = tx; x < tx + d.size; x++) {
+  const dh = d.fh || d.size;
+  for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
     const ok = G.freeTile(x, y) && G.explored[y * W + x];
     ctx.fillStyle = ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   const valid = G.canPlace(mode.bkind, tx, ty, 0); mode.valid = valid;
   const spr = buildingSprite(mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
   ctx.globalAlpha = valid ? 0.72 : 0.4;
-  ctx.drawImage(spr, px + (w - spr.width) / 2, d.walk ? py : py + w - spr.height + 2); ctx.globalAlpha = 1;
-  ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, w);
+  ctx.drawImage(spr, px + (w - spr.width) / 2, d.walk ? py : py + dh * TILE - spr.height + 2); ctx.globalAlpha = 1;
+  ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, dh * TILE);
 }
 
 /* a wall line: every tile green (new), grey (already walled) or red (blocked), with the count and cost by its end */
@@ -5579,7 +5601,7 @@ function paintLinePlacement(d) {
 /* touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests */
 function placeButtons() {
   if (!mode || mode.kind !== 'place' || !mode.touch || mode.tx == null) return null;
-  const d = BD[mode.bkind], c = w2s(mode.tx + d.size / 2, mode.ty + d.size);
+  const d = BD[mode.bkind], c = w2s(mode.tx + d.size / 2, mode.ty + (d.fh || d.size));
   const y = clamp(c.y + 30, 30, view.h - 30), x = clamp(c.x, 50, view.w - 50);
   return { ok: { x: x - 30, y }, no: { x: x + 30, y }, r: 22 };
 }
@@ -5614,7 +5636,7 @@ function render() {
   for (const b of G.buildings) {
     if (!inView(b.x * TILE, b.y * TILE, 160)) continue;
     if (b.team !== 0 && !expl(b.x, b.y)) continue;
-    if (FIELD[b.kind]) paintBuilding(b); else tall.push({ y: (b.ty + b.size) * TILE, t: 0, o: b });
+    if (FIELD[b.kind]) paintBuilding(b); else tall.push({ y: (b.ty + (b.h || b.size)) * TILE, t: 0, o: b });
   }
   for (const v of G.villages) if (!v.post && expl(v.site.tx + 1.5, v.site.ty + 1.5)) { const spr = CIVB.neutralSite('landing'); ctx.drawImage(spr, v.site.tx * TILE + (96 - spr.width) / 2, (v.site.ty + 3) * TILE - spr.height + 2); }
   for (const f of G.fx) if ((f.k === 'corpse' || f.k === 'rubble') && inView(f.x * TILE, f.y * TILE, 100)) paintFx(f);
@@ -5667,8 +5689,8 @@ function drawMini() {
   }
   for (const b of G.buildings) {
     if (b.team !== 0 && !G.explored[Math.floor(b.y) * W + Math.floor(b.x)]) continue;
-    mctx.fillStyle = b.team === 2 ? '#d8d0b8' : MINIC[CV(b.team)][0]; mctx.fillRect(b.tx * S, b.ty * S, b.size * S, b.size * S);
-    mctx.strokeStyle = '#10201a'; mctx.lineWidth = 1; mctx.strokeRect(b.tx * S + 0.5, b.ty * S + 0.5, b.size * S - 1, b.size * S - 1);
+    mctx.fillStyle = b.team === 2 ? '#d8d0b8' : MINIC[CV(b.team)][0]; mctx.fillRect(b.tx * S, b.ty * S, b.size * S, (b.h || b.size) * S);
+    mctx.strokeStyle = '#10201a'; mctx.lineWidth = 1; mctx.strokeRect(b.tx * S + 0.5, b.ty * S + 0.5, b.size * S - 1, (b.h || b.size) * S - 1);
   }
   for (const u of G.units) {
     if (u.team === 2) continue; if (u.team === 1 && !G.isVisible(u.x, u.y)) continue;
@@ -5719,7 +5741,7 @@ function selectSameKind(o) {
 }
 function placeAt(wx, wy) {
   const d = BD[mode.bkind];
-  mode.tx = Math.round(wx - d.size / 2); mode.ty = Math.round(wy - d.size / 2);
+  mode.tx = Math.round(wx - d.size / 2); mode.ty = Math.round(wy - (d.fh || d.size) / 2);
   if (d.site) { const v = nearestSite(wx, wy, 4); if (v) { mode.tx = v.site.tx; mode.ty = v.site.ty; } }
 }
 function nearestSite(wx, wy, maxD) {
@@ -5800,7 +5822,7 @@ function handleTap(wx, wy, o) {
         if (Math.hypot(nx - mode.ax, ny - mode.ay) < Math.hypot(nx - mode.tx, ny - mode.ty)) { mode.ax = nx; mode.ay = ny; } else { mode.tx = nx; mode.ty = ny; }
         return;
       }
-      const inside = mode.tx != null && wx >= mode.tx && wx < mode.tx + d.size && wy >= mode.ty && wy < mode.ty + d.size;
+      const inside = mode.tx != null && wx >= mode.tx && wx < mode.tx + d.size && wy >= mode.ty && wy < mode.ty + (d.fh || d.size);
       if (!inside) placeAt(wx, wy);
     } else if (mode.line && !mode.anchored) { placeAt(wx, wy); mode.ax = mode.tx; mode.ay = mode.ty; mode.anchored = true; }
     else { placeAt(wx, wy); tryPlace(o.shift); }
@@ -5884,7 +5906,7 @@ cvs.addEventListener('pointerdown', (e) => {
     gest = { type: 'press', p };
   } else if (mode && mode.kind === 'place' && mode.line && mode.tx != null && (() => { const w = s2w(q.x, q.y); return Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) < 0.9 && Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) <= Math.hypot(w.x - mode.tx - 0.5, w.y - mode.ty - 0.5); })()) {
     gest = { type: 'ghost', p, end: 'a', ox: 0, oy: 0 };
-  } else if (mode && mode.kind === 'place' && mode.tx != null && (() => { const w = s2w(q.x, q.y), d = BD[mode.bkind]; return w.x >= mode.tx - 0.3 && w.x < mode.tx + d.size + 0.3 && w.y >= mode.ty - 0.3 && w.y < mode.ty + d.size + 0.3; })()) {
+  } else if (mode && mode.kind === 'place' && mode.tx != null && (() => { const w = s2w(q.x, q.y), d = BD[mode.bkind]; return w.x >= mode.tx - 0.3 && w.x < mode.tx + d.size + 0.3 && w.y >= mode.ty - 0.3 && w.y < mode.ty + (d.fh || d.size) + 0.3; })()) {
     const w = s2w(q.x, q.y); gest = { type: 'ghost', p, ox: w.x - mode.tx, oy: w.y - mode.ty };
   } else {
     gest = { type: 'press', p, timer: setTimeout(() => { if (gest && gest.p === p && !p.moved && gest.type === 'press') { gest.type = 'box'; boxRect = { x: p.sx, y: p.sy, w: 0, h: 0 }; if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_) { /* ignore */ } } } }, 360) };
@@ -6296,7 +6318,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.28 \u00b7 25 Oct 2026';
+const BUILD = '0.9.29 \u00b7 25 Oct 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
