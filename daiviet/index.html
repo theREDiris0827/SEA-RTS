@@ -4604,8 +4604,8 @@ function womanSprite(anim, f) {
   });
 }
   /* Ayutthaya economy and army buildings (art thread, 2026-10-25), so none of them fall back to Melaka's art.
-     Same helpers and palette as ayBuilding. ayBuildingX(kind, level): barracks | port | granary | store | mill | farm */
-  const AYX_DIMS = { barracks: [48, 58], port: [48, 54], granary: [32, 46], store: [32, 46], mill: [32, 46], farm: [32, 32] };
+     Same helpers and palette as ayBuilding. ayBuildingX(kind, level): barracks | port | granary | store | farm */
+  const AYX_DIMS = { barracks: [48, 58], port: [48, 54], granary: [32, 46], store: [32, 46], farm: [32, 32] };
   // rack of spears with red tassels
   function aySpears(P, x, y, n) { for (let i = 0; i < n; i++) { P.r(x + i * 3, y, 1, 10, WOOD_D); P.r(x + i * 3, y - 1, 1, 1, STEEL); P.r(x + i * 3, y + 2, 1, 1, '#b8322a'); } P.r(x - 1, y + 5, n * 3 + 1, 1, AY.TEAK_D); }
   // small purple round shield with a gold boss
@@ -4661,14 +4661,6 @@ function womanSprite(anim, f) {
         ayGable(P, 16, 6, 21, 11, { emblem: false });
         for (let i = 0; i < 3; i++) { r(22, 38 - i * 2, 9, 2, i % 2 ? AY.TEAK_L : AY.TEAK); r(30, 38 - i * 2, 1, 2, '#d8a868'); }
         r(2, 38, 8, 6, '#5e3b1c'); r(2, 37, 8, 2, G); r(4, 36, 3, 1, AY.GL); r(5, 39, 2, 2, '#333');
-      } else if (kind === 'mill') {
-        // timber shed: open teak frame, tiled roof, logs on trestles and a two-man saw
-        posts(P, [3, 27], 24, 44, 2); r(1, 40, 30, 3, '#8f6232'); r(1, 43, 30, 1, '#5a3a1e');
-        r(5, 24, 22, 16, '#3a2a1a');
-        ayEave(P, 16, 21, 23, 13, 16, AY.TILE, AY.TILE_D, AY.GRN);
-        ayGable(P, 16, 6, 21, 11, { emblem: false });
-        for (let i = 0; i < 3; i++) { r(17 + i * 3, 36 - (i % 2), 3, 4, AY.TEAK); r(17 + i * 3, 38 - (i % 2), 3, 1, AY.TEAK_L); }
-        r(6, 34, 10, 6, AY.TEAK_D); r(7, 33, 8, 1, STEEL); r(8, 30, 1, 4, WOOD_D); r(8, 29, 3, 1, STEEL);
       } else if (kind === 'farm') {
         // Na: a flooded rice paddy inside earth bunds; the rice grows taller with the field's level
         r(0, 0, 32, 32, '#8a6a3e'); r(2, 2, 28, 28, AY.WATER_D); r(2, 2, 28, 1, AY.WATER);
@@ -8438,7 +8430,7 @@ TEAMMOD[1] = { hp: 1, spd: 1, cost: 1, arm: 0 };
 Object.assign(ORDER_CLS, { cav: 0.5, siege: 3.8 });
 Object.assign(CIV_NAMES, {
   villager: ['Nông Dân (Villager)', null], boat: ['Thuyền Thúng (Basket boat)', null],
-  house: ['Nhà (House)', null], farm: ['Ruộng Lúa (Rice field)', null], mill: ['Bãi Gỗ (Timber yard)', null], goldmine: ['Mỏ Vàng (Gold mine)', null],
+  house: ['Nhà (House)', null], farm: ['Ruộng Lúa (Rice field)', null], store: ['Kho (Storehouse)', null],
   barracks: ['Trại Lính (Barracks)', null], port: ['Bến Thuyền (Landing)', null], tower: ['Vọng Lâu (Watchtower)', null],
   towncentre: ['Thành (Citadel)', 'Ming camp'], granary: ['Kho Lúa (Granary)', null]
 });
@@ -8458,7 +8450,7 @@ BD.port.train = ['boat']; BD.port.cost = { wood: 100 };
 BD.granary.cost = { wood: 80 };
 for (const k of ['palace', 'tradepost', 'rumahtabib', 'patirthan']) delete BD[k];
 BUILD_ORDER.length = 0;
-for (const k of ['house', 'farm', 'dinh', 'mill', 'goldmine', 'granary', 'barracks', 'nhathuoc', 'tower', 'wall', 'gate', 'port']) BUILD_ORDER.push(k);
+for (const k of ['house', 'farm', 'dinh', 'store', 'granary', 'barracks', 'nhathuoc', 'tower', 'wall', 'gate', 'port']) BUILD_ORDER.push(k);
 
 /* ---------- the waves ----------
    at: seconds after the previous wave (the first counts from the start). from: w | c | e (pass).
@@ -9641,7 +9633,7 @@ function sfxTick() {
 }
 /* ===== dv-ui.js ===== */
 Object.assign(TRAIN_SHORT, { villager: 'Nông Dân', dao: 'Đao Thủ', thuong: 'Thương', hoadong: 'Hỏa Đồng', thaythuoc: 'Thầy Thuốc', daibac: 'Đại Bác', boat: 'Thúng', danbinh: 'Dân Binh' });
-Object.assign(BUILD_SHORT, { house: 'House', farm: 'Rice', dinh: 'Đình', mill: 'Timber', goldmine: 'Mine', granary: 'Granary', barracks: 'Barracks', nhathuoc: 'Physician', tower: 'Tower', wall: 'Bamboo', gate: 'Gate', port: 'Landing' });
+Object.assign(BUILD_SHORT, { house: 'House', farm: 'Rice', dinh: 'Đình', store: 'Storehouse', granary: 'Granary', barracks: 'Barracks', nhathuoc: 'Physician', tower: 'Tower', wall: 'Bamboo', gate: 'Gate', port: 'Landing' });
 const TIPS = [
   'Every northern village had its đình, the communal house where the village honoured its guardian spirit, held meetings and feasts. In this game it is also where villagers take up arms.',
   'Lũy tre, the hedge of thorny bamboo on an earth bank, ringed the villages of the Red River delta. People still say the bamboo hedge is the village\'s wall.',

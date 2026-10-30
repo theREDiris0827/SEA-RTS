@@ -4574,8 +4574,8 @@ function womanSprite(anim, f) {
   });
 }
   /* Ayutthaya economy and army buildings (art thread, 2026-10-25), so none of them fall back to Melaka's art.
-     Same helpers and palette as ayBuilding. ayBuildingX(kind, level): barracks | port | granary | store | mill | farm */
-  const AYX_DIMS = { barracks: [48, 58], port: [48, 54], granary: [32, 46], store: [32, 46], mill: [32, 46], farm: [32, 32] };
+     Same helpers and palette as ayBuilding. ayBuildingX(kind, level): barracks | port | granary | store | farm */
+  const AYX_DIMS = { barracks: [48, 58], port: [48, 54], granary: [32, 46], store: [32, 46], farm: [32, 32] };
   // rack of spears with red tassels
   function aySpears(P, x, y, n) { for (let i = 0; i < n; i++) { P.r(x + i * 3, y, 1, 10, WOOD_D); P.r(x + i * 3, y - 1, 1, 1, STEEL); P.r(x + i * 3, y + 2, 1, 1, '#b8322a'); } P.r(x - 1, y + 5, n * 3 + 1, 1, AY.TEAK_D); }
   // small purple round shield with a gold boss
@@ -4631,14 +4631,6 @@ function womanSprite(anim, f) {
         ayGable(P, 16, 6, 21, 11, { emblem: false });
         for (let i = 0; i < 3; i++) { r(22, 38 - i * 2, 9, 2, i % 2 ? AY.TEAK_L : AY.TEAK); r(30, 38 - i * 2, 1, 2, '#d8a868'); }
         r(2, 38, 8, 6, '#5e3b1c'); r(2, 37, 8, 2, G); r(4, 36, 3, 1, AY.GL); r(5, 39, 2, 2, '#333');
-      } else if (kind === 'mill') {
-        // timber shed: open teak frame, tiled roof, logs on trestles and a two-man saw
-        posts(P, [3, 27], 24, 44, 2); r(1, 40, 30, 3, '#8f6232'); r(1, 43, 30, 1, '#5a3a1e');
-        r(5, 24, 22, 16, '#3a2a1a');
-        ayEave(P, 16, 21, 23, 13, 16, AY.TILE, AY.TILE_D, AY.GRN);
-        ayGable(P, 16, 6, 21, 11, { emblem: false });
-        for (let i = 0; i < 3; i++) { r(17 + i * 3, 36 - (i % 2), 3, 4, AY.TEAK); r(17 + i * 3, 38 - (i % 2), 3, 1, AY.TEAK_L); }
-        r(6, 34, 10, 6, AY.TEAK_D); r(7, 33, 8, 1, STEEL); r(8, 30, 1, 4, WOOD_D); r(8, 29, 3, 1, STEEL);
       } else if (kind === 'farm') {
         // Na: a flooded rice paddy inside earth bunds; the rice grows taller with the field's level
         r(0, 0, 32, 32, '#8a6a3e'); r(2, 2, 28, 28, AY.WATER_D); r(2, 2, 28, 1, AY.WATER);
@@ -7911,7 +7903,7 @@ function setPhaseRoster(phase) {
   BD.towncentre.cost = { wood: 200 }; BD.towncentre.time = 35;
   BUILD_ORDER.length = 0;
   // the full Singapura / Melaka roster: Jelapang granary, Menara Kawal tower, Rumah Tabib for healers, palisade walls
-  const town = ['house', 'farm', 'mill', 'goldmine', 'granary', 'barracks', 'rumahtabib', 'tower', 'wall'];
+  const town = ['house', 'farm', 'store', 'granary', 'barracks', 'rumahtabib', 'tower', 'wall'];
   for (const k of (phase === 3 ? ['towncentre'].concat(town, ['port']) : town)) BUILD_ORDER.push(k);
 }
 setPhaseRoster(1);
