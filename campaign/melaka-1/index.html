@@ -8051,7 +8051,7 @@ const MS = {
   waves: [28, 88, 148, 208, 266, 324, 380],    // phase 1 landings (mission seconds)
   twist: 420,                                   // the gate opens at the fourth watch
   dawn: 510,                                    // what the clock counts down to
-  exitX: 3.5, exitY: 36,                        // boats west of this line (along the south coast) have escaped
+  exitX: 3.5, exitY: 19,                        // boats west of this line (along the south coast) have escaped
   trickle: [18, 11],                            // phase 2 west-gate reinforcements: while the Temenggung lives / after
   boatCap: 6
 };
@@ -8131,68 +8131,96 @@ function sandAndCliffs(g, ridges) {
   }
 }
 
-/* Temasek: the walled city on its hill, the Strait to the south and east, a harbour inlet in the south-east corner */
-const TM = { wx0: 16, wx1: 46, wy0: 12, wy1: 34, inlet: [41, 45, 31, 37], gate: [28, 34], postern: [16, 22] };
+/* Temasek: the same map as Majapahit's Treasurer's Gate (Iylia, 2026-10-31). Singapura's walls on the north shore,
+   the harbour inlet east of them, Batam and its Orang Laut village out in the Strait, the Majapahit fleet to the south. */
+/* the harbour (Iylia, 2026-10-31): an inlet cut into the city's south-east corner, open to the sea; the walls stop at the water.
+   inlet [x0, x1, y0]: it runs from y0 down to the shore; the dock's deck sits on its north edge */
+const TM_HB = { inlet: [44, 48, 11], port: [44, 10], tower: [50, 12] };
+const TM = { x0: 14, x1: 48, y0: 2, y1: 15, gate: [31, 15], postern: [14, 8], isle: { cx: 30, cy: 33, rx: 9.5, ry: 4.8 }, village: [33, 30] };
+function tmCoastY(g, x) { return 18 + Math.round((fbm(x * 0.15, 1.5, g.seed + 2) - 0.5) * 3); }
+function tmStreet(x, y) { return (x >= 30 && x <= 31 && y >= 7) || y === 8 || y === 9 || (y === 12 && x > TM.x0 && x < TM_HB.inlet[0]); }
+function tmInCity(x, y) { return x > TM.x0 && x < TM.x1 && y > TM.y0 && y < TM.y1; }
+function tmOnIsle(x, y, s) { const I = TM.isle; return Math.hypot((x + 0.5 - I.cx) / I.rx, (y + 0.5 - I.cy) / I.ry) + (hash2(x, y, s + 7) - 0.5) * 0.12 < 1; }
+function tmOnIslet(x, y) { return Math.hypot(x + 0.5 - 51, y + 0.5 - 31) < 2.3; }
 function genTemasek(g) {
-  seaCoast(g, 38, 54);
-  const [ix0, ix1, iy0, iy1] = TM.inlet;
-  for (let y = iy0; y <= iy1 + 1; y++) for (let x = ix0; x <= ix1; x++) g.terrain[y * W + x] = (x > ix0 && x < ix1 && y > iy0 + 1) ? T.DEEP : T.SHALLOW;
-  sandAndCliffs(g, [[6, 5, 3, 2.4], [9, 33, 2.4, 1.6]]);
-  // inside the walls: open ground, no cliffs
-  for (let y = TM.wy0; y <= TM.wy1; y++) for (let x = TM.wx0; x <= TM.wx1; x++) if (g.terrain[y * W + x] === T.CLIFF) g.terrain[y * W + x] = T.GRASS;
-  // the track from the western beaches to the postern gate stays open
-  for (let x = 1; x < TM.postern[0]; x++) for (let y = 20; y <= 24; y++) if (g.terrain[y * W + x] === T.CLIFF) g.terrain[y * W + x] = T.GRASS;
-  // the city: trodden ground between the houses, two streets (gate to palace, postern to harbour), a dirt berm along the walls
-  const s = g.seed;
-  for (let y = TM.wy0 - 1; y <= TM.wy1 + 1; y++) for (let x = TM.wx0 - 1; x <= TM.wx1 + 1; x++) {
-    if (!g.inb(x, y) || g.terrain[y * W + x] > T.SAND) continue;
-    const inside = x > TM.wx0 && x < TM.wx1 && y > TM.wy0 && y < TM.wy1;
-    const street = (x >= 28 && x <= 29 && y >= 18) || ((y === 22 || y === 23) && x > TM.wx0);
-    g.terrain[y * W + x] = inside && !street && hash2(x, y, s) < 0.6 ? T.GRASS : T.DIRT;
+  const terr = g.terrain, s = g.seed;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const cy = tmCoastY(g, x);
+    let t;
+    if (y < cy) t = fbm(x * 0.13, y * 0.13, s + 3) > 0.7 ? T.DIRT : T.GRASS;
+    else t = y < cy + 2 ? T.SHALLOW : T.DEEP;
+    if (tmOnIsle(x, y, s) || tmOnIslet(x, y)) t = T.GRASS;
+    terr[y * W + x] = t;
   }
-  // paths out to the kampung north of the walls, and west along the track
-  for (let y = 6; y < TM.wy0; y++) for (const x of [28, 29]) if (g.terrain[y * W + x] <= T.SAND && hash2(x, y, s + 4) < 0.8) g.terrain[y * W + x] = T.DIRT;
-  for (let x = 4; x < TM.wx0; x++) if (g.terrain[22 * W + x] <= T.SAND && hash2(x, 22, s + 4) < 0.75) g.terrain[22 * W + x] = T.DIRT;
+  // the harbour inlet east of the walls
+
+  // inside the walls: trodden ground and grass; a dirt berm along the walls
+  for (let y = TM.y0 - 1; y <= TM.y1 + 1; y++) for (let x = TM.x0 - 1; x <= TM.x1 + 1; x++) if (g.inb(x, y)) terr[y * W + x] = (tmInCity(x, y) && !tmStreet(x, y) && hash2(x, y, s) < 0.85) ? T.GRASS : T.DIRT;
+  // the harbour inlet in the city's south-east corner, open to the sea
+  { const [ix0, ix1, iy0] = TM_HB.inlet;
+    for (let x = ix0; x <= ix1; x++) for (let y = iy0; y < H && terr[y * W + x] <= T.SAND; y++) terr[y * W + x] = (y > iy0 && x > ix0 && x < ix1) ? T.DEEP : T.SHALLOW; }
+  // shallows ring the islands; sand where land meets water
+  const snap = terr.slice();
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (snap[y * W + x] !== T.DEEP) continue;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const o = g.inb(x + dx, y + dy) ? snap[(y + dy) * W + x + dx] : T.DEEP; if (o <= T.SAND) { terr[y * W + x] = T.SHALLOW; dy = 2; break; } }
+  }
+  const snap2 = terr.slice();
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (snap2[y * W + x] > T.SAND || (y <= TM.y1 + 1 && x >= TM.x0 - 1 && x <= TM.x1 + 1)) continue;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!g.inb(x + dx, y + dy)) continue; const o = snap2[(y + dy) * W + x + dx]; if (o === T.SHALLOW || o === T.DEEP) terr[y * W + x] = T.SAND; }
+  }
 }
 function popTemasek(g) {
   const rng = g.rng;
   const M = g.M = newMission(g, 1);
-  const wallAt = (x, y) => (x === TM.wx0 || x === TM.wx1 || y === TM.wy0 || y === TM.wy1) && x >= TM.wx0 && x <= TM.wx1 && y >= TM.wy0 && y <= TM.wy1;
-  // keep the city, the landing beach and the west track free of trees
-  const keep = (x, y) => (x >= TM.wx0 - 1 && x <= TM.wx1 + 1 && y >= TM.wy0 - 1 && y <= TM.wy1 + 1) || (y >= 35 && y <= 38 && x >= 12 && x <= 40) || (y >= 20 && y <= 24 && x < TM.wx0)
-    || (y >= 5 && y < TM.wy0 && x >= 21 && x <= 40) || (x >= 3 && x < TM.wx0 && y >= 13 && y <= 19) || (y >= 32 && ((x >= 3 && x <= 11) || (x >= 47 && x <= 53)));
-  // walls and gates
-  for (let y = TM.wy0; y <= TM.wy1; y++) for (let x = TM.wx0; x <= TM.wx1; x++) {
-    if (!wallAt(x, y) || !g.isLand(x, y)) continue;
-    if (x === TM.wx1 && y > 30) continue;                       // the east wall ends at the harbour
-    if (y === TM.wy1 && x > TM.inlet[0] - 1) continue;           // the south wall ends at the harbour
+  g.explored.fill(1);
+  // roads that stay clear of trees: the track from the west to the postern, the coast path, the south gate
+  g.reserve = g.reserve || new Uint8Array(W * H);
+  g.reserveRoute(0, 6, TM.postern[0] - 1, TM.postern[1]); g.reserveRoute(2, 14, 62, 14); g.reserveRoute(TM.gate[0], TM.gate[1] + 1, TM.gate[0], 18);
+  /* --- the walls: the south gate, and the west postern whose key the treasurer keeps --- */
+  for (let y = TM.y0; y <= TM.y1; y++) for (let x = TM.x0; x <= TM.x1; x++) {
+    if (x !== TM.x0 && x !== TM.x1 && y !== TM.y0 && y !== TM.y1) continue;
+    if (!g.isLand(x, y)) continue;                                // the walls stop at the harbour
     if (x === TM.gate[0] && y === TM.gate[1]) { const b = g.addBuilding('gate', 0, x, y, true); b.main = true; continue; }
     if (x === TM.postern[0] && y === TM.postern[1]) { const b = g.addBuilding('gate', 0, x, y, true); b.postern = true; b.locked = true; continue; }
     const b = g.addBuilding('wall', 0, x, y, true);
     // Ayutthaya's earlier attack: a stretch of the south wall is still half-burnt
-    if (y === TM.wy1 && x >= 18 && x <= 23) { b.hp = Math.round(b.maxHp * 0.55); b.scorch = true; }
+    if (y === TM.y1 && x >= 18 && x <= 23) { b.hp = Math.round(b.maxHp * 0.55); b.scorch = true; }
   }
-  // the city (laid out like Singapura in Majapahit's Treasurer's Gate: houses along the streets, two rice stores, the treasurer by the postern)
-  g.explored.fill(1);
-  const put1 = (kind, x, y) => {
-    const d = BD[kind];
-    for (let ty = y; ty < y + d.size; ty++) for (let tx = x; tx < x + d.size; tx++) if (!g.freeTile(tx, ty)) return null;
-    return g.addBuilding(kind, 0, x, y, true);
-  };
-  g.addBuilding('palace', 0, 19, 14, true);
-  M.treasury = g.addBuilding('bendahari', 0, 18, 25, true).id;
-  for (const [x, y] of [[25, 14], [28, 14], [31, 14], [24, 18], [24, 25], [21, 29], [31, 26], [34, 26], [37, 18]]) put1('house', x, y);
-  for (const [x, y] of [[41, 14], [18, 28]]) put1('granary', x, y);   // one beside the rice fields
-  g.addBuilding('barracks', 0, 32, 18, true);
-  g.addBuilding('tower', 0, 21, 31, true); g.addBuilding('tower', 0, 34, 31, true);
-  g.addBuilding('port', 0, 41, 30, true);   // its deck sits on the harbour's edge
-  for (const [x, y] of [[35, 14], [37, 14], [39, 14]]) { const f = g.addBuilding('farm', 0, x, y, true); f.food = 260; }
-  // the kampung outside the walls: timber houses and rice fields to the north and west, fishermen's houses on the shore
-  const farmers = [];
-  for (const [x, y] of [[23, 8], [5, 33], [9, 34], [48, 33], [51, 34]]) { const b = put1('house', x, y); if (b) b.outer = true; }
-  for (const [x, y] of [[35, 8], [6, 16]]) { const b = put1('granary', x, y); if (b) b.outer = true; }   // a rice store by each field
-  for (const [x, y] of [[27, 8], [31, 8], [9, 15]]) { const f = put1('farm', x, y); if (f) { f.food = 260; f.outer = true; farmers.push(f); } }
-  // resources inside: an orchard grove, berries, the treasury's gold
+  /* --- the city --- */
+  // laid out in rows along the streets: the palace at the head of the royal road, houses facing the cross street
+  g.addBuilding('palace', 0, 29, 3, true);
+  M.treasury = g.addBuilding('bendahari', 0, 16, 5, true).id;      // the treasurer lives by the postern
+  g.addBuilding('barracks', 0, 34, 4, true);
+  for (const [x, y] of [[38, 4], [41, 4]]) g.addBuilding('granary', 0, x, y, true);
+  for (const x of [19, 22, 25]) { g.addBuilding('house', 0, x, 3, true); g.addBuilding('house', 0, x, 6, true); }
+  g.addBuilding('house', 0, 16, 2 + 1, true);
+  for (const x of [16, 19, 22, 25, 34, 37, 40]) g.addBuilding('house', 0, x, 10, true);
+  for (const x of [44]) g.addBuilding('house', 0, x, 4, true);
+  for (const [x, y] of [[17, 13], [26, 13], [35, 13], [41, 13]]) g.addBuilding('tower', 0, x, y, true);
+  const ht = g.addBuilding('tower', 0, TM_HB.tower[0], TM_HB.tower[1], true); ht.outer = true;
+  g.addBuilding('port', 0, TM_HB.port[0], TM_HB.port[1], true);
+  /* --- the kampung outside the walls: timber houses, a rice store by each group of fields --- */
+  const outer = (kind, x, y) => { if (!g.canPlace(kind, x, y, 0)) return null; const b = g.addBuilding(kind, 0, x, y, true); b.outer = true; return b; };
+  for (const [x, y] of [[3, 15], [7, 15], [23, 17], [54, 14], [58, 14]]) outer('house', x, y);
+  for (const [x, y] of [[10, 12], [52, 4]]) outer('granary', x, y);
+  const farms = [];
+  for (const [x, y] of [[4, 11], [7, 11], [4, 4], [55, 7], [58, 7], [55, 3]]) { const f = outer('farm', x, y); if (f) { f.food = 260; farms.push(f); } }
+  /* --- Batam: the Orang Laut village, Singapura's friends --- */
+  g.addBuilding('village', 2, TM.village[0], TM.village[1], true);
+  /* --- trees: jungle behind the shore, mangrove on the islands --- */
+  const outerB = g.buildings.filter(b => b.outer || b.kind === 'farm');
+  const keep = (x, y) => (x >= TM.x0 - 2 && x <= TM.x1 + 2 && y <= TM.y1 + 2) || (y >= 14 && y <= 17) || outerB.some(b => rectDist(x + 0.5, y + 0.5, b.rect) < 1.6);
+  const nearVil = (x, y) => x >= TM.village[0] - 2 && x <= TM.village[0] + 4 && y >= TM.village[1] - 2 && y <= TM.village[1] + 4;
+  for (let y = 0; y < 18; y++) for (let x = 0; x < W; x++) if (g.freeTile(x, y) && !g.reserve[y * W + x] && !keep(x, y) && hash2(x, y, g.seed + 61) < (y < 8 ? 0.55 : 0.32)) g.addNode('tree', x, y);
+  for (let y = 26; y < 40; y++) for (let x = 18; x < 42; x++) {
+    if (!tmOnIsle(x, y, g.seed) || !g.isLand(x, y) || !g.freeTile(x, y) || nearVil(x, y)) continue;
+    const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !tmOnIsle(x + dx, y + dy, g.seed));
+    if (hash2(x, y, g.seed + 17) < (edge ? 0.42 : x < 26 ? 0.38 : 0.08)) g.addNode('tree', x, y);
+  }
+  for (let y = 28; y < 35; y++) for (let x = 48; x < 55; x++) if (tmOnIslet(x, y) && g.freeTile(x, y) && hash2(x, y, 5) < 0.7) g.addNode('tree', x, y);
+  // inside the walls: a grove, berries in the palace garden, the treasury's gold
   const place = (kind, cx, cy, spread, count, ok) => {
     let n = 0;
     for (let i = 0; i < count * 16 && n < count; i++) {
@@ -8201,39 +8229,28 @@ function popTemasek(g) {
       g.addNode(kind, x, y); n++;
     }
   };
-  place('tree', 42, 19, 2.2, 10, (x, y) => x < TM.wx1 - 1 && y > 16 && y < 22);
-  place('berry', 25, 29, 1.6, 5, (x, y) => x < 27);
-  place('gold', 38, 30, 1.2, 3);
-  // jungle outside the walls (west and north), palms on the east strip
-  const outside = (x, y) => !keep(x, y) && !(x >= TM.wx0 && x <= TM.wx1 && y >= TM.wy0 && y <= TM.wy1);
-  for (let k = 0; k < 40; k++) {
-    const cx = 2 + rng() * (W - 6), cy = 2 + rng() * 34;
-    if (!outside(Math.round(cx), Math.round(cy))) continue;
-    place('tree', cx, cy, 2 + rng() * 3, 8 + Math.floor(rng() * 12), outside);
-  }
-  for (let i = 0; i < 120; i++) {
-    const x = 1 + Math.floor(rng() * (W - 2)), y = 1 + Math.floor(rng() * 37);
-    if (g.freeTile(x, y) && outside(x, y) && hash2(x, y, 31) < 0.5) g.addNode('tree', x, y);
-  }
-  for (let i = 0, n = 0; i < 600 && n < 10; i++) {
-    const x = 3 + Math.floor(rng() * (W - 6)), y = 40 + Math.floor(rng() * 6);
+  const inWalls = (x, y) => tmInCity(x, y);
+  place('berry', 33, 7, 0.9, 3, inWalls);   // the palace garden
+  place('berry', 27, 7, 0.9, 3, inWalls);
+  place('gold', 37, 7, 1.0, 3, inWalls);    // the treasury's store
+  for (let i = 0, n = 0; i < 900 && n < 14; i++) {
+    const x = 6 + Math.floor(rng() * 52), y = 21 + Math.floor(rng() * 24);
     if (g.isWater(x, y) && !g.block[y * W + x]) { g.addNode('fish', x, y); n++; }
   }
-  // people of Singapura
+  /* --- people of Singapura --- */
   const put = (kind, x, y) => { const p = g.openSpot(x, y, UD[kind].layer || 0); return g.addUnit(kind, 0, p.x, p.y); };
-  M.royal = put('parameswara', 21, 19.5);
-  M.temenggung = put('temenggung', 28.5, 32.5);
-  for (let i = 0; i < 4; i++) put('sg_sword', 26 + i * 1.2, 32.5);
-  for (let i = 0; i < 3; i++) put('sg_spear', 26.5 + i * 1.2, 33.5);
-  for (let i = 0; i < 4; i++) put('sg_archer', 25 + i * 2, 30.5);
-  for (let i = 0; i < 2; i++) put('sg_sumpit', 30 + i * 1.2, 30.5);
-  for (let i = 0; i < 3; i++) { const v = put('villager', 36 + i, 17); const f = g.buildings.find(b => b.kind === 'farm' && !g.units.some(o => o.order.id === b.id)); if (f) g.orderGather(v, f); }
-  for (let i = 0; i < 3; i++) put('villager', 25 + i, 27.5);
-  for (const f of farmers) { const v = put('villager', f.x, f.y + 1.5); g.orderGather(v, f); }
-  put('olboat', 41.7, 32.7); put('olboat', 41.7, 35.3);
+  M.royal = put('parameswara', 30.9, 7.8);
+  M.temenggung = put('temenggung', 31, 14);
+  for (let i = 0; i < 4; i++) put('sg_sword', 28.6 + i * 1.2, 13.6);
+  for (let i = 0; i < 3; i++) put('sg_spear', 29.2 + i * 1.2, 12.6);
+  for (let i = 0; i < 4; i++) put('sg_archer', 21 + i * 2, 14.2);
+  for (let i = 0; i < 2; i++) put('sg_sumpit', 37 + i * 1.2, 14.2);
+  for (const f of farms) { const v = put('villager', f.x, f.y + 1.5); g.orderGather(v, f); }
+  for (let i = 0; i < 3; i++) put('villager', 27 + i, 8.5);
+  put('olboat', 46, 13.5); put('olboat', 46.5, 16.5);
   g.res[0] = { food: 300, wood: 250, gold: 150 };
-  // the Majapahit fleet off the south shore
-  for (const [x, y] of [[22, 45.5], [37, 45.5]]) g.addUnit('frigate', 1, x, y);
+  // the Majapahit fleet, south of Batam
+  for (const [x, y] of [[50, 40], [55, 42]]) g.addUnit('frigate', 1, x, y);
   g.wallMasks();
 }
 
@@ -8585,17 +8602,18 @@ function launchWave(g, i) {
   const kinds = waveKinds(g, i), goal = { x: TM.gate[0] + 0.5, y: TM.gate[1] + 1.5 };
   const per = 6, boats = Math.ceil(kinds.length / per);
   for (let b = 0; b < boats; b++) {
-    const bx = 14 + g.rng() * 24, sx = Math.max(4, Math.min(52, bx + (g.rng() - 0.5) * 10));
+    let bx = 10 + g.rng() * 44; if (bx > TM_HB.inlet[0] - 3 && bx < TM_HB.inlet[1] + 3) bx = g.rng() < 0.5 ? TM_HB.inlet[0] - 4 : TM_HB.inlet[1] + 4;   // the beach, never into the harbour
+    const sx = Math.max(4, Math.min(60, bx + (g.rng() - 0.5) * 10));
     const s = g.addUnit('galley', 1, sx, 46.5);
-    s.order = { t: 'land', x: bx, y: 39, sx, sy: 46.5, troops: kinds.slice(b * per, b * per + per), goal, s: 'in' };
+    s.order = { t: 'land', x: bx, y: tmCoastY(g, Math.round(bx)) + 1.2, sx, sy: 46.5, troops: kinds.slice(b * per, b * per + per), goal, s: 'in' };
   }
   g.msg(i === 0 ? 'Majapahit galleys are rowing for the beach!' : 'More galleys from the Majapahit fleet!');
-  g.alerts.push({ x: 26, y: 40, t: 3 });
+  g.alerts.push({ x: 31, y: 19, t: 3 });
 }
 function spawnWest(g, kinds) {
   const goal = missionGoal(g);
   for (const k of kinds) {
-    const p = g.openSpot(2.5 + g.rng() * 3, 20.5 + g.rng() * 4, 0);
+    const p = g.openSpot(2.5 + g.rng() * 3, 6 + g.rng() * 4, 0);
     const u = g.addUnit(k, 1, p.x, p.y);
     if (goal) { g.orderAMove(u, TM.postern[0] + 2, TM.postern[1] + 0.5); u._amT = g.t; }
   }
@@ -8701,14 +8719,14 @@ function startPhase2(g) {
   spawnWest(g, kinds);
   // the Orang Laut gather in the harbour: at least three boats
   const have = g.units.filter(u => u.team === 0 && u.kind === 'olboat' && u.hp > 0).length;
-  for (let k = have; k < 3; k++) { const p = g.openSpot(41.7 + k * 1.4, 34 + k, 1); g.addUnit('olboat', 0, p.x, p.y); }
+  for (let k = have; k < 3; k++) { const p = g.openSpot(45.5 + (k % 2) * 1.4, 13 + k * 1.5, 1); g.addUnit('olboat', 0, p.x, p.y); }
   // the Majapahit fleet closes the harbour mouth
   const nf = { easy: 2, normal: 3, hard: 4 }[g.diff];
-  for (const [x, y] of [[33, 41], [12, 41.5], [24, 42], [6, 43]].slice(0, nf)) { const s = g.addUnit('light', 1, x, y); s.station = { x, y }; }
-  if (g.diff !== 'easy') { const f = g.addUnit('fireship', 1, 17, 44.5); f.station = { x: 17, y: 44.5 }; }
+  for (const [x, y] of [[14, 27], [6, 26], [22, 29], [10, 31]].slice(0, nf)) { const s = g.addUnit('light', 1, x, y); s.station = { x, y }; }
+  if (g.diff !== 'easy') { const f = g.addUnit('fireship', 1, 17, 25); f.station = { x: 17, y: 25 }; }
   // and a last landing at the south beach, aimed at the harbour
   const port = g.buildings.find(b => b.team === 0 && b.kind === 'port');
-  for (const bx of [33, 38]) { const s = g.addUnit('galley', 1, bx + 6, 46.5); s.order = { t: 'land', x: bx, y: 39, sx: bx + 6, sy: 46.5, troops: waveKinds(g, 3).slice(0, 5), goal: port ? { x: port.x, y: port.y } : null, s: 'in' }; }
+  for (const bx of [34, 56]) { const s = g.addUnit('galley', 1, bx + 6, 46.5); s.order = { t: 'land', x: bx, y: tmCoastY(g, bx) + 1.2, sx: bx + 6, sy: 46.5, troops: waveKinds(g, 3).slice(0, 5), goal: port ? { x: port.x, y: port.y } : null, s: 'in' }; }
   for (const u of g.units) if (u.team === 1 && u.kind === 'frigate') { u.station = { x: u.x, y: u.y }; }
   g.msg('The west gate is open! Majapahit is inside the walls!');
   const tre = g.byId.get(M.treasury); if (tre && tre.hp > 0) g.alerts.push({ x: tre.x, y: tre.y, t: 3 });
@@ -9291,6 +9309,8 @@ function toggleGate(b) {
 function bldNote(b) {
   if (b.kind === 'wall') return 'Earth rampart and palisade. Villagers can repair it.';
   if (b.kind === 'gate') return b.betrayed ? 'Opened from inside, by the treasurer Sang Rajuna Tapa.' : b.locked ? 'The postern. The treasurer keeps its key.' : b.open ? 'Open: your people and the enemy can pass.' : 'Closed. Select it to open.';
+  if (b.kind === 'village') return 'Batam, home of the Orang Laut, the sea people sworn to Singapura. Their boats wait in your harbour.';
+  if (b.kind === 'bendahari') return 'The treasurer Sang Rajuna Tapa keeps the city\'s gold here, and the key to the west gate.';
   if (b.kind === 'palace' && b.team === 0) return 'Bukit Larangan, the Forbidden Hill. If it falls, Singapura falls.';
   return baseBldNote(b);
 }
