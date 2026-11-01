@@ -129,6 +129,16 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 .chip b { font-family: var(--font-num); font-size: 17px; }
 .p-cmds.more { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); }
 .p-cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
+/* villager build tabs */
+.p-bld { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.p-tabs { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr 1fr; gap: 5px; }
+.tab { font: inherit; font-size: 13px; padding: 6px 2px; color: var(--muted); background: var(--panel-2); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge), 0 2px 0 rgba(0, 0, 0, .45); }
+.tab.on { color: var(--text); background: var(--jade-deep); box-shadow: inset 0 0 0 1px var(--jade), 0 2px 0 rgba(0, 0, 0, .45); }
+.p-cmds.bld { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+.p-cmds.bld .cmd { min-height: 0; padding: 3px 2px 3px; }
+.p-cmds.bld .cmd .nm { font-size: 11px; line-height: 1.1; overflow-wrap: normal; word-break: keep-all; text-transform: none; }
+.p-cmds.bld .cmd .en { font-size: 9px; overflow-wrap: normal; word-break: keep-all; letter-spacing: -.03em; }
+.p-later { font-size: 11px; color: var(--muted); line-height: 1.25; }
 .cmd {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px; padding: 3px 2px 2px; min-height: 66px;
   background: var(--panel-2); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge), 0 3px 0 rgba(0, 0, 0, .45);
@@ -2279,9 +2289,15 @@ class Game {
     u.scan -= dt;
     if (u.scan > 0) return;
     u.scan = 0.45;
+    const st = u.stance || 'def';
+    if (st === 'hold') { const t = this.nearestEnemy(u, u.rng + 0.6); if (t) this.orderAttack(u, t, { hold: true }); return; }
     const t = this.nearestEnemy(u, u.sight);
-    if (t) this.orderAttack(u, t, { leash: { x: u.x, y: u.y, r: 11 } });
+    if (t) this.orderAttack(u, t, this.guardOrder(u));
   }
+  /* stances: 'agg' chases whatever it sees, 'def' (default) chases up to 11 tiles from its post then walks back, 'hold' never moves */
+  guardOrder(u, home) { const st = u.stance || 'def'; return st === 'agg' ? { agg: true } : st === 'hold' ? { hold: true } : { leash: home || { x: u.x, y: u.y, r: 11 } }; }
+  /* walk back to the post; a soldier hit on the way fights back instead of ignoring it */
+  orderReturn(u, l) { u.order = { t: 'move', x: l.x, y: l.y, ret: l }; u.path = null; u.wait = 0; }
   /* a land soldier whose way is walled off attacks the enemy wall piece that is most in the way to (gx, gy) */
   breach(u, gx, gy) {
     if (u.layer !== 0 || u.cls === 'vil' || u.cls === 'healer' || u.cls === 'animal') return null;
@@ -2310,14 +2326,25 @@ class Game {
   }
   doAttack(u, dt) {
     const o = u.order, t = this.byId.get(o.id);
-    const done = () => { if (o.then) { u.order = o.then; u.path = null; return; } if (o.amove) u.order = { t: 'amove', x: o.amove.x, y: o.amove.y }; else if (o.leash) this.orderMove(u, o.leash.x, o.leash.y); else this.idleOrder(u); u.path = null; };
+    const done = () => {
+      if (o.then) { u.order = o.then; u.path = null; return; }
+      if (o.amove) { u.order = { t: 'amove', x: o.amove.x, y: o.amove.y }; u.path = null; return; }
+      // still enemies about? take the next one (inside the leash) before walking home
+      if ((o.leash || o.agg || u.stance === 'agg') && u.cls !== 'vil' && !o.hunt) {
+        const n = this.nearestEnemy(u, u.sight);
+        if (n && n.id !== o.id && (!o.leash || Math.hypot(n.x - o.leash.x, n.y - o.leash.y) <= o.leash.r)) { this.orderAttack(u, n, o.leash ? { leash: o.leash } : { agg: true }); return; }
+      }
+      if (o.leash) this.orderReturn(u, o.leash); else this.idleOrder(u);
+      u.path = null;
+    };
     if (!t || t.hp <= 0 || (t.isUnit && t.team === 0 && u.team === 0)) { done(); return; }
     if (u.team === 0 && t.isUnit && t.team !== 2 && !this.isVisible(t.x, t.y)) { done(); return; }
-    if (o.leash && Math.hypot(u.x - o.leash.x, u.y - o.leash.y) > o.leash.r) { this.orderMove(u, o.leash.x, o.leash.y); return; }
+    if (o.leash && Math.hypot(u.x - o.leash.x, u.y - o.leash.y) > o.leash.r) { this.orderReturn(u, o.leash); return; }
     const rect = t.isUnit ? { ax: t.x, ay: t.y, bx: t.x, by: t.y } : t.rect;
     const D = UD[u.kind], board = D.wpn === 'board', secOnly = board && D.sec && (t.isBld || t.layer !== 1);
     const reach = (secOnly ? D.sec.rng : u.rng) + (t.isUnit ? 0.35 : 0);
     const dist = rectDist(u.x, u.y, rect);
+    if (o.hold && dist > reach) { done(); return; }
     if (D.sec && !secOnly && dist <= D.sec.rng + 0.35) this.secShot(u, t, dist);
     if (dist <= reach) {
       u.path = null; u.moving = false;
@@ -2751,8 +2778,8 @@ class Game {
     if (tgt.team === 0 && att.team === 1 && this.t - this.lastAlert > 5) {
       this.lastAlert = this.t; this.alerts.push({ x: tgt.x, y: tgt.y, t: 3 }); this.msg('We are under attack!');
     }
-    if (tgt.isUnit && tgt.cls !== 'vil' && tgt.cls !== 'boat' && tgt.cls !== 'animal' && tgt.cls !== 'healer' && !UD[tgt.kind].trader && att.isUnit && att.hp > 0 && tgt.order.t === 'idle') {
-      this.orderAttack(tgt, att, { leash: { x: tgt.x, y: tgt.y, r: 11 } });
+    if (tgt.isUnit && tgt.cls !== 'vil' && tgt.cls !== 'boat' && tgt.cls !== 'animal' && tgt.cls !== 'healer' && !UD[tgt.kind].trader && att.isUnit && att.hp > 0 && (tgt.order.t === 'idle' || tgt.order.t === 'move' && tgt.order.ret && Math.hypot(att.x - tgt.order.ret.x, att.y - tgt.order.ret.y) <= tgt.order.ret.r)) {
+      this.orderAttack(tgt, att, this.guardOrder(tgt, tgt.order.ret));
     }
     this.fx.push({ k: 'spark', x: tgt.x + (tgt.isBld ? (this.rng() - 0.5) * tgt.size * 0.6 : 0), y: tgt.y - (tgt.isBld ? 0.3 : 0.3), t: 0.25, max: 0.25 });
     if (tgt.hp <= 0) this.onKilled(tgt, att);
@@ -5255,6 +5282,9 @@ function iconSprite(name) {
     else if (name === 'x') { for (let i = 0; i < 9; i++) { r(3 + i, 3 + i, 2, 2, CREAM); r(11 - i, 3 + i, 2, 2, CREAM); } }
     else if (name === 'stop') { r(4, 4, 8, 8, '#d9473b'); r(4, 4, 8, 1, '#ff8a7a'); }
     else if (name === 'amove') { r(7, 1, 2, 9, STEEL); r(4, 9, 8, 2, '#d9473b'); r(7, 11, 2, 3, WOOD_D); r(2, 13, 12, 1, '#d9473b'); }
+    else if (name === 'agg') { r(3, 2, 10, 9, '#d9473b'); r(4, 11, 8, 2, '#d9473b'); r(6, 13, 4, 2, '#d9473b'); r(3, 2, 10, 1, '#ff8a7a'); r(7, 3, 2, 8, STEEL); r(5, 9, 6, 1, '#f2c94c'); }
+    else if (name === 'def') { r(3, 2, 10, 9, '#2f9e5b'); r(4, 11, 8, 2, '#2f9e5b'); r(6, 13, 4, 2, '#2f9e5b'); r(3, 2, 10, 1, '#7dffa8'); r(7, 4, 2, 7, CREAM); r(5, 6, 6, 2, CREAM); }
+    else if (name === 'hold') { r(1, 6, 14, 9, '#8a8478'); r(1, 6, 14, 1, '#c9c2b0'); r(1, 10, 14, 1, '#5e594f'); r(5, 6, 1, 4, '#5e594f'); r(10, 10, 1, 5, '#5e594f'); r(1, 2, 3, 4, '#8a8478'); r(6, 2, 4, 4, '#8a8478'); r(12, 2, 3, 4, '#8a8478'); }
     else if (name === 'form') { r(2, 3, 3, 3, CREAM); r(7, 3, 3, 3, CREAM); r(12, 3, 3, 3, CREAM); r(2, 8, 3, 3, CREAM); r(7, 8, 3, 3, CREAM); r(12, 8, 3, 3, CREAM); }
     else if (name === 'flag') { r(4, 1, 1, 14, WOOD_D); r(5, 2, 8, 5, '#f2c94c'); r(5, 2, 8, 1, '#fff6b0'); }
     else if (name === 'check') { for (let i = 0; i < 4; i++) r(2 + i, 8 + i, 2, 2, '#7dffa8'); for (let i = 0; i < 7; i++) r(5 + i, 11 - i, 2, 2, '#7dffa8'); }
@@ -5365,6 +5395,8 @@ const cvs = $('view'), ctx = cvs.getContext('2d');
 const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
+const ECO_BLD = new Set(['house', 'farm', 'sawah', 'store', 'granary', 'port', 'tradepost']);
+let buildTab = 'eco';
 const BUILD_ORDER = ['house', 'farm', 'sawah', 'store', 'granary', 'barracks', 'rumahtabib', 'patirthan', 'wat', 'port', 'tower', 'palisade', 'wall', 'gate', 'tradepost', 'palace'];
 const FORMS = ['box', 'line', 'wedge'];
 
@@ -6206,7 +6238,7 @@ function describeOrder(u) {
   const o = u.order;
   switch (o.t) {
     case 'idle': return 'Idle';
-    case 'move': return 'Moving';
+    case 'move': return o.ret ? 'Returning' : 'Moving';
     case 'amove': return 'Attack-moving';
     case 'attack': return o.hunt ? 'Hunting' : 'Fighting';
     case 'build': return 'Building';
@@ -6240,7 +6272,7 @@ function bldNote(b) {
 function pName(kind, team, base) { const e = enName(kind, team), n = base || civName(kind, team); return n + (e && n === civName(kind, team) ? ' <span class="en">(' + e + ')</span>' : ''); }
 function buildPanel() {
   const P = $('panel'); pdyn = [];
-  let info = '', cmds = '', extra = '';
+  let info = '', cmds = '', extra = '', tabs = '', extra2 = '';
   const us = selUnits(), single = sel.length === 1 ? sel[0] : null;
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
@@ -6270,17 +6302,29 @@ function buildPanel() {
     }
     const hasVil = us.some(u => u.cls === 'vil'), hasMil = us.some(u => u.cls !== 'vil' && u.cls !== 'boat');
     if (hasVil) {
+      // villagers build from two tabs, Economy and Military; later-age buildings are one line of text under them
+      const later = {};
       for (const k of BUILD_ORDER) {
-        const d = BD[k]; if (!civOk(d, 0)) continue; if (!ageFits(d, G.teamAge(0))) { if (!G.M) cmds += lockBtn(k, d, bldIcon(k, 0)); continue; } cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
+        const d = BD[k]; if (!civOk(d, 0) || ECO_BLD.has(k) !== (buildTab === 'eco')) continue;
+        if (!ageFits(d, G.teamAge(0))) { if (!G.M) { const A = AGE_TABLE[d.age || 1].name; const e = enName(k, 0); (later[A] = later[A] || []).push(shortName(k, 0) + (e ? ' (' + e + ')' : '')); } continue; }
+        cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
+      tabs = '<div class="p-tabs">' + [['eco', 'Economy'], ['mil', 'Military']].map(([t, l]) => '<button class="tab' + (buildTab === t ? ' on' : '') + '" data-a="btab" data-k="' + t + '">' + l + '</button>').join('') +
+        '<button class="tab" data-a="stop" title="Stop (S)">Stop</button><button class="tab" data-a="desel" title="Deselect">Back</button></div>';
+      const ln = Object.keys(later).map(A => A + ': ' + later[A].join(', ')).join(' \u00b7 ');
+      if (ln) extra2 = '<div class="p-later">' + ln + '</div>';
     }
     if (hasMil) {
       cmds += '<button class="cmd" data-a="fmt" title="Formation (F)"><img alt="" src="' + resIcon('form') + '"><span class="nm" id="p-fmt">' + formation + '</span><span class="ct">&nbsp;</span></button>';
+      const st0 = stanceOfSel();
+      cmds += '<button class="cmd" data-a="stance" title="Stance: Aggressive chases anything it sees, Defensive chases a little then returns to its post, Hold ground never moves"><img alt="" id="p-sti" src="' + resIcon(st0) + '"><span class="nm" id="p-st">' + STANCE_NAME[st0] + '</span><span class="ct">&nbsp;</span></button>';
       cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
     if (us.some(u => UD[u.kind].troops)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
-    cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
-    cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    if (!hasVil) {
+      cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
+      cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    }
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
     info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + pName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
@@ -6314,7 +6358,7 @@ function buildPanel() {
     pdyn.push(() => { $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = Math.ceil(u.hp) + '/' + u.maxHp + ' HP'; });
     cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   }
-  P.innerHTML = '<div class="p-info">' + info + extra + '</div><div class="p-cmds">' + cmds + '</div>';
+  P.innerHTML = '<div class="p-info">' + info + extra + '</div>' + (tabs ? '<div class="p-bld">' + tabs + '<div class="p-cmds bld">' + cmds + '</div>' + extra2 + '</div>' : '<div class="p-cmds">' + cmds + '</div>');
 }
 function structKey() {
   const us = selUnits();
@@ -6335,6 +6379,15 @@ function updatePanel() {
   const place = document.querySelector('#panel .cmd.ok'); if (place) place.classList.toggle('no', !(mode && mode.valid));
   // a row of buttons wider than the panel scrolls sideways: fade its edge so the hidden ones are noticed
   const pc = document.querySelector('#panel .p-cmds'); if (pc) pc.classList.toggle('more', pc.scrollWidth > pc.clientWidth + 2 && pc.scrollLeft + pc.clientWidth < pc.scrollWidth - 4);
+}
+const STANCES = ['agg', 'def', 'hold'], STANCE_NAME = { agg: 'Aggressive', def: 'Defensive', hold: 'Hold' };
+function stanceOfSel() { const m = selUnits().find(u => u.cls !== 'vil' && u.cls !== 'boat' && u.cls !== 'healer'); return (m && m.stance) || 'def'; }
+function cycleStance() {
+  const ms = selUnits().filter(u => u.cls !== 'vil' && u.cls !== 'healer'); if (!ms.length) return;
+  const st = STANCES[(STANCES.indexOf(stanceOfSel()) + 1) % 3];
+  for (const u of ms) { u.stance = st; if (u.order.t === 'attack' && (u.order.leash || u.order.agg || u.order.hold)) G.idleOrder(u); }
+  const l = document.getElementById('p-st'), i = document.getElementById('p-sti'); if (l) l.textContent = STANCE_NAME[st]; if (i) i.src = resIcon(st);
+  toast('Stance: ' + (st === 'hold' ? 'Hold ground' : STANCE_NAME[st]));
 }
 function cycleFormation() { formation = FORMS[(FORMS.indexOf(formation) + 1) % 3]; toast('Formation: ' + formation); }
 function stopSel() { for (const u of selUnits()) G.idleOrder(u); }
@@ -6359,6 +6412,8 @@ $('panel').addEventListener('click', (e) => {
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
   else if (a === 'cancel') { const b = sel[0]; if (b && b.isBld) G.cancelQueue(b, +el.dataset.i); panelKey = ''; }
   else if (a === 'fmt') cycleFormation();
+  else if (a === 'btab') { buildTab = k; panelKey = ''; }
+  else if (a === 'stance') cycleStance();
   else if (a === 'amove') { mode = mode && mode.kind === 'amove' ? null : { kind: 'amove' }; panelKey = ''; if (mode) toast('Tap where to attack-move.'); }
   else if (a === 'stop') stopSel();
   else if (a === 'desel') { select([]); mode = null; }
@@ -6501,7 +6556,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.31 \u00b7 31 Oct 2026';
+const BUILD = '0.9.32 \u00b7 1 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
