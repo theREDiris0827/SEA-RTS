@@ -360,10 +360,11 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-pick small { margin-top: 0; }
 .m-pick:disabled { opacity: .6; cursor: default; }
 .m-pick.sel { outline: 2px solid var(--p-trim); }
-.m-map { padding: 4px 4px 6px; text-align: left; }
+.m-map { padding: 4px 4px 6px; text-align: left; min-width: 0; display: flex; flex-direction: column; }
+#m-mapk { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .m-map img, .m-map .q { display: block; width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; background: var(--sea); }
 .m-map .q { display: grid; place-items: center; font-size: 30px; color: var(--foot); }
-.m-map b { font-size: 18px; line-height: 20px; margin: 6px 4px 0; white-space: nowrap; }
+.m-map b { font-size: 18px; line-height: 20px; margin: 6px 4px 0; min-height: 40px; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; }
 .m-seg .m-foe { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 16px; padding: 8px 2px; min-width: 0; overflow: hidden; white-space: nowrap; }
 .m-foe i { width: 12px; height: 12px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); }
 .m-foe:disabled { opacity: .45; cursor: default; }
@@ -473,7 +474,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
           <button class="px m-pick cv-ayu" data-m="civ" data-v="3"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v8h-11z" fill="#c8281e"></path></svg><b>Ayutthaya</b><small>Elephants</small></button>
         </div>
         <div class="m-lbl">Map</div>
-        <div class="m-seg" id="m-mapk"><button class="px m-map" data-m="mapk" data-v="strait"><img alt="" data-art="map_strait"><b>The Strait</b></button><button class="px m-map" data-m="mapk" data-v="river"><img alt="" data-art="map_river"><b>Riverlands</b></button><button class="px m-map" data-m="mapk" data-v="islands"><img alt="" data-art="map_islands"><b>Big Islands</b></button></div>
+        <div class="m-seg" id="m-mapk"><button class="px m-map" data-m="mapk" data-v="strait"><img alt=""><b>The Strait</b></button><button class="px m-map" data-m="mapk" data-v="river"><img alt=""><b>Riverlands</b></button><button class="px m-map" data-m="mapk" data-v="islands"><img alt=""><b>Big Islands</b></button></div>
         <p class="m-note" id="m-mapnote"></p>
         <div class="m-lbl">Layout</div>
         <div class="m-seg two" id="m-map"><button class="px" data-m="map" data-v="same">Classic</button><button class="px" data-m="map" data-v="new">New each game</button></div>
@@ -6621,7 +6622,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.34 \u00b7 1 Nov 2026';
+const BUILD = '0.9.35 \u00b7 1 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -7617,11 +7618,12 @@ window.addEventListener('resize', () => { resize(); });
 
 /* Calm look for the three original skirmish maps (Iylia approved 2026-11-01, hub batch item 7-8):
    the art thread's CALM painter (soft edges, meadow patches, shade under trees, lalang grass) and
-   about one broadleaf tree in three swapped for an angsana or a mango. Missions keep their own look. */
+   about one broadleaf tree in three swapped for an angsana or a mango. Campaign missions get it too (Iylia 2026-11-01). */
 (function () {
   if (typeof Game === 'undefined' || !window.CALM) return;
   const OLD = { strait: 1, river: 1, islands: 1 };
-  const isOld = (g) => g && !g.M && OLD[g.map || 'strait'];
+  const NEWMAPS = { highlands: 1, jungle: 1, delta: 1 };
+  const isOld = (g) => g && (g.M ? !NEWMAPS[g.map] : OLD[g.map || 'strait']);
   const _bt = buildTerrain;
   buildTerrain = function (g) {
     if (!isOld(g)) return _bt(g);
@@ -7656,6 +7658,7 @@ window.addEventListener('resize', () => { resize(); });
 (function () {
   const seg = document.getElementById('m-mapk'); if (!seg) return;
   const NEW = [['highlands', 'Highlands'], ['jungle', 'Deep Jungle'], ['delta', 'Mangrove Delta']];
+  const ALL = [['strait'], ['river'], ['islands']].concat(NEW);
   for (const [k, n] of NEW) {
     if (seg.querySelector('[data-v="' + k + '"]')) continue;
     const b = document.createElement('button'); b.className = 'px m-map'; b.dataset.m = 'mapk'; b.dataset.v = k;
@@ -7664,7 +7667,7 @@ window.addEventListener('resize', () => { resize(); });
   let done = false;
   const draw = () => {
     if (done) return; done = true;
-    NEW.forEach(([k], i) => setTimeout(() => {
+    ALL.forEach(([k], i) => setTimeout(() => {
       try {
         const g = new Game({ seed: 7, diff: 'normal', map: k, civs: [0, 1] }), base = buildMiniBase(g);
         const c = cv(W * 2, H * 2), x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(base, 0, 0, W * 2, H * 2);
