@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1612">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SEA Kingdoms">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{color-scheme:dark}html,body{margin:0;background:#0b1612}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>SEA RTS Pixel Game</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap">
+<style>
+@@include css/game.css
+</style>
+
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <div id="hud">
+    <div id="topbar">
+      <div class="res">
+        <div class="chip-r"><img id="i-food" alt="Food"><span id="v-food">0</span><span class="gn" id="g-food" title="Villagers gathering food">(0)</span></div>
+        <div class="chip-r"><img id="i-wood" alt="Wood"><span id="v-wood">0</span><span class="gn" id="g-wood" title="Villagers gathering wood">(0)</span></div>
+        <div class="chip-r"><img id="i-gold" alt="Gold"><span id="v-gold">0</span><span class="gn" id="g-gold" title="Villagers gathering gold">(0)</span></div>
+        <div class="chip-r" id="pop-chip"><img id="i-pop" alt="Population"><span id="v-pop">0/0</span></div>
+      </div>
+      <button id="btn-menu" aria-label="Menu"><img id="i-menu" alt=""></button>
+    </div>
+    <div id="strip"><span id="hint"></span><span id="clock"></span></div>
+    <div id="mid">
+      <canvas id="mini" width="192" height="144"></canvas>
+      <div id="toasts"></div>
+      <div id="side">
+        <button class="sbtn" id="btn-idle" aria-label="Next idle villager"><img id="i-idle" alt=""><span class="badge" id="idle-n" hidden>0</span></button>
+        <button class="sbtn" id="btn-army" aria-label="Select army"><img id="i-army" alt=""></button>
+        <button class="sbtn" id="btn-zin" aria-label="Zoom in"><img id="i-zin" alt=""></button>
+        <button class="sbtn" id="btn-zout" aria-label="Zoom out"><img id="i-zout" alt=""></button>
+      </div>
+    </div>
+    <div id="panel"></div>
+  </div>
+
+  <div id="menu" hidden>
+    <div class="m-scr m-home" id="m-home">
+      <div class="m-hero"><div class="m-hero-in"><img data-art="heroBg" alt="SEA Kingdoms: the Mendam Berahi sailing past a low sun"><img class="m-ship" data-art="heroShip" alt=""><img class="m-wake" data-art="heroWake" alt=""><img class="m-wake m-wake2" data-art="heroWake2" alt=""></div></div>
+      <div class="m-body">
+        <div class="m-controw" id="m-controw" hidden>
+          <button class="px px-p m-cont" id="m-cont" data-m="continue">
+            <svg width="16" height="22" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0 L0 11 L8 5.5 Z" fill="currentColor"></path></svg>
+            <span><b>Continue</b><small id="m-cont-sub"></small></span>
+          </button>
+          <button class="px m-del" id="m-del" data-m="delcont" aria-label="Delete saved game"><svg width="20" height="24" viewBox="0 0 10 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 2h10v1h-10zM3 0h4v2h-4zM1 3h8v9h-8z" fill="currentColor"></path><path d="M3 5h1v5h-1zM6 5h1v5h-1z" fill="var(--face)"></path></svg><small>Delete</small></button>
+        </div>
+        <div class="m-grid">
+          <button class="px m-tile" data-m="go" data-v="campaign"><b>Campaign</b><small>3 civs</small></button>
+          <button class="px m-tile" data-m="go" data-v="skirmish"><b>Skirmish</b><small>vs the AI</small></button>
+          <button class="px m-tile" data-m="go" data-v="battles"><b>Battles</b><small>One civ each</small></button>
+          <button class="px m-tile" data-m="go" data-v="ency"><b>Encyclopedia</b><small>History</small></button>
+        </div>
+        <button class="px m-learn" data-m="go" data-v="load"><b>Load game</b><small id="m-load-sub">3 slots</small></button>
+        <button class="px m-learn" data-m="learn"><b>Learn to play</b><small>How to</small></button>
+        <div class="m-foot">
+          <button class="px m-ico" data-m="go" data-v="settings" aria-label="Settings"><svg width="26" height="26" viewBox="0 0 13 13" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><path d="M5 3h3v1h1v1h1v3h-1v1h-1v1h-3v-1h-1v-1h-1v-3h1v-1h1zM5 5v3h3v-3z"></path><path d="M6 0h1v2h-1zM6 11h1v2h-1zM0 6h2v1h-2zM11 6h2v1h-2z"></path></svg></button>
+          <button class="px m-ico m-exit" data-m="exit" aria-label="Exit"><svg width="26" height="26" viewBox="0 0 13 13" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><path d="M1 1h6v2h-2v7h2v2h-6z"></path><path d="M7 6h3v-2h1v1h1v1h1v1h-1v1h-1v1h-1v-2h-3z"></path></svg></button>
+          <span class="m-ver" id="m-ver"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-campaign" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Campaign</h2></div>
+      <div class="m-body">
+        <p class="m-note">Full campaigns are being built. Finished missions are playable now.</p>
+        <div id="m-camp-list" style="display:contents"></div>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-brief" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="campaign" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2><span class="m-tag" id="m-brief-tag"></span><br><span id="m-brief-title"></span></h2></div>
+      <div class="m-body" id="m-brief-body"></div>
+    </div>
+
+    <div class="m-scr" id="m-skirmish" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Skirmish</h2></div>
+      <div class="m-body">
+        <div class="m-lbl">Your civ</div>
+        <div class="m-seg" id="m-civpick">
+          <button class="px m-pick cv-mel sel" data-m="civ" data-v="0"><svg width="20" height="30" viewBox="0 0 10 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h8v9l-4-2l-4 2z" fill="#e8c020"></path></svg><b>Melaka</b><small>Ports</small></button>
+          <button class="px m-pick cv-maj" data-m="civ" data-v="1"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v2h-11zM1 4h11v2h-11z" fill="#f4f0e8"></path><path d="M1 2h11v2h-11zM1 6h11v2h-11z" fill="#c8281e"></path></svg><b>Majapahit</b><small>Farms</small></button>
+          <button class="px m-pick cv-ayu" data-m="civ" data-v="3"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v8h-11z" fill="#c8281e"></path></svg><b>Ayutthaya</b><small>Elephants</small></button>
+        </div>
+        <div class="m-lbl">Map</div>
+        <div class="m-seg" id="m-mapk"><button class="px m-map" data-m="mapk" data-v="strait"><img alt="" data-art="map_strait"><b>The Strait</b></button><button class="px m-map" data-m="mapk" data-v="river"><img alt="" data-art="map_river"><b>Riverlands</b></button><button class="px m-map" data-m="mapk" data-v="islands"><img alt="" data-art="map_islands"><b>Big Islands</b></button></div>
+        <p class="m-note" id="m-mapnote"></p>
+        <div class="m-lbl">Layout</div>
+        <div class="m-seg two" id="m-map"><button class="px" data-m="map" data-v="same">Classic</button><button class="px" data-m="map" data-v="new">New each game</button></div>
+        <div class="m-lbl">Opponent</div>
+        <div class="m-seg" id="m-foe"><button class="px m-foe" data-m="foe" data-v="0"><i style="background:#2f9e5b"></i>Melaka</button><button class="px m-foe" data-m="foe" data-v="1"><i style="background:#d0392f"></i>Majapahit</button><button class="px m-foe" data-m="foe" data-v="3"><i style="background:#7b4bb3"></i>Ayutthaya</button></div>
+        <div class="m-lbl">Start in</div>
+        <div class="m-seg" id="m-sage"><button class="px" data-m="sage" data-v="1">Village</button><button class="px" data-m="sage" data-v="2">Kingdom</button><button class="px" data-m="sage" data-v="3">Commerce</button><button class="px" data-m="sage" data-v="4">Golden</button></div>
+        <div class="m-lbl">Difficulty</div>
+        <div class="m-seg" id="m-diff"><button class="px" data-m="diff" data-v="easy">Easy</button><button class="px" data-m="diff" data-v="normal">Normal</button><button class="px" data-m="diff" data-v="hard">Hard</button></div>
+        <button class="px px-p m-start" data-m="start">Start battle</button>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-battles" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Battles</h2></div>
+      <div class="m-body">
+        <a class="px m-bat cv-dv" data-site="daiviet/"><img alt="" data-art="thumb_lamson"><b>The Lam Son Stand</b><span>Dai Viet, 1427. Hold the hills against ten Ming waves.</span></a>
+        <a class="px m-bat cv-km" data-site="khmer/"><img alt="" data-art="thumb_angkor"><b>The Gates of Angkor <small>New</small></b><span>Khmer, 1431. Hold the gates and get the court away by river.</span></a>
+        <p class="m-note c">Full campaigns for these civs arrive in free updates.</p>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-ency" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Encyclopedia</h2></div>
+      <div class="m-body">
+        <div class="m-tabs" id="m-tabs"><button class="px" data-m="tab" data-v="heroes">Heroes</button><button class="px" data-m="tab" data-v="units">Units</button><button class="px" data-m="tab" data-v="ships">Ships</button><button class="px" data-m="tab" data-v="blds">Buildings</button><button class="px" data-m="tab" data-v="civs">Civs</button></div>
+        <div class="m-list" id="m-list"></div>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-load" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Load game</h2></div>
+      <div class="m-body">
+        <div id="m-slots" style="display:contents"></div>
+        <p class="m-note">Games save by themselves while you play. A new game takes an empty slot, or the oldest one when all three are full.</p>
+      </div>
+    </div>
+
+    <div class="m-scr" id="m-settings" hidden>
+      <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Settings</h2></div>
+      <div class="m-body">
+        <div class="m-lbl">Starting game speed</div>
+        <div class="m-seg" id="m-speed"><button class="px" data-m="set" data-k="speed" data-v="1">1x</button><button class="px" data-m="set" data-k="speed" data-v="2">2x</button><button class="px" data-m="set" data-k="speed" data-v="3">3x</button></div>
+        <div class="m-lbl">Health bars</div>
+        <div class="m-seg two" id="m-bars"><button class="px" data-m="set" data-k="bars" data-v="auto">When hurt</button><button class="px" data-m="set" data-k="bars" data-v="always">Always</button></div>
+        <div class="m-lbl">Sound effects</div>
+        <div class="m-seg two" id="m-sound"><button class="px" data-m="set" data-k="sound" data-v="on">On</button><button class="px" data-m="set" data-k="sound" data-v="off">Off</button></div>
+        <div class="m-lbl">Music</div>
+        <div class="m-seg two" id="m-music"><button class="px" data-m="set" data-k="music" data-v="on">On</button><button class="px" data-m="set" data-k="music" data-v="off">Off</button></div>
+        <div class="m-lbl">Version</div>
+        <p class="m-note" id="m-vernote"></p>
+        <button class="px m-learn" data-m="update"><b>Check for updates</b></button>
+        <div class="m-lbl">Saved game</div>
+        <p class="m-note" id="m-savenote"></p>
+        <button class="px m-learn" data-m="delsave"><b>Delete all saved games</b></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ov" hidden>
+    <div class="card" id="ov-pause" hidden>
+      <div class="tag">Paused</div>
+      <h2>Menu</h2>
+      <button class="btn" data-do="resume">Resume</button>
+      <div class="lbl">Game speed <span id="speed-val"></span></div>
+      <div class="seg">
+        <button data-do="speed" data-v="1" aria-pressed="true">1x</button>
+        <button data-do="speed" data-v="2" aria-pressed="false">2x</button>
+        <button data-do="speed" data-v="3" aria-pressed="false">3x</button>
+      </div>
+      <div class="row">
+        <button class="btn alt" data-do="restart">Restart</button>
+        <button class="btn alt" data-do="newmap">New map</button>
+      </div>
+      <button class="btn alt" data-do="help">How to play</button>
+      <button class="btn alt" data-do="quit">Save and exit to menu</button>
+      <button class="btn alt" data-do="discard">Exit without saving</button>
+    </div>
+
+    <div class="card" id="ov-end" hidden>
+      <div class="tag">Battle over</div>
+      <h2 id="end-title">Victory</h2>
+      <p class="lead" id="end-sub"></p>
+      <div id="end-stats"></div>
+      <div class="row">
+        <button class="btn" data-do="restart">Again</button>
+        <button class="btn alt" data-do="newmap">New map</button>
+      </div>
+      <button class="btn alt" data-do="home">Main menu</button>
+    </div>
+
+    <div class="card" id="ov-help" hidden>
+      <h2>How to play</h2>
+      <ul class="help">
+        <li><b>Scroll:</b> drag the map. <b>Zoom:</b> pinch (or the +/- buttons, or mouse wheel).</li>
+        <li><b>Select:</b> tap a unit or building. <b>Group:</b> hold, then drag a box. Double-tap a unit to pick all of its kind on screen.</li>
+        <li><b>Command:</b> with units selected, tap the ground to move, a tree, berries or gold to gather, an enemy to attack. Mouse: right-click.</li>
+        <li><b>Build:</b> select villagers, pick a building, drag it into place, then tap the green tick (or Place). The red cross cancels.</li>
+        <li><b>Train:</b> select the Town Centre or Barracks and tap a unit. Double-tap the ground (or right-click) to set where new units gather; a single tap deselects.</li>
+        <li><b>Fishing:</b> build a Trading Port on the shore, train boats, send them to fish. The Port also earns gold from trade.</li>
+        <li><b>Houses</b> raise your population limit. The enemy builds up first and attacks later, so use the quiet start to grow.</li>
+        <li><b>Win</b> by destroying the enemy Town Centre. Keys: A attack-move, S stop, F formation, . idle villager, H home, Space pause.</li>
+      </ul>
+      <button class="btn" data-do="back">Back</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+@@include js/sim/0-core.js
+@@include js/sim/1-data.js
+@@include js/sim/2-ages-difficulty-maps.js
+@@include js/sim/3-game.js
+@@include js/art/0-core.js
+@@include js/art/1-people.js
+@@include js/art/2-nature.js
+@@include js/art/3-naval.js
+@@include js/art/4-civ-buildings.js
+@@include js/art/5-ayutthaya.js
+@@include js/art/6-ages-looks.js
+@@include js/art/7-buildings.js
+@@include js/art/8-icons.js
+@@include js/art/9-terrain.js
+@@include js/ui/0-core-camera-fog.js
+@@include js/ui/1-drawing.js
+@@include js/ui/2-orders.js
+@@include js/ui/3-input.js
+@@include js/ui/4-panel.js
+@@include js/ui/5-hud-flow-save.js
+@@include js/ui/6-menu.js
+@@include js/ui/7-sound.js
+@@include js/ui/8-main-loop.js
+</script>
+
+<script>
+/* app updates: check for a new version on every open and whenever the app comes back to the front;
+   when one has been fetched, offer a one-tap reload (the game saves itself before the page goes) */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => {
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      window.swReg = reg;
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) showUpdateReady(); });
+  });
+}
+</script>
+</body>
+</html>
