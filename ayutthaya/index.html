@@ -11770,6 +11770,7 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   function restore(r) {
     const g = new Game(r.opts);
     const s = dec(r.snap), extra = dec(r.extra);
+    if (s.terrain && s.terrain.length !== W * H) throw new Error('saved on a map of another size');   // e.g. Singapura went 64x48 -> 96x72
     for (const k of Object.keys(s)) g[k] = s[k];
     g.byId = new Map();
     const reg = (e) => { if (!e || typeof e !== 'object' || e.id === undefined) return; g.byId.set(e.id, e); if (Array.isArray(e.cargo)) e.cargo.forEach(reg); };

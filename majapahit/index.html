@@ -480,7 +480,7 @@ body, button, .card, #hud { font-variant-ligatures: none; font-feature-settings:
     </div>
     <div id="strip"><span id="hint"></span><span id="clock"></span></div>
     <div id="mid">
-      <canvas id="mini" width="128" height="96"></canvas>
+      <canvas id="mini" width="192" height="144"></canvas>
       <div id="toasts"></div>
       <div id="side">
         <button class="sbtn" id="btn-idle" aria-label="Next idle villager"><img id="i-idle" alt=""><span class="badge" id="idle-n" hidden>0</span></button>
@@ -683,7 +683,7 @@ body, button, .card, #hud { font-variant-ligatures: none; font-feature-settings:
    SEA RTS — simulation core. No DOM in here, so it can be tested in Node.
    Coordinates are in tile units. Units stand at tile centres (x+0.5, y+0.5).
    ========================================================================== */
-const W = 64, H = 48, TILE = 32, MAXPOP = 100, STEP = 1 / 30;
+const W = 96, H = 72, TILE = 32, MAXPOP = 100, STEP = 1 / 30;
 /* Skirmish maps were laid out on a 64x48 grid; they now scale up to the map size, 96x72 (Iylia, 2026-10-31).
    MSX/MSY turn a layout point into tiles. Demo pages build on 64x48, where both are 1. */
 const MSX = W / 64, MSY = H / 48;
@@ -5605,7 +5605,7 @@ function clampCam() {
   cam.y = HH + 2 * my > vh ? clamp(cam.y, -my, HH - vh + my) : (HH - vh) / 2;
 }
 function setZoom(z, sx, sy) {
-  z = clamp(z, 0.4, 2.6);
+  z = clamp(z, 0.38, 2.6);
   if (sx == null) { sx = view.w / 2; sy = view.h / 2; }
   const wx = sx / view.zoom + cam.x, wy = sy / view.zoom + cam.y;
   view.zoom = z; cam.x = wx - sx / z; cam.y = wy - sy / z; clampCam();
@@ -6296,7 +6296,7 @@ cvs.addEventListener('pointermove', (e) => {
   if (!gest) return;
   if (gest.type === 'pinch' && ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()], cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-    view.zoom = clamp(gest.z0 * Math.hypot(a.x - b.x, a.y - b.y) / gest.d0, 0.4, 2.6);
+    view.zoom = clamp(gest.z0 * Math.hypot(a.x - b.x, a.y - b.y) / gest.d0, 0.38, 2.6);
     cam.x = gest.ax - cx / view.zoom; cam.y = gest.ay - cy / view.zoom; clampCam(); return;
   }
   if (gest.p !== p) return;
@@ -6483,6 +6483,7 @@ function buildPanel() {
       cmds += '<button class="cmd" data-a="stance" title="Stance: Aggressive chases anything it sees, Defensive chases a little then returns to its post, Hold ground never moves"><img alt="" id="p-sti" src="' + resIcon(st0) + '"><span class="nm" id="p-st">' + STANCE_NAME[st0] + '</span><span class="ct">&nbsp;</span></button>';
       cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
+    if (typeof sgCrewCmds === 'function') cmds += sgCrewCmds(us);
     if (us.some(u => UD[u.kind].troops)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
     if (!hasVil) {
       cmds += mjUnitCmds(us);
@@ -6527,7 +6528,7 @@ function buildPanel() {
 }
 function structKey() {
   const us = selUnits();
-  let k = sel.map(o => o.id + (o.isBld ? (o.done ? 'd' : 'u') + o.queue.length + 'g' + (o.cargo ? o.cargo.length : 0) : '')).join(',') + (G.bell && G.bell[0] ? 'B' : '') + '|' + G.teamAge(0) + (G.aging && G.aging[0] ? 'A' : '');
+  let k = sel.map(o => (o.crew | 0) + 'c' + o.id + (o.isBld ? (o.done ? 'd' : 'u') + o.queue.length + 'g' + (o.cargo ? o.cargo.length : 0) : '')).join(',') + (G.bell && G.bell[0] ? 'B' : '') + '|' + G.teamAge(0) + (G.aging && G.aging[0] ? 'A' : '');
   k += '|' + (mode ? mode.kind + (mode.bkind || '') : '') + '|' + formation + '|' + us.some(u => u.cls === 'vil') + '|' + mjPanelKey(us);
   return k;
 }
@@ -6573,6 +6574,7 @@ $('panel').addEventListener('click', (e) => {
   else if (a === 'bell') { const n = G.ringBell(0); toast(n ? 'The bell rings! ' + n + ' villagers run for shelter.' : 'No room to shelter: build a tower or Town Centre.'); panelKey = ''; }
   else if (a === 'allclear') { G.allClear(0); toast('All clear. Back to work.'); panelKey = ''; }
   else if (a === 'release') { const b = sel[0]; if (b && b.isBld) G.ungarrison(b); panelKey = ''; }
+  else if ((a === 'crewland' || a === 'crewback') && typeof sgCrewAction === 'function') { sgCrewAction(a); panelKey = ''; }
   else if (a === 'unload') { for (const g of selUnits()) if (g.cargo && g.cargo.length) G.orderLand(g, g.x, g.y); }
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
   else if (a === 'cancel') { const b = sel[0]; if (b && b.isBld) G.cancelQueue(b, +el.dataset.i); panelKey = ''; }
@@ -7778,7 +7780,8 @@ const AUX_UNITS = {
     sword:    { name: 'Hulubalang', role: 'Keris and shield', top: 'dark', bottom: 'main', hat: 'tengkolok', weapon: 'keris', shield: 'round', gold: 1 },
     archer:   { name: 'Pemanah', role: 'Archer', top: '#d4c796', bottom: 'main', hat: 'band', weapon: 'bow' },
     sumpit:   { name: 'Penyumpit', role: 'Blowpipe skirmisher', top: 'bare', bottom: '#6a4e33', hat: 'band', weapon: 'sumpit' },
-    hero:     { name: 'Badang', role: 'Hero: the strongman', top: 'bare', bottom: 'dark', hat: 'band', weapon: 'club', wide: 1, gold: 1 }
+    hero:     { name: 'Badang', role: 'Hero: the strongman', top: 'bare', bottom: 'dark', hat: 'band', weapon: 'club', wide: 1, gold: 1 },
+    orangLaut: { name: 'Orang Laut', role: 'Sea raider: lands from the perahu, throws lembing', top: 'bare', bottom: '#2c4a5a', hat: 'band', weapon: 'spear' }   // crew of the Perahu Orang Laut (2026-11-01)
   },
   ming: {
     spear:    { name: 'Qiang Bing', role: 'Spearman', top: 'main', topArmour: 'lamellar', bottom: AIRON, hat: 'mingHelm', weapon: 'spear' },
@@ -8312,6 +8315,11 @@ function demoMaps(...names) { for (const n of names) if (!MAPDEF[n]) MAPDEF[n] =
    ========================================================================== */
 
 const DMUL = { easy: 0.7, normal: 1, hard: 1.3 };
+/* the map is laid out on a 64x48 grid and scaled to the page's W x H (96x72 since 2026-11-01: Iylia wanted more room in Singapura).
+   mx/my scale a design x / length, sy scales a design y (the land, rows 0-18, gets more of the extra height than the sea); ix/isy round to a tile.
+   Keep in step with Melaka m1's mission-sim.js, which shares this map. */
+const MX = W / 64, MY = H / 48, mx = v => v * MX, my = v => v * MY, ix = v => Math.round(v * MX);
+const SG_LAND = Math.round(H * 0.46), sy = v => v <= 18 ? v * SG_LAND / 18 : SG_LAND + (v - 18) * (H - SG_LAND) / 30, isy = v => Math.round(sy(v));
 const SIAM_CAP = { easy: 14, normal: 18, hard: 26 };          // most of Ayutthaya's army on the land at once
 const RACE_MIN = { easy: 28, normal: 24, hard: 21 };          // minutes until Ayutthaya takes the city on its own
 const TALK = { easy: 45, normal: 60, hard: 75 };              // seconds the messenger must talk with the treasurer
@@ -8323,13 +8331,13 @@ const PLUNDER = { outer: { food: 40, gold: 25 }, farm: { food: 30, gold: 0 }, bo
 const GIFT = { food: 150, wood: 100 };
 /* Singapura is laid out the same as in Melaka's mission 1 (Iylia, 2026-10-31): a bigger walled city in rows,
    the harbour in its south-east corner where the walls stop at the water */
-const CITY = { x0: 14, x1: 48, y0: 2, y1: 15 };
-const GATE_S = { tx: 31, ty: 15, out: [31.5, 16.6], inn: [31.5, 13.9] };
-const GATE_W = { tx: 14, ty: 8, out: [12.4, 8.5], inn: [15.6, 8.5] };
-const HARBOUR = { inlet: [44, 48, 11], port: [44, 10], tower: [50, 12] };
-const ISLE = { cx: 30, cy: 33, rx: 9.5, ry: 4.8 };
-const VILLAGE = [33, 30];
-const FLAG_START = [55, 41];
+const CITY = { x0: ix(14), x1: ix(48), y0: isy(2), y1: isy(15) };
+const GATE_S = { tx: ix(31), ty: isy(15), out: [ix(31) + 0.5, isy(15) + 1.6], inn: [ix(31) + 0.5, isy(15) - 1.1] };
+const GATE_W = { tx: ix(14), ty: isy(8), out: [ix(14) - 1.6, isy(8) + 0.5], inn: [ix(14) + 1.6, isy(8) + 0.5] };
+const HARBOUR = { inlet: [ix(44), ix(48), isy(11)], port: [ix(44), isy(11) - 1], tower: [ix(50), isy(12)] };
+const ISLE = { cx: mx(30), cy: sy(33), rx: mx(9.5), ry: my(4.8) };
+const VILLAGE = [ix(33), isy(30)];
+const FLAG_START = [mx(55), sy(41)];
 // the flagship's launches: what each boat carries, its cost and its cooldown group
 const LAUNCH = {
   workers: { boat: 'light', cargo: { villager: 4 }, cost: { food: 50, wood: 20 }, grp: 'jukung', label: 'Kawula', tip: 'A Jukung Perang with 4 Kawula workers' },
@@ -8402,11 +8410,11 @@ for (const k of ['house', 'granary', 'port', 'barracks', 'patirthan', 'tower', '
 /* ---------- map: the Strait, Singapura's shore to the north, Batam in the middle ---------- */
 Game.prototype.genMap = function () { genStrait(this); };
 Game.prototype.populate = function () { this.civs = [1, 0]; CIVMAP = [1, 0]; popStrait(this); };
-function coastY(g, x) { return 18 + Math.round((fbm(x * 0.15, 1.5, g.seed + 2) - 0.5) * 3); }
-function cityStreet(x, y) { return (x >= 30 && x <= 31 && y >= 7) || y === 8 || y === 9 || (y === 12 && x > CITY.x0 && x < HARBOUR.inlet[0]); }
+function coastY(g, x) { return isy(18) + Math.round((fbm(x * 0.15 / MX, 1.5, g.seed + 2) - 0.5) * 3 * MY); }
+function cityStreet(x, y) { return (x >= GATE_S.tx - 1 && x <= GATE_S.tx && y >= isy(7)) || y === isy(8) || y === isy(8) + 1 || (y === isy(12) && x > CITY.x0 && x < HARBOUR.inlet[0]); }
 function inCity(x, y) { return x > CITY.x0 && x < CITY.x1 && y > CITY.y0 && y < CITY.y1; }
 function onIsle(x, y, s) { return Math.hypot((x + 0.5 - ISLE.cx) / ISLE.rx, (y + 0.5 - ISLE.cy) / ISLE.ry) + (hash2(x, y, s + 7) - 0.5) * 0.12 < 1; }
-function onIslet(x, y) { return Math.hypot(x + 0.5 - 51, y + 0.5 - 31) < 2.3; }
+function onIslet(x, y) { return Math.hypot((x + 0.5 - mx(51)) / MX, (y + 0.5 - sy(31)) / MY) < 2.3; }
 function genStrait(g) {
   const terr = g.terrain, s = g.seed;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -8440,7 +8448,7 @@ function popStrait(g) {
   const isleMask = M.isle = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (onIsle(x, y, g.seed) && g.isLand(x, y)) isleMask[y * W + x] = 1;
   // roads that stay clear of trees: Ayutthaya's track from the north-west, the coast path, the gates
-  g.reserveRoute(0, 6, GATE_W.tx - 1, GATE_W.ty); g.reserveRoute(2, 14, 62, 14); g.reserveRoute(GATE_S.tx, GATE_S.ty + 1, GATE_S.tx, 17);
+  g.reserveRoute(0, isy(6), GATE_W.tx - 1, GATE_W.ty); g.reserveRoute(ix(2), isy(14), ix(62), isy(14)); g.reserveRoute(GATE_S.tx, GATE_S.ty + 1, GATE_S.tx, isy(17) + 1);
   /* --- Singapura: earth walls with a south gate (the treasurer's) and a west gate --- */
   for (let y = CITY.y0; y <= CITY.y1; y++) for (let x = CITY.x0; x <= CITY.x1; x++) {
     if (x !== CITY.x0 && x !== CITY.x1 && y !== CITY.y0 && y !== CITY.y1) continue;
@@ -8449,19 +8457,20 @@ function popStrait(g) {
     if (x === GATE_W.tx && y === GATE_W.ty) { const b = g.addBuilding('gate', 1, x, y, true); b.gk = 'w'; b.maxHp = b.hp = 3600; M.gateW = b.id; continue; }
     g.addBuilding('cwall', 1, x, y, true);
   }
-  const pal = g.addBuilding('palace', 1, 29, 3, true); M.palace = pal.id;
-  const tre = g.addBuilding('bendahari', 1, 16, 5, true); M.treasury = tre.id;
-  g.addBuilding('barracks', 1, 34, 4, true);
-  for (const [x, y] of [[38, 4], [41, 4]]) g.addBuilding('granary', 1, x, y, true);
-  for (const x of [19, 22, 25]) { g.addBuilding('house', 1, x, 3, true); g.addBuilding('house', 1, x, 6, true); }
-  g.addBuilding('house', 1, 16, 3, true); g.addBuilding('house', 1, 44, 4, true);
-  for (const x of [16, 19, 22, 25, 34, 37, 40]) g.addBuilding('house', 1, x, 10, true);
-  for (const [x, y] of [[17, 13], [26, 13], [35, 13], [41, 13]]) g.addBuilding('tower', 1, x, y, true);
+  const B = (kind, x, y) => g.addBuilding(kind, 1, ix(x), isy(y), true);
+  const pal = B('palace', 29, 3); M.palace = pal.id;
+  const tre = B('bendahari', 16, 5); M.treasury = tre.id;
+  B('barracks', 34, 4);
+  for (const [x, y] of [[38, 4], [41, 4]]) B('granary', x, y);
+  for (const x of [19, 22, 25]) { B('house', x, 3); B('house', x, 6); }
+  B('house', 16, 3); B('house', 44, 4);
+  for (const x of [16, 19, 22, 25, 34, 37, 40]) B('house', x, 10);
+  for (const [x, y] of [[17, 13], [26, 13], [35, 13], [41, 13]]) B('tower', x, y);
   const ht = g.addBuilding('tower', 1, HARBOUR.tower[0], HARBOUR.tower[1], true); ht.outer = true;
   const port = g.addBuilding('port', 1, HARBOUR.port[0], HARBOUR.port[1], true); port.harbour = true; M.port = port.id;
   /* --- the kampung outside the walls: timber houses, rice stores and fields --- */
   M.outer = [];
-  const outer = (kind, x, y) => { if (!g.canPlace(kind, x, y, 1)) return null; const b = g.addBuilding(kind, 1, x, y, true); b.outer = true; M.outer.push(b.id); return b; };
+  const outer = (kind, x, y) => { x = ix(x); y = isy(y); if (!g.canPlace(kind, x, y, 1)) return null; const b = g.addBuilding(kind, 1, x, y, true); b.outer = true; M.outer.push(b.id); return b; };
   for (const [x, y] of [[3, 15], [7, 15], [23, 17], [54, 14], [58, 14]]) outer('house', x, y);
   for (const [x, y] of [[10, 12], [52, 4]]) outer('granary', x, y);
   const farms = [];
@@ -8470,15 +8479,15 @@ function popStrait(g) {
   const vil = g.addBuilding('village', 2, VILLAGE[0], VILLAGE[1], true); vil.ol = true; vil.maxHp = vil.hp = 1600; M.village = vil.id;
   /* --- trees: jungle behind the shore, mangrove on the islands --- */
   const outerB = g.buildings.filter(b => b.outer || b.kind === 'farm');
-  const keep = (x, y) => (x >= CITY.x0 - 2 && x <= CITY.x1 + 2 && y >= CITY.y0 - 1 && y <= CITY.y1 + 2) || (y >= 14 && y <= 17) || outerB.some(b => rectDist(x + 0.5, y + 0.5, b.rect) < 1.6);
+  const keep = (x, y) => (x >= CITY.x0 - 2 && x <= CITY.x1 + 2 && y >= CITY.y0 - 1 && y <= CITY.y1 + 2) || (y >= isy(14) && y <= isy(17) + 1) || outerB.some(b => rectDist(x + 0.5, y + 0.5, b.rect) < 1.6);
   const nearVil = (x, y) => x >= VILLAGE[0] - 2 && x <= VILLAGE[0] + 4 && y >= VILLAGE[1] - 2 && y <= VILLAGE[1] + 4;
-  for (let y = 0; y < 18; y++) for (let x = 0; x < W; x++) if (g.freeTile(x, y) && !g.reserve[y * W + x] && !keep(x, y) && hash2(x, y, g.seed + 61) < (y < 1 ? 0.8 : y < 10 ? 0.78 : 0.45)) g.addNode('tree', x, y);
-  for (let y = 26; y < 40; y++) for (let x = 18; x < 42; x++) {
+  for (let y = 0; y < isy(18); y++) for (let x = 0; x < W; x++) if (g.freeTile(x, y) && !g.reserve[y * W + x] && !keep(x, y) && hash2(x, y, g.seed + 61) < (y < 2 ? 0.8 : y < isy(10) ? 0.7 : 0.4)) g.addNode('tree', x, y);
+  for (let y = isy(26); y < isy(40); y++) for (let x = ix(18); x < ix(42); x++) {
     if (!isleMask[y * W + x] || !g.freeTile(x, y) || nearVil(x, y)) continue;
     const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !isleMask[(y + dy) * W + x + dx]);
-    if (hash2(x, y, g.seed + 17) < (edge ? 0.42 : x < 26 ? 0.38 : 0.08)) g.addNode('tree', x, y);
+    if (hash2(x, y, g.seed + 17) < (edge ? 0.42 : x < ix(26) ? 0.38 : 0.08)) g.addNode('tree', x, y);
   }
-  for (let y = 28; y < 35; y++) for (let x = 48; x < 55; x++) if (onIslet(x, y) && g.freeTile(x, y) && hash2(x, y, 5) < 0.7) g.addNode('tree', x, y);
+  for (let y = isy(28); y < isy(35); y++) for (let x = ix(48); x < ix(55); x++) if (onIslet(x, y) && g.freeTile(x, y) && hash2(x, y, 5) < 0.7) g.addNode('tree', x, y);
   const place = (kind, cx, cy, spread, count, ok) => {
     let n = 0;
     for (let i = 0; i < count * 20 && n < count; i++) {
@@ -8487,25 +8496,26 @@ function popStrait(g) {
       g.addNode(kind, x, y); n++;
     }
   };
-  place('berry', 27, 35, 1.6, 6, (x, y) => isleMask[y * W + x]);
-  place('berry', 33, 35, 1.4, 5, (x, y) => isleMask[y * W + x]);
-  place('berry', 22, 34, 1.4, 5, (x, y) => isleMask[y * W + x]);
-  place('gold', 24, 31, 1.2, 3, (x, y) => isleMask[y * W + x]);     // an old tin and gold cache of the sea people
-  for (let i = 0, n = 0; i < 900 && n < 16; i++) {
-    const x = 14 + Math.floor(rng() * 36), y = 24 + Math.floor(rng() * 18);
-    if (g.terrain[y * W + x] === T.DEEP && !g.block[y * W + x] && !onIsle(x, y, g.seed) && Math.hypot(x - ISLE.cx, (y - ISLE.cy) * 1.6) < 15) { g.addNode('fish', x, y); n++; }
+  place('berry', mx(27), sy(35), 1.6, 6, (x, y) => isleMask[y * W + x]);
+  place('berry', mx(33), sy(35), 1.4, 5, (x, y) => isleMask[y * W + x]);
+  place('berry', mx(22), sy(34), 1.4, 5, (x, y) => isleMask[y * W + x]);
+  place('gold', mx(24), sy(31), 1.2, 3, (x, y) => isleMask[y * W + x]);     // an old tin and gold cache of the sea people
+  for (let i = 0, n = 0; i < 1400 && n < 22; i++) {
+    const x = ix(14) + Math.floor(rng() * mx(36)), y = isy(24) + Math.floor(rng() * (sy(42) - sy(24)));
+    if (g.terrain[y * W + x] === T.DEEP && !g.block[y * W + x] && !onIsle(x, y, g.seed) && Math.hypot((x - ISLE.cx) / MX, (y - ISLE.cy) * 1.6 / MY) < 15) { g.addNode('fish', x, y); n++; }
   }
-  for (let i = 0, n = 0; i < 400 && n < 5; i++) { const x = 38 + Math.floor(rng() * 12), y = 19 + Math.floor(rng() * 4); if (g.terrain[y * W + x] === T.DEEP && !g.block[y * W + x]) { g.addNode('fish', x, y); n++; } }
+  for (let i = 0, n = 0; i < 600 && n < 6; i++) { const x = ix(38) + Math.floor(rng() * mx(12)), y = isy(19) + Math.floor(rng() * (sy(23) - sy(19))); if (g.terrain[y * W + x] === T.DEEP && !g.block[y * W + x]) { g.addNode('fish', x, y); n++; } }
   /* --- people --- */
-  const put = (kind, team, x, y) => { const p = g.openSpot(x, y, UD[kind].layer || 0); return g.addUnit(kind, team, p.x, p.y); };
-  for (const f of farms) for (let i = 0; i < 2; i++) { const v = put('villager', 1, f.x, f.y + 1.5); g.orderGather(v, f); v.kv = true; }
+  const putAt = (kind, team, x, y) => { const p = g.openSpot(x, y, UD[kind].layer || 0); return g.addUnit(kind, team, p.x, p.y); };
+  const put = (kind, team, x, y) => putAt(kind, team, mx(x), sy(y));
+  for (const f of farms) for (let i = 0; i < 2; i++) { const v = putAt('villager', 1, f.x, f.y + 1.5); g.orderGather(v, f); v.kv = true; }
   for (let i = 0; i < 3; i++) { const b = put('boat', 1, 40 + i * 2.5, 20.5); const n = g.nearestNode(b.x, b.y, 'food', 1, 10, 1); if (n) g.orderGather(b, n); b.kv = true; }
   M.posts = {};
   const garrison = (name, comp, x, y, r, out) => {
-    M.posts[name] = { x, y, r: r || 7, out: !!out };
+    r = (r || 7) * MX; M.posts[name] = { x: mx(x), y: sy(y), r, out: !!out };
     for (const k in comp) {
       const n = Math.max(1, Math.round(comp[k] * DMUL[g.diff]));
-      for (let i = 0; i < n; i++) { const u = put(k, 1, x + (rng() - 0.5) * 2.4, y + (rng() - 0.5) * 2); u.post = { x: u.x, y: u.y, r: r || 7, out: !!out, name }; }
+      for (let i = 0; i < n; i++) { const u = putAt(k, 1, mx(x) + (rng() - 0.5) * 2.4 * MX, sy(y) + (rng() - 0.5) * 2 * MY); u.post = { x: u.x, y: u.y, r, out: !!out, name }; }
     }
   };
   garrison('south', { sg_sword: 4, sg_spear: 3, sg_archer: 3 }, 31.5, 13.2, 7);
@@ -8514,16 +8524,16 @@ function popStrait(g) {
   garrison('harbour', { sg_spear: 2, sg_archer: 2, sg_sumpit: 1 }, 42.5, 9, 6);
   garrison('kw', { sg_sword: 2, sg_sumpit: 2 }, 8.5, 13.6, 6, true);
   garrison('ke', { sg_sword: 2, sg_spear: 1, sg_sumpit: 1 }, 55.5, 12.8, 6, true);
-  for (const [x, y] of [[40, 22], [24, 23]]) { const s = put('light', 1, x, y); s.patrol = [[45, 21.5], [26, 23.5], [12, 22.5]]; s.pi = x > 30 ? 0 : 1; }
+  for (const [x, y] of [[40, 22], [24, 23]]) { const s = put('light', 1, x, y); s.patrol = [[45, 21.5], [26, 23.5], [12, 22.5]].map(([a, b]) => [mx(a), sy(b)]); s.pi = x > 30 ? 0 : 1; }
   // the Orang Laut boats ride at their moorings
   for (const [x, y] of [[37.5, 28.5], [39, 30.5]]) { const b = put('olboat', 2, x, y); b.ol = true; b.order = { t: 'idle' }; }
   // the fleet
-  M.flag = put('flagship', 0, FLAG_START[0], FLAG_START[1]);
+  M.flag = putAt('flagship', 0, FLAG_START[0], FLAG_START[1]);
   const boats = [put('light', 0, 52, 39.5), put('light', 0, 54, 37.5), put('light', 0, 58, 38.5)];
   const load = (boat, kind, n) => { boat.cargo = boat.cargo || []; for (let i = 0; i < n; i++) { const u = g.addUnit(kind, 0, boat.x, boat.y); g.loadUnit(boat, u, true); } };
   load(boats[0], 'villager', 4); load(boats[1], 'keris', 4); load(boats[2], 'tombak', 2);
   put('fireship', 0, 59, 41); put('fireship', 0, 51, 42.5);
-  M.siamPts = { land: [1.5, 6.5], sea: [1.5, 33] };
+  M.siamPts = { land: [1.5, sy(6.5)], sea: [1.5, sy(33)] };
   for (let i = 0; i < W * H; i++) g.explored[i] = 1;
   g.wallMasks();
 }
@@ -8946,7 +8956,7 @@ Game.prototype.onKilled = function (t, att) {
 Game.prototype.olHostile = function () {
   const M = this.M; M.ol = 'hostile';
   for (const b of this.buildings) if (b.ol) { b.team = 1; }
-  for (const u of this.units) if (u.ol) { u.team = 1; u.patrol = [[38, 27], [26, 24], [44, 22]]; u.pi = 0; }
+  for (const u of this.units) if (u.ol) { u.team = 1; u.patrol = [[38, 27], [26, 24], [44, 22]].map(([a, b]) => [mx(a), sy(b)]); u.pi = 0; }
   this.msg('You struck the Orang Laut! They are sworn to Singapura, and now they fight for it.');
   this.alerts.push({ x: VILLAGE[0] + 1.5, y: VILLAGE[1] + 1.5, t: 3 });
   M.cardQ.push('olhostile');
@@ -9091,7 +9101,7 @@ function siamColumn(g) {
   kinds.forEach((k, j) => { const p = g.openSpot(M.siamPts.land[0] + (j % 3) * 0.9, M.siamPts.land[1] + Math.floor(j / 3) * 0.9 - 1, 0); g.addUnit(k, 3, p.x, p.y); });
   M.siamWave++;
   g.msg(i === 0 ? 'Elephants on the north-west track: Ayutthaya\'s army has come for Singapura too!' : 'More of Ayutthaya\'s army comes down the north-west track.');
-  g.alerts.push({ x: 3, y: 6, t: 3 });
+  g.alerts.push({ x: 3, y: sy(6), t: 3 });
   if (i === 0) M.cardQ.push('siam');
 }
 function siamRaid(g) {
@@ -9103,7 +9113,7 @@ function siamRaid(g) {
   if (toVillage) {
     const p = g.openSpot(M.siamPts.sea[0] + 1, M.siamPts.sea[1] - 3, 1), s = g.addUnit('ay_galley', 3, p.x, p.y);
     const troops = []; for (let k = 0; k < Math.round(4 * DMUL[g.diff]); k++) troops.push(['ay_daab', 'ay_hok', 'ay_thanu', 'ay_daab'][k % 4]);
-    s.order = { t: 'land', x: 40.5, y: 31.5, sx: 1.5, sy: 30, troops, goalId: M.village, raid: 'village', s: 'in', onLand: (out) => { for (const t of out) ids.add(t.id); } };
+    s.order = { t: 'land', x: mx(40.5), y: sy(31.5), sx: 1.5, sy: sy(30), troops, goalId: M.village, raid: 'village', s: 'in', onLand: (out) => { for (const t of out) ids.add(t.id); } };
     ids.add(s.id);
     M.olRaid = { ids, kills: 0, start: M.t };
     g.msg('Siamese war boats are sailing for the Orang Laut village on Batam!');
@@ -9117,10 +9127,10 @@ function sgRaid(g) {
   if (!hut) return;
   const n = Math.round((4 + M.sgRaids) * DMUL[g.diff]), troops = [];
   for (let k = 0; k < n; k++) troops.push(['sg_sword', 'sg_spear', 'sg_sumpit', 'sg_sword', 'sg_archer'][k % 5]);
-  const sx = port && port.hp > 0 ? 45 : 63, sy = port && port.hp > 0 ? 19.5 : 24;
+  const sx = mx(port && port.hp > 0 ? 45 : 63), sy0 = sy(port && port.hp > 0 ? 19.5 : 24);
   const spot = g.beachSpot({ x: hut.x, y: hut.y - 6 }, hut.x, hut.y - 3) || { x: hut.x, y: hut.y - 4 };
-  const p = g.openSpot(sx, sy, 1), s = g.addUnit('galley', 1, p.x, p.y);
-  s.order = { t: 'land', x: spot.x, y: spot.y, sx, sy, troops, goalId: hut.id, raid: 'isle', s: 'in' };
+  const p = g.openSpot(sx, sy0, 1), s = g.addUnit('galley', 1, p.x, p.y);
+  s.order = { t: 'land', x: spot.x, y: spot.y, sx, sy: sy0, troops, goalId: hut.id, raid: 'isle', s: 'in' };
   M.sgRaids++;
   g.msg('A Lancaran galley puts out from Singapura, making for Batam!');
   g.alerts.push({ x: spot.x, y: spot.y, t: 3 });
@@ -9169,8 +9179,8 @@ function missionTick(g, dt) {
     M.navyT = 85;
     const port = g.byId.get(M.port);
     if (port && port.hp > 0 && g.units.filter(u => u.team === 1 && u.kind === 'light' && u.hp > 0).length < (g.diff === 'hard' ? 4 : 3)) {
-      const sp = g.findSpawn(port, { x: 45, y: 22 }, 1), s = g.addUnit('light', 1, sp.x, sp.y);
-      s.patrol = [[45, 21.5], [26, 23.5], [12, 22.5]]; s.pi = 0;
+      const sp = g.findSpawn(port, { x: mx(45), y: sy(22) }, 1), s = g.addUnit('light', 1, sp.x, sp.y);
+      s.patrol = [[45, 21.5], [26, 23.5], [12, 22.5]].map(([a, b]) => [mx(a), sy(b)]); s.pi = 0;
     }
   }
   // phase 1 -> 2: a Lumbung stands on Batam and the fleet has had time to settle, or too long has passed
@@ -10178,7 +10188,7 @@ function loadMap(g) {
 function startGame(seed) {
   seedUsed = seed; storyOpen = null;
   loadMap(new Game({ seed, diff }));
-  centerOn(48, 36);
+  centerOn(mx(48), sy(36));
   select([G.M.flag]);
   started = true; paused = false; $('hud').hidden = false; showOv(null); updateHud(); updatePanel();
   showStory('opening');
@@ -10197,20 +10207,20 @@ function skipTo(stage) {
   storyOpen = null; showOv(null); paused = false;
   const M = G.M, put = (k, x, y) => { const p = G.openSpot(x, y, 0); return G.addUnit(k, 0, p.x, p.y); };
   // unload the starting boats onto Batam
-  for (const u of G.units.slice()) if (u.team === 0 && u.cargo && u.cargo.length) { for (const c of u.cargo) { const p = G.openSpot(28, 34, 0); c.x = p.x; c.y = p.y; c.boarded = false; G.units.push(c); G.byId.set(c.id, c); G.idleOrder(c); } u.cargo = []; }
+  for (const u of G.units.slice()) if (u.team === 0 && u.cargo && u.cargo.length) { for (const c of u.cargo) { const p = G.openSpot(mx(28), sy(34), 0); c.x = p.x; c.y = p.y; c.boarded = false; G.units.push(c); G.byId.set(c.id, c); G.idleOrder(c); } u.cargo = []; }
   placeNear('granary', 27, 33); placeNear('house', 24, 31); placeNear('house', 24, 35); placeNear('house', 30, 36);
   for (const u of G.units) if (u.team === 0 && u.kind === 'villager') { const n = G.nearestNode(u.x, u.y, 'wood', 0, 10, 0); if (n) G.orderGather(u, n); }
   G.res[0] = { food: 700, wood: 500, gold: 350 };
   M.t = 240; M.hut = true; M.landed = 10; M.siam = 18; M.siamNext = M.t + 30; M.raidNext = M.t + 90; M.sgRaidNext = M.t + 200;
   const army = { keris: 8, tombak: 7, archer: 6 };
   let i = 0; for (const k in army) for (let j = 0; j < army[k]; j++, i++) put(k, 34 + (i % 7) * 1.1, 15.6 + Math.floor(i / 7) * 0.8);
-  { const p = G.openSpot(33, 24, 1); M.flag.x = p.x; M.flag.y = p.y; M.flag.path = null; G.idleOrder(M.flag); }
+  { const p = G.openSpot(mx(33), sy(24), 1); M.flag.x = p.x; M.flag.y = p.y; M.flag.path = null; G.idleOrder(M.flag); }
   M.phase = 2; M.phaseAt = M.t;
   if (stage === 'palace') {
     M.talk = TALK[G.diff]; M.cards.betray = true;
-    centerOn(32, 14); G.msg('Practice: the treasurer has given his word.');
+    centerOn(mx(32), sy(14)); G.msg('Practice: the treasurer has given his word.');
     M.cardQ.push('treasurer');
-  } else { centerOn(32, 18); G.msg('Practice: the fleet holds Batam. Send the messenger.'); M.cardQ.push('siege'); }
+  } else { centerOn(mx(32), sy(18)); G.msg('Practice: the fleet holds Batam. Send the messenger.'); M.cardQ.push('siege'); }
 }
 function togglePause() {
   if (storyOpen) return;
@@ -10251,7 +10261,7 @@ function mjBoot() {
   $('hud').hidden = true; resize(); showOv('start');
   // a quiet view of the city behind the title screen
   G = new Game({ seed: seedUsed, diff }); terrainC = buildTerrain(G); miniBase = buildMiniBase(G); initFog(); refreshFog();
-  view.zoom = view.w > 700 ? 1.3 : 1; centerOn(32, 14);
+  view.zoom = view.w > 700 ? 1.3 : 1; centerOn(mx(32), sy(14));
   started = false;
   requestAnimationFrame(function pre(ts) { if (!started) { nowS = ts / 1000; render(); requestAnimationFrame(pre); } });
   requestAnimationFrame(frame);
@@ -11051,7 +11061,7 @@ const MOBS = [], mobSprite = null;
 
 return { PROPS, MOBS, propSprite, mobSprite };
 })();
-const DRESS_ITEMS = [["shrine",9,4],["graves",10.5,6],["bamboo",12,3],["bamboo",12,13],["stall",28,11],["stall",34,11],["well",22,9],["banana",45,7],["banana",17,2.8]]
+const DRESS_ITEMS = [["shrine",9,4],["graves",10.5,6],["bamboo",12,3],["bamboo",12,13],["stall",28,11],["stall",34,11],["well",22,9],["banana",45,7],["banana",17,2.8]].map(i => [i[0], i[1] * W / 64, i[2] * H / 48].concat(i.slice(3)))
 ;
 /* ===== campaign-dress/dress.js ===== */
 /* Campaign map dressing for mission pages: props, ground detail and ambient life from the art book
@@ -11122,11 +11132,15 @@ function cdBuild(g) {
   }
   // greenery on open grass, clear of buildings and walls: bamboo, banana, nipa, ferns, the odd log or rock
   const green = ['bamboo', 'banana', 'fern', 'bamboo', 'nipa', 'banana', 'log', 'rock'];
+  // not inside a walled town: the streets stay clear
+  const walls = g.buildings.filter(b => b.kind === 'wall' || b.kind === 'gate' || b.kind === 'cwall');
+  const wb = walls.length > 8 ? walls.reduce((r, b) => [Math.min(r[0], b.tx), Math.min(r[1], b.ty), Math.max(r[2], b.tx), Math.max(r[3], b.ty)], [W, H, 0, 0]) : null;
+  const walled = (x, y) => wb && x >= wb[0] && x <= wb[2] && y >= wb[1] && y <= wb[3];
   for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
     if (t[y * W + x] !== T.GRASS) continue;
     const h = hash2(x, y, 91); if (h > 0.09) continue;
     let clear = true; for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1; dx++) if (g.block[(y + dy) * W + x + dx]) { clear = false; break; }
-    if (!clear || taken.has(y * W + x)) continue;
+    if (!clear || walled(x, y) || taken.has(y * W + x)) continue;
     let kind = green[Math.floor(hash2(x, y, 92) * green.length)];
     if (kind === 'nipa' && !(g.isWater(x + 2, y) || g.isWater(x - 2, y) || g.isWater(x, y + 2) || g.isWater(x, y - 2))) kind = 'bamboo';
     taken.add(y * W + x); D.props.push({ kind, x: x + 0.5, y: y + 0.7, f: 0 });
@@ -11190,6 +11204,115 @@ function campaignDress(x0, x1, y0, y1) {
     cdDraw(spr, m.x, m.y + 0.2, m.dir < 0);
   }
 }
+</script>
+<script>
+/* ===== singapura/sg-uniques.js ===== */
+/* Singapura's unique building and unit (Iylia chose "build both", 2026-11-01), shared by Melaka m1 and Majapahit's
+   Treasurer's Gate. Added by sg_patch.py after the page's own scripts.
+   - Bukit Larangan: the palace stands on its own terraced earth hill, with a keramat shrine and the Singapore Stone.
+     On the hill it sees further (+4 sight) and the old earth rampart makes it tougher (+25% hp).
+   - Orang Laut: every Perahu Orang Laut carries a crew of 3. Beached beside a shore, it lands them as fast light
+     spearmen who throw lembing; "Crew back" walks them to the boat and takes them aboard again. */
+const SG_CREW = 3;
+UD.orang_laut = { name: 'Orang Laut (Sea raider)', hp: 38, spd: 2.8, atk: 4, bonus: { archer: 2, vil: 2 }, rng: 3, rate: 1.3, ma: 0, pa: 1, sight: 7,
+  cost: {}, time: 0, cls: 'archer', ranged: true, aux: 'orangLaut' };
+if (typeof CIV_NAMES !== 'undefined') CIV_NAMES.orang_laut = ['Orang Laut (Sea raider)', 'Orang Laut (Sea raider)', 'Orang Laut (Sea raider)'];
+if (typeof BRIEF !== 'undefined') BRIEF.orang_laut = 'Sea people who crew the Perahu Orang Laut. Fast, throw lembing, good for raids.';
+BD.palace.sight = (BD.palace.sight || 8) + 4;
+BD.palace.hp = Math.round(BD.palace.hp * 1.25);
+
+/* ---------- the crew ---------- */
+const _sgAddUnit = Game.prototype.addUnit;
+Game.prototype.addUnit = function (kind, team, x, y) {
+  const u = _sgAddUnit.apply(this, arguments);
+  if (u && kind === 'olboat' && u.crew == null) u.crew = SG_CREW;
+  return u;
+};
+Game.prototype.crewShore = function (boat) {
+  for (let r = 1; r <= 4; r++) {
+    const p = this.nearestFree(boat.x, boat.y, 0, r);
+    if (p && this.walkable(p.x, p.y, 0) && Math.hypot(p.x + 0.5 - boat.x, p.y + 0.5 - boat.y) <= 3.2) return p;
+  }
+  return null;
+};
+Game.prototype.landCrew = function (boat) {
+  if (!boat || boat.hp <= 0 || !boat.crew) return 'No crew aboard.';
+  const p = this.crewShore(boat);
+  if (!p) return 'Bring the boat in beside a beach first.';
+  const n = boat.crew; boat.crew = 0;
+  for (let i = 0; i < n; i++) {
+    const s = this.openSpot(p.x + 0.5 + (i - 1) * 0.6, p.y + 0.5, 0), u = this.addUnit('orang_laut', boat.team, s.x, s.y);
+    u.crewOf = boat.id;
+  }
+  if (boat.team === 0) this.msg('The Orang Laut leap ashore.');
+  return null;
+};
+Game.prototype.callCrew = function (boat) {
+  const crew = this.units.filter(u => u.crewOf === boat.id && u.hp > 0);
+  if (!crew.length) return 'None of this crew is ashore.';
+  for (const u of crew) { u.reboard = boat.id; this.orderMove(u, boat.x, boat.y); }
+  return null;
+};
+const _sgUpdate = Game.prototype.update;
+Game.prototype.update = function (dt) {
+  _sgUpdate.call(this, dt);
+  this._sgT = (this._sgT || 0) + dt; if (this._sgT < 0.4) return; this._sgT = 0;
+  for (const u of this.units) {
+    if (!u.reboard || u.hp <= 0) continue;
+    const boat = this.byId.get(u.reboard);
+    if (!boat || boat.hp <= 0 || boat.team !== u.team) { u.reboard = null; continue; }
+    const d = Math.hypot(u.x - boat.x, u.y - boat.y);
+    if (d <= 2.8) { boat.crew = (boat.crew || 0) + 1; u.hp = 0; u.silent = true; u.reboard = null; continue; }
+    // the boat moved off: follow it to the nearest shore beside it
+    if (u.order && u.order.t === 'idle') { const p = this.crewShore(boat); if (p) this.orderMove(u, p.x + 0.5, p.y + 0.5); else u.reboard = null; }
+  }
+};
+// panel buttons for a selected Perahu Orang Laut (the build script hooks this into the unit panel)
+function sgCrewCmds(us) {
+  const boats = us.filter(u => u.kind === 'olboat' && u.team === 0); if (!boats.length) return '';
+  const aboard = boats.reduce((n, b) => n + (b.crew || 0), 0), ashore = G.units.some(u => u.hp > 0 && boats.some(b => u.crewOf === b.id));
+  let s = '';
+  if (aboard) s += '<button class="cmd" data-a="crewland" title="Beach the boat beside a shore and land its Orang Laut crew"><img alt="" src="' + unitIcon('orang_laut', 0) + '"><span class="nm">Land crew</span><span class="ct">' + aboard + ' aboard</span></button>';
+  if (ashore) s += '<button class="cmd" data-a="crewback" title="Call the crew back aboard"><img alt="" src="' + unitIcon('olboat', 0) + '"><span class="nm">Crew back</span><span class="ct">&nbsp;</span></button>';
+  return s;
+}
+function sgCrewAction(a) {
+  let err = null, ok = 0;
+  for (const b of sel.filter(u => u.kind === 'olboat' && u.team === 0)) { const e = a === 'crewland' ? G.landCrew(b) : G.callCrew(b); if (e) err = e; else ok++; }
+  if (!ok && err) toast(err);
+}
+
+/* ---------- Bukit Larangan on its hill ---------- */
+const SG_HILL = new Map();
+function sgHillPalace(pal) {
+  if (SG_HILL.has(pal)) return SG_HILL.get(pal);
+  const U = 2, TW = 100, mound = 54;                                   // 2-pixel blocks, like the unit art
+  const c = document.createElement('canvas'); c.width = Math.max(pal.width, TW * U + 8); c.height = pal.height + mound;
+  const x = c.getContext('2d'), ox = (c.width - TW * U) / 2, oy = c.height - 36 * U;
+  const R = (X, Y, w, h, col) => { x.fillStyle = col; x.fillRect(ox + X * U, oy + Y * U, w * U, h * U); };
+  const LAT = '#a0583a', LAT_D = '#7a3e28', LAT_L = '#c07850', GR = '#5e8f3a', GR_D = '#46702c', ST = '#b8b0a0', ST_D = '#857d6e', OUT = '#2a1e16';
+  // three earth terraces; the lowest is the old rampart
+  for (const [tx, ty, tw, th] of [[2, 22, 96, 13], [10, 12, 80, 11], [18, 3, 64, 10]]) {
+    R(tx - 1, ty - 1, tw + 2, th + 2, OUT); R(tx, ty, tw, th, LAT); R(tx, ty, tw, 3, GR); R(tx, ty + 3, tw, 1, GR_D);
+    for (let k = 0; k < tw - 3; k += 7) R(tx + k + 2, ty + 6 + (k % 3), 2, 1, LAT_L);
+    R(tx, ty + th - 2, tw, 2, LAT_D);
+  }
+  for (let s = 0; s < 11; s++) R(44 - (s >> 2), 33 - s * 3, 12 + (s >> 1), 2, s % 2 ? ST : ST_D);   // stone stairs up the middle
+  // the palace on the top terrace
+  x.drawImage(pal, Math.round((c.width - pal.width) / 2), oy + 9 * U - pal.height + 4);
+  // the keramat shrine and the Singapore Stone on the rampart terrace
+  if (typeof PROPSET !== 'undefined') {
+    const sh = PROPSET.propSprite('shrine', 0), st = PROPSET.propSprite('boulder', 0);
+    x.drawImage(sh, ox + 6 * U, oy + 26 * U - sh.height); x.drawImage(st, ox + 80 * U, oy + 26 * U - st.height);
+  }
+  SG_HILL.set(pal, c);
+  return c;
+}
+const _sgBuildingSprite = buildingSprite;
+buildingSprite = function (kind, team, level) {
+  const s = _sgBuildingSprite(kind, team, level);
+  return kind === 'palace' && typeof G !== 'undefined' && G && G.map !== 'bertam' ? sgHillPalace(s) : s;
+};
 </script>
 <script>
 /* Save and continue for a mission or battle page: an autosave every 30 s and on leaving the app,
@@ -11290,6 +11413,7 @@ function campaignDress(x0, x1, y0, y1) {
   function restore(r) {
     const g = new Game(r.opts);
     const s = dec(r.snap), extra = dec(r.extra);
+    if (s.terrain && s.terrain.length !== W * H) throw new Error('saved on a map of another size');   // e.g. Singapura went 64x48 -> 96x72
     for (const k of Object.keys(s)) g[k] = s[k];
     g.byId = new Map();
     const reg = (e) => { if (!e || typeof e !== 'object' || e.id === undefined) return; g.byId.set(e.id, e); if (Array.isArray(e.cargo)) e.cargo.forEach(reg); };
