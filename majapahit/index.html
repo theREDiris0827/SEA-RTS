@@ -8470,9 +8470,9 @@ function popStrait(g) {
   const vil = g.addBuilding('village', 2, VILLAGE[0], VILLAGE[1], true); vil.ol = true; vil.maxHp = vil.hp = 1600; M.village = vil.id;
   /* --- trees: jungle behind the shore, mangrove on the islands --- */
   const outerB = g.buildings.filter(b => b.outer || b.kind === 'farm');
-  const keep = (x, y) => (x >= CITY.x0 - 2 && x <= CITY.x1 + 2 && y <= CITY.y1 + 2) || (y >= 14 && y <= 17) || outerB.some(b => rectDist(x + 0.5, y + 0.5, b.rect) < 1.6);
+  const keep = (x, y) => (x >= CITY.x0 - 2 && x <= CITY.x1 + 2 && y >= CITY.y0 - 1 && y <= CITY.y1 + 2) || (y >= 14 && y <= 17) || outerB.some(b => rectDist(x + 0.5, y + 0.5, b.rect) < 1.6);
   const nearVil = (x, y) => x >= VILLAGE[0] - 2 && x <= VILLAGE[0] + 4 && y >= VILLAGE[1] - 2 && y <= VILLAGE[1] + 4;
-  for (let y = 0; y < 18; y++) for (let x = 0; x < W; x++) if (g.freeTile(x, y) && !g.reserve[y * W + x] && !keep(x, y) && hash2(x, y, g.seed + 61) < (y < 8 ? 0.55 : 0.32)) g.addNode('tree', x, y);
+  for (let y = 0; y < 18; y++) for (let x = 0; x < W; x++) if (g.freeTile(x, y) && !g.reserve[y * W + x] && !keep(x, y) && hash2(x, y, g.seed + 61) < (y < 1 ? 0.8 : y < 10 ? 0.78 : 0.45)) g.addNode('tree', x, y);
   for (let y = 26; y < 40; y++) for (let x = 18; x < 42; x++) {
     if (!isleMask[y * W + x] || !g.freeTile(x, y) || nearVil(x, y)) continue;
     const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !isleMask[(y + dy) * W + x + dx]);
@@ -11047,128 +11047,11 @@ function drawProp(P, kind, f, w, h) {
       else { r(3, 3, 6, 2, '#8a6a3a'); r(4, 2, 4, 1, '#a8884e'); } break;
   }
 }
-/* Ambient life for campaign maps (art thread, 2026-10-31): animals and townsfolk that wander, graze and flee.
-   Not selectable, no combat; they scatter when soldiers come close. Same style as the units (2x, auto outline).
-   mobSprite(kind, anim, f): anim 'idle' (f 0-1, a small loop such as pecking or grazing) or 'walk' (f 0-3).
-   MOBS: [kind, name, note, w, h] */
-const MOBS = [
-  ['chicken', 'Chickens', 'Peck around houses', 8, 8],
-  ['duck', 'Ducks', 'Paddies and river edges', 8, 8],
-  ['goat', 'Goat', 'Kampung edges', 13, 10],
-  ['buffalo', 'Water buffalo', 'Fields; wallows in mud', 21, 14],
-  ['dog', 'Village dog', 'Barks at soldiers', 12, 9],
-  ['monkey', 'Macaque', 'Trees and roofs; steals fruit', 10, 10],
-  ['egret', 'Egret', 'Paddies and shallows', 8, 11],
-  ['crows', 'Crows', 'Circle over battlefields', 16, 8],
-  ['fish', 'Leaping fish', 'River and sea', 8, 8],
-  ['refugee', 'Townsfolk fleeing', 'Bundle on the head; runs from fighting', 16, 18],
-  ['gujarati', 'Gujarati merchant', 'White jama, turban; at stalls', 16, 18],
-  ['chinese', 'Chinese merchant', 'Blue robe, black cap; at godowns', 16, 18],
-  ['fisher', 'Fisherman', 'Casts a net from the shore', 16, 18],
-  ['child', 'Children', 'Play by the houses; run home', 12, 14]
-];
-function mobSprite(kind, anim, f) {
-  anim = anim || 'idle'; f = f | 0;
-  const M = MOBS.find(m => m[0] === kind);
-  return sprite(`mob|${kind}|${anim}|${f}`, M[3], M[4], 2, (P) => drawMob(P, kind, anim, f), kind !== 'crows' && kind !== 'fish');
-}
-function drawMob(P, kind, anim, f) {
-  const r = P.r, walk = anim === 'walk', step = walk ? f & 1 : 0;
-  switch (kind) {
-    case 'chicken': case 'duck': {
-      const duck = kind === 'duck', body = duck ? '#f0ece0' : '#a8562a', wing = duck ? '#d8d0bc' : '#7a3a1a', peck = !walk && f === 1;
-      r(2, 3, 4, 3, body); r(1, 3, 1, 2, duck ? '#d8d0bc' : '#2a3a2a'); r(3, 4, 2, 1, wing);
-      if (peck) { r(5, 4, 2, 2, body); r(7, 5, 1, 1, '#e8a830'); } else { r(5, 1, 2, 3, body); r(7, 2, 1, 1, '#e8a830'); r(6, 2, 1, 1, '#1e1a18'); if (!duck) r(5, 0, 2, 1, '#c0392b'); }
-      r(3, 6, 1, 1 + (step ? 0 : 1), '#e8a830'); r(4 + step, 6, 1, 1 + step, '#e8a830'); break;
-    }
-    case 'goat': {
-      const graze = !walk && f === 1;
-      r(2, 3, 8, 4, '#e8e0d0'); r(2, 6, 8, 1, '#c8c0b0'); r(1, 3, 1, 2, '#c8c0b0');
-      if (graze) { r(9, 5, 3, 3, '#e8e0d0'); r(11, 7, 1, 1, '#2a2a2a'); r(9, 4, 1, 1, '#8a7a5a'); }
-      else { r(9, 1, 3, 3, '#e8e0d0'); r(10, 0, 1, 1, '#8a7a5a'); r(8, 0, 1, 1, '#8a7a5a'); r(11, 2, 1, 1, '#1e1a18'); r(10, 4, 1, 1, '#c8c0b0'); }
-      for (const [x, ph] of [[2, 0], [4, 1], [7, 1], [9, 0]]) r(x, 7, 1, (walk && ph === step) ? 2 : 3, '#8a7a6a'); break;
-    }
-    case 'buffalo': {
-      const graze = !walk && f === 1, G = '#4a4448', GD = '#36303a', GL = '#6a646a';
-      r(3, 3, 13, 7, G); r(4, 2, 11, 1, G); r(3, 9, 13, 1, GD); r(5, 3, 5, 1, GL);
-      const hy = graze ? 6 : 3;
-      r(15, hy, 5, 4, G); r(19, hy + 2, 1, 2, GD); r(17, hy + 1, 1, 1, '#1e1a18');
-      r(13, hy - 1, 3, 1, '#c8c0a8'); r(12, hy - 2, 1, 1, '#c8c0a8'); r(19, hy - 1, 2, 1, '#c8c0a8'); r(20, hy - 2, 1, 1, '#c8c0a8');   // swept-back horns
-      r(1, 4, 2, 1, GD); r(1, 5, 1, 3, GD);
-      for (const [x, ph] of [[4, 0], [7, 1], [12, 1], [14, 0]]) { const hh = (walk && ph === step) ? 3 : 4; r(x, 10, 2, hh, GD); }
-      r(6, 9, 6, 1, '#7a5a36'); break;                                                                // dried mud on the belly
-    }
-    case 'dog': {
-      const bark = !walk && f === 1;
-      r(2, 3, 7, 3, '#b8884e'); r(2, 5, 7, 1, '#9a6a3a'); r(1, 2, 1, 2, '#b8884e'); r(0, 1, 1, 1, '#b8884e');
-      r(8, 1, 3, 3, '#b8884e'); r(9, 0, 1, 1, '#8a5a2a'); r(10, 2, 1, 1, '#1e1a18'); r(11, 3, 1, 1, bark ? '#e8a0a0' : '#2a1a10');
-      if (bark) r(11, 4, 1, 1, '#b8884e');
-      for (const [x, ph] of [[2, 0], [3, 1], [7, 1], [8, 0]]) r(x, 6, 1, (walk && ph === step) ? 2 : 3, '#8a5a2a'); break;
-    }
-    case 'monkey': {
-      const sit = !walk;
-      r(2, 3, 5, 4, '#9a8a6a'); r(5, 1, 4, 4, '#9a8a6a'); r(7, 2, 2, 2, '#d8a890'); r(8, 2, 1, 1, '#1e1a18');
-      r(1, 2 + (f & 1), 1, 5, '#7a6a4a'); r(0, 1 + (f & 1), 1, 2, '#7a6a4a');
-      if (sit) { r(3, 7, 4, 2, '#8a7a5a'); r(7, 5, 2, 1, '#9a8a6a'); if (f) r(9, 4, 1, 2, '#e8c84a'); }
-      else for (const [x, ph] of [[2, 0], [3, 1], [6, 1], [7, 0]]) r(x, 7, 1, (ph === step) ? 2 : 3, '#7a6a4a'); break;
-    }
-    case 'egret': {
-      const dip = !walk && f === 1;
-      r(2, 3, 4, 3, '#f8f6f0'); r(1, 4, 1, 1, '#e0dcd0');
-      if (dip) { r(5, 5, 2, 1, '#f8f6f0'); r(6, 6, 1, 2, '#f8f6f0'); r(7, 7, 1, 2, '#e8c830'); }
-      else { r(5, 1, 1, 3, '#f8f6f0'); r(5, 0, 2, 1, '#f8f6f0'); r(7, 0, 1, 1, '#e8c830'); r(6, 0, 1, 1, '#1e1a18'); }
-      r(3, 6, 1, 4 - step, '#3a3a3a'); r(4, 6, 1, 4, '#3a3a3a'); break;
-    }
-    case 'crows':
-      for (const [x, y, ph] of [[1, 4, 0], [7, 1, 1], [12, 5, 0]]) { const up = (f + ph) & 1; r(x + 1, y, 2, 1, '#1e1a18'); r(x, y - (up ? 1 : 0), 1, 1, '#2a2628'); r(x + 3, y - (up ? 1 : 0), 1, 1, '#2a2628'); if (!up) { r(x - 1, y + 1, 1, 1, '#2a2628'); r(x + 4, y + 1, 1, 1, '#2a2628'); } }
-      break;
-    case 'fish':
-      if (f === 0) { r(1, 6, 6, 1, '#8fd0e0'); r(3, 5, 2, 1, '#cfeef6'); }
-      else { const y = f === 1 ? 2 : 4; r(2, y, 4, 2, '#b8c8d0'); r(2, y, 4, 1, '#e0eef2'); r(6, y - 1, 1, 1, '#b8c8d0'); r(6, y + 2, 1, 1, '#b8c8d0'); r(1, 6, 1, 1, '#8fd0e0'); r(6, 7, 1, 1, '#8fd0e0'); }
-      break;
-    default: person(P, kind, anim, f);
-  }
-}
-// townsfolk, 16x18 like the units (child 12x14)
-function person(P, kind, anim, f) {
-  const walk = anim === 'walk', child = kind === 'child';
-  const bob = (walk && (f === 1 || f === 3)) ? -1 : 0;
-  const oy = child ? -4 : 0, ox = child ? -2 : 0;
-  const B = (x, y, w, h, c) => P.r(x + ox, y + 2 + bob + oy, w, h, c);
-  const S = (x, y, w, h, c) => P.r(x + ox, y + 2 + oy, w, h, c);
-  const look = {
-    refugee: { top: '#9a7a5a', low: '#5a4a6a', hat: 'bundle' },
-    gujarati: { top: '#f1ece0', low: '#f1ece0', hat: 'turban' },
-    chinese: { top: '#3a5a8a', low: '#2a3a5a', hat: 'cap' },
-    fisher: { top: 'bare', low: '#6a5a3a', hat: 'terendak' },
-    child: { top: 'bare', low: '#c0392b', hat: 'none' }
-  }[kind];
-  for (const [x, y, w, h] of LEGS[walk ? f : 1]) { S(x, y, w, h, look.low === '#f1ece0' ? '#e0dccf' : SKIN_D); S(x, y + h - 1, w, 1, '#2b1d12'); }
-  if (look.top === 'bare') { B(5, 7, 6, 3, SKIN); B(5, 9, 6, 1, SKIN_D); } else { B(5, 7, 6, 3, look.top); B(5, 7, 6, 1, look.top === '#f1ece0' ? '#ffffff' : look.top); }
-  B(5, 10, 6, 2, look.low); if (kind === 'gujarati') { B(5, 11, 6, 1, '#d8d0bc'); B(5, 9, 6, 1, '#c0392b'); }
-  if (kind === 'chinese') B(5, 9, 6, 1, '#1e1a18');
-  const arm = look.top === 'bare' ? SKIN : look.top;
-  if (look.hat === 'bundle') { B(4, 5, 1, 3, arm); B(11, 5, 1, 3, arm); } else { B(4, 8, 1, 3, arm); B(11, 8, 1, 3, arm); B(11, 11, 1, 1, SKIN); }
-  B(6, 3, 4, 4, SKIN); B(6, 6, 4, 1, SKIN_D); B(9, 5, 1, 1, HAIR);
-  if (look.hat === 'bundle') { B(6, 2, 4, 1, HAIR); B(4, 0, 8, 3, '#c0602a'); B(4, 0, 8, 1, '#e0884a'); B(7, -1, 2, 1, '#8a3a1a'); }
-  else if (look.hat === 'turban') { B(5, 1, 6, 3, '#f1ece0'); B(5, 2, 6, 1, '#d8d0bc'); B(6, 0, 4, 1, '#f1ece0'); B(6, 6, 4, 1, '#3a2a1a'); }   // turban and beard
-  else if (look.hat === 'cap') { B(6, 1, 4, 2, '#1e1a18'); B(5, 2, 6, 1, '#1e1a18'); B(7, 0, 2, 1, '#c0392b'); }
-  else if (look.hat === 'terendak') { B(3, 2, 10, 1, '#d8c890'); B(5, 1, 6, 1, '#d8c890'); B(7, 0, 2, 1, '#b8a870'); }
-  else { B(6, 2, 4, 1, HAIR); B(5, 3, 1, 2, HAIR); }
-  if (kind === 'fisher') { if (!walk && f === 1) { for (let i = 0; i < 5; i++) B(11 + i, 6 + i, 1, 1, '#c8c0a8'); B(12, 11, 4, 1, '#c8c0a8'); } else { B(11, 9, 3, 3, '#a89870'); B(12, 10, 1, 1, '#8a7a5a'); } }
-  if (kind === 'chinese' && !walk) { B(12, 9, 2, 3, '#8a5a2b'); B(12, 9, 2, 1, '#c9a35a'); }                      // abacus
-  if (kind === 'gujarati' && !walk && f === 1) B(12, 8, 2, 2, '#e8c830');                                       // a weighed coin
-}
+const MOBS = [], mobSprite = null;
 
 return { PROPS, MOBS, propSprite, mobSprite };
 })();
-const DRESS_ITEMS = [
-  ["shrine", 9, 4], ["graves", 10.5, 6], ["bamboo", 12, 3], ["bamboo", 12, 13],
-  ["stakes", 12.3, 7], ["stakes", 12.3, 10],
-  ["stall", 28, 11], ["stall", 34, 11], ["spice", 31, 11.5], ["jars", 26.5, 11.4], ["crates", 36, 11.4],
-  ["gujarati", 29, 12, "m", 1.5], ["chinese", 33, 12, "m", 1.5], ["child", 24, 8, "m"], ["child", 38, 8, "m"],
-  ["well", 22, 9], ["cookfire", 40, 9, 1], ["laundry", 18, 9], ["banana", 45, 7], ["banana", 17, 2.8]
-]
+const DRESS_ITEMS = [["shrine",9,4],["graves",10.5,6],["bamboo",12,3],["bamboo",12,13],["stall",28,11],["stall",34,11],["well",22,9],["banana",45,7],["banana",17,2.8]]
 ;
 /* ===== campaign-dress/dress.js ===== */
 /* Campaign map dressing for mission pages: props, ground detail and ambient life from the art book
@@ -11176,7 +11059,9 @@ const DRESS_ITEMS = [
    blocks movement, can be selected, or changes the rules.
    The page calls campaignDress(x0, x1, y0, y1) from render(), just before buildings and units are drawn.
    Placement is automatic, from what stands on the map (houses, farms, granaries, ports, palaces, shores),
-   plus an optional hand-placed list in DRESS_ITEMS: [kind, tx, ty, frame] (props) or [mobKind, tx, ty, 'm'] (life). */
+   plus an optional hand-placed list in DRESS_ITEMS: [kind, tx, ty, frame] (props) or [mobKind, tx, ty, 'm'] (life).
+   Kept tight (Iylia, 2026-11-01): ambient people and animals only appear if the page bundles mobs.js
+   (DRESS_LIFE = True in its build.py); otherwise a few props sit by key buildings and the ground stays calm. */
 const CDRESS = { g: null, props: [], decals: [], mobs: [], lastT: 0 };
 function cdBuild(g) {
   const D = CDRESS, t = g.terrain; D.g = g; D.props = []; D.decals = []; D.mobs = [];
@@ -11193,25 +11078,25 @@ function cdBuild(g) {
   };
   const P = (kind, x, y, f, anchor) => { const p = near(x, y, 2.2); if (p) D.props.push({ kind, x: p[0], y: p[1], f: f || 0, b: anchor || null }); };
   const mob = (kind, x, y, r, anchor) => {
+    if (!PROPSET.MOBS.length) return;
     const p = near(x, y, 2); if (!p) return;
     D.mobs.push({ kind, x: p[0], y: p[1], hx: p[0], hy: p[1], r: r || 2.5, tx: p[0], ty: p[1], wait: hash2(Math.floor(x * 3), Math.floor(y * 5), 9) * 3, f: 0, dir: 1, ft: 0, b: anchor || null });
   };
-  const yard = ['banana', 'jars', 'coop', 'laundry', 'cookfire', 'banana', 'fishrack', 'well', 'jars', 'ricemat'];
+  const yard = ['banana', 'jars', 'ricemat', 'banana', 'banana', 'well'];
   let n = 0;
   for (const b of g.buildings) {
     if (b.hp <= 0) continue;
     const h = hash2(b.tx, b.ty, 61), cx = b.tx + b.size / 2, cy = b.ty + (b.h || b.size) / 2, by = b.ty + (b.h || b.size);
     n++;
     if (b.kind === 'house') {
-      if (h < 0.65) P(yard[Math.floor(h * 97) % yard.length], b.tx + (h < 0.32 ? b.size + 0.4 : -0.6), by - 0.3, n % 3, b);
+      if (h < 0.25) P(yard[Math.floor(h * 97) % yard.length], b.tx + (h < 0.32 ? b.size + 0.4 : -0.6), by - 0.3, n % 3, b);
       if (h > 0.72) mob(['chicken', 'child', 'chicken', 'goat', 'dog'][(b.tx + b.ty) % 5], cx, by + 0.8, 2, b);
-    } else if (b.kind === 'granary') { P('ricemat', b.tx + b.size + 0.5, by - 0.4, 0, b); if (h < 0.5) P('jars', b.tx - 0.5, by - 0.3, 0, b); }
-    else if (b.kind === 'farm' || b.kind === 'sawah') { if (h < 0.45) mob(h < 0.2 ? 'buffalo' : 'egret', cx, cy, 2.5); if (h > 0.7) P('cart', b.tx + b.size + 0.6, cy, 0); }
-    else if (b.kind === 'port' || b.kind === 'tradepost') { P('crates', b.tx - 0.5, by, 0, b); P('jars', b.tx + b.size + 0.3, by - 0.5, 0, b); P('spice', cx, by + 0.6, 0, b); }
+    } else if (b.kind === 'granary') { if (h < 0.5) P('ricemat', b.tx + b.size + 0.5, by - 0.4, 0, b); }
+    else if (b.kind === 'farm' || b.kind === 'sawah') { if (h < 0.45) mob(h < 0.2 ? 'buffalo' : 'egret', cx, cy, 2.5); }
+    else if (b.kind === 'port' || b.kind === 'tradepost') { P('crates', b.tx - 0.5, by, 0, b); }
     else if (b.kind === 'store') { P('crates', b.tx + b.size + 0.4, by - 0.4, 0, b); }
     else if (b.kind === 'palace' || b.kind === 'towncentre' || b.kind === 'bendahari') {
       P('lantern', b.tx - 0.4, by, 0, b); P('lantern', b.tx + b.size + 0.4, by, 1, b);
-      if (b.kind !== 'towncentre') { P('bunting', cx, by + 0.6, 0, b); P('drum', b.tx + b.size + 0.6, cy, 0, b); }
     }
   }
   // the shore: nets, driftwood, a fisherman; a kelong and leaping fish out on the water
@@ -11219,10 +11104,10 @@ function cdBuild(g) {
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
     if (t[y * W + x] !== T.SAND || g.block[y * W + x]) continue;
     const h = hash2(x, y, 83);
-    if (h < 0.035) { D.props.push({ kind: h < 0.02 ? 'nets' : 'driftwood', x: x + 0.5, y: y + 0.7, f: 0 }); shoreN++; }
+    if (h < 0.012) { D.props.push({ kind: h < 0.007 ? 'nets' : 'driftwood', x: x + 0.5, y: y + 0.7, f: 0 }); shoreN++; }
     else if (h > 0.985) mob('fisher', x + 0.5, y + 0.5, 1.2);
   }
-  for (let i = 0, k = 0; i < 400 && k < 3; i++) {
+  for (let i = 0, k = 0; i < 400 && k < 1; i++) {
     const x = 2 + Math.floor(hash2(i, 1, 84) * (W - 4)), y = 2 + Math.floor(hash2(i, 2, 84) * (H - 4));
     if (t[y * W + x] !== T.DEEP || g.block[y * W + x]) continue;
     let shore = 99; for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) if (land(x + dx, y + dy)) shore = Math.min(shore, Math.hypot(dx, dy));
@@ -11235,6 +11120,17 @@ function cdBuild(g) {
     if (!free(nd.tx + 1, nd.ty) && !free(nd.tx, nd.ty + 1)) continue;
     mob(k % 2 ? 'goat' : 'monkey', nd.tx + 1, nd.ty + 0.5, 2); k++;
   }
+  // greenery on open grass, clear of buildings and walls: bamboo, banana, nipa, ferns, the odd log or rock
+  const green = ['bamboo', 'banana', 'fern', 'bamboo', 'nipa', 'banana', 'log', 'rock'];
+  for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+    if (t[y * W + x] !== T.GRASS) continue;
+    const h = hash2(x, y, 91); if (h > 0.09) continue;
+    let clear = true; for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1; dx++) if (g.block[(y + dy) * W + x + dx]) { clear = false; break; }
+    if (!clear || taken.has(y * W + x)) continue;
+    let kind = green[Math.floor(hash2(x, y, 92) * green.length)];
+    if (kind === 'nipa' && !(g.isWater(x + 2, y) || g.isWater(x - 2, y) || g.isWater(x, y + 2) || g.isWater(x, y - 2))) kind = 'bamboo';
+    taken.add(y * W + x); D.props.push({ kind, x: x + 0.5, y: y + 0.7, f: 0 });
+  }
   // the page's own hand-placed items
   for (const it of (typeof DRESS_ITEMS !== 'undefined' ? DRESS_ITEMS : [])) {
     if (it[3] === 'm') mob(it[0], it[1], it[2], it[4] || 2.5); else P(it[0], it[1], it[2], it[3] || 0);
@@ -11244,7 +11140,7 @@ function cdBuild(g) {
     if (g.block[y * W + x]) continue;
     const v = t[y * W + x], h = hash2(x, y, 77);
     if (v === T.GRASS && h < 0.16) D.decals.push({ kind: h < 0.11 ? 'tuft' : h < 0.14 ? 'flowers' : 'fern', x: x + 0.2 + hash2(x, y, 78) * 0.6, y: y + 0.3 + hash2(x, y, 79) * 0.6 });
-    else if (v === T.DIRT && h < 0.06) D.decals.push({ kind: h < 0.035 ? 'stones' : 'ruts', x: x + 0.5, y: y + 0.6 });
+    else if (v === T.DIRT && h < 0.02) D.decals.push({ kind: h < 0.012 ? 'stones' : 'ruts', x: x + 0.5, y: y + 0.6 });
   }
 }
 function cdFrames(kind) { const e = PROPSET.PROPS.find(p => p[0] === kind); return e ? e[6] : 1; }
