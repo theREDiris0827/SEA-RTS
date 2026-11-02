@@ -6634,7 +6634,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.37 \u00b7 2 Nov 2026';
+const BUILD = '0.9.38 \u00b7 2 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -7731,10 +7731,20 @@ window.addEventListener('resize', () => { resize(); });
   const isMango = (n) => hash2(n.tx, n.ty, 9191) < 0.33;
   function berryArt(n) { return isMango(n) && window.CALM ? CALM.tree('mango') : bananaSprite(); }
 
-  function kerbauSprite(col, f, fat) {
-    const l = f ? 1 : 0, M = col ? col.main : '#b89a60', D = col ? col.dark : '#8a7438';
-    return sprite('kerbau|' + (col ? col.main : 'n') + '|' + f + '|' + fat, 24, 20, 2, (P) => {
-      const r = P.r, c = '#4c4c54', cl = '#60606a', cd = '#36363c', horn = '#a89e88', hornT = '#e2dac2';
+  function kerbauSprite(col, f, fat, pose) {
+    pose = pose || 0;
+    const l = pose === 1 ? 0 : (f ? 1 : 0), M = col ? col.main : '#b89a60', D = col ? col.dark : '#8a7438', OX = pose === 2 ? 10 : 0;
+    return sprite('kerbau|' + (col ? col.main : 'n') + '|' + f + '|' + fat + '|' + pose, 24 + OX, 20, 2, (P) => {
+      const r0 = P.r, c = '#4c4c54', cl = '#60606a', cd = '#36363c', horn = '#a89e88', hornT = '#e2dac2';
+      const W = '#7a5228', WL = '#a0703a';
+      if (pose === 2) {           // tenggala: wooden plough dragged behind, shaft runs under the belly to the yoke
+        r0(4, 12, 20, 1, W); r0(1, 14, 5, 2, W); r0(1, 14, 5, 1, WL); r0(0, 16, 4, 1, '#b8b8b0');
+        r0(2, 10, 1, 4, W); r0(1, 8, 1, 2, W); r0(0, 7, 1, 1, WL);
+        r0(1 + (f ? 1 : 0), 17, 2, 1, '#6a4a2a'); r0(4 - (f ? 1 : 0), 18, 1, 1, '#8a6a42');   // turned earth
+      }
+      const r = (x, y, w, h, k) => r0(x + OX, y, w, h, k);
+      const HD = pose === 1 ? 5 : 0, hx = pose === 1 ? 1 : 0;      // head lowered to the grass
+      const rh = (x, y, w, h, k) => r(x + hx, y + HD, w, h, k);
       if (fat === 0) {
         r(5, 8, 11, 5, c); r(6, 7, 3, 1, c); r(11, 7, 4, 1, c); r(6, 7, 1, 1, cl); r(12, 6, 2, 1, cl);
         for (const x of [9, 11, 13]) r(x, 9, 1, 3, cl);
@@ -7747,16 +7757,25 @@ window.addEventListener('resize', () => { resize(); });
         r(7, 5, 6, 1, '#7a7a86'); r(5, 6, 9, 1, cl); r(9, 7, 3, 1, cl); r(2, 8, 1, 5, cd);
         r(1, 8, 1, 4, cd); r(1, 12, 1, 2, '#22222a');
       }
-      r(16, 8, 3, 5, c); r(18, 10, 4, 4, c); r(21, 12, 2, 2, '#72727a'); r(22, 12, 1, 1, '#22222a'); r(19, 11, 1, 1, '#17110c');
-      r(18, 14, 3, 1, '#c8c0b0'); r(17, 13, 1, 1, '#c8c0b0');
-      r(18, 9, 4, 1, horn); r(16, 8, 3, 1, horn); r(14, 7, 3, 1, horn); r(13, 6, 2, 1, horn); r(12, 5, 2, 1, horn); r(12, 4, 1, 1, hornT);
-      r(21, 8, 1, 1, horn); r(22, 7, 1, 1, horn); r(22, 6, 1, 1, hornT);
-      const legs = fat === 2 ? [[4, -l], [7, l], [12, l], [15, -l]] : [[5, -l], [8, l], [12, l], [15, -l]];
-      for (const [x, d] of legs) { const top = fat === 2 ? 15 : fat === 0 ? 13 : 14, w = fat === 0 ? 1 : 2; r(x, top, w, 17 - top + d, c); r(x, 16 + d, w, 1, '#b8b4a8'); }
+      if (pose === 1) { r(16, 8, 3, 5, c); r(17, 10, 3, 6, c); r(18, 13, 2, 3, cd); } else r(16, 8, 3, 5, c);
+      rh(18, 10, 4, 4, c); rh(21, 12, 2, 2, '#72727a'); rh(22, 12 + (pose === 1 && f ? 1 : 0), 1, 1, '#22222a'); rh(19, 11, 1, 1, '#17110c');
+      if (pose !== 1) { r(18, 14, 3, 1, '#c8c0b0'); r(17, 13, 1, 1, '#c8c0b0'); }
+      rh(18, 9, 4, 1, horn); rh(16, 8, 3, 1, horn); rh(14, 7, 3, 1, horn); rh(13, 6, 2, 1, horn); rh(12, 5, 2, 1, horn); rh(12, 4, 1, 1, hornT);
+      rh(21, 8, 1, 1, horn); rh(22, 7, 1, 1, horn); rh(22, 6, 1, 1, hornT);
+      // two pairs seen from the side: the far leg darker and half hidden behind the near one
+      const top = fat === 2 ? 15 : fat === 0 ? 13 : 14, w = fat === 0 ? 1 : 2, rearX = fat === 2 ? 4 : 5, frontX = 14;
+      for (const [x, far] of [[rearX, 1], [frontX, 1], [rearX, 0], [frontX, 0]]) {
+        const sx = far ? (l ? -1 : 1) : (l ? 1 : -1) * (l ? 1 : 0), lx = x + (far ? 1 : 0) + sx;
+        r(lx, top, w, 17 - top, far ? cd : c); r(lx, 17, w, 1, '#26262a');
+      }
       r(16, 8, 2, 6, M); r(16, 13, 2, 1, D);
       r(16, 14, 2, 2, '#8a5a2b'); r(16, 14, 2, 1, '#a8773c');
-      r(21, 11, 1, 1, M); r(20, 13, 2, 1, M); r(19, 14, 1, 1, D);
+      rh(21, 11, 1, 1, M); rh(20, 13, 2, 1, M); rh(19, 14, 1, 1, D);
+      if (pose === 2) { r(14, 5, 2, 6, W); r(14, 5, 2, 1, WL); r(13, 4, 4, 1, W); }   // kuk (yoke) on the neck
     });
+  }
+  function haySprite() {
+    return sprite('kb|hay', 9, 6, 2, (P) => { const r = P.r; r(1, 2, 7, 4, '#c9a24a'); r(0, 4, 9, 2, '#b08a36'); r(2, 1, 4, 1, '#e0bf62'); r(3, 3, 1, 2, '#e8cf7a'); r(6, 2, 1, 2, '#9a7a2e'); r(1, 5, 7, 1, '#7d6226'); });
   }
   const fatStage = (u) => u.fat >= 360 ? 2 : u.fat >= 270 ? 1 : 0;
 
@@ -7814,7 +7833,8 @@ window.addEventListener('resize', () => { resize(); });
     const tc = g.buildings.find(b => b.team === u.own && b.kind === 'towncentre' && b.hp > 0);
     return { job: 'home', b: tc || null };
   }
-  function sendHome(g, u) { const h = homeFor(g, u); u.job = h.job; u.bid = h.b ? h.b.id : 0; u.path = null; u.order = { t: 'kb' }; }
+  function sendHome(g, u) { const h = homeFor(g, u); u.job = h.job; u.bid = h.b ? h.b.id : 0; u.path = null; u.arrived = false; u.order = { t: 'kb' }; }
+  Game.prototype.kerbauStay = function (u, x, y) { const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0; u.job = 'stay'; u.bid = 0; u.sx = x; u.sy = y; u.path = null; u.arrived = false; u.order = { t: 'kb' }; };
   Game.prototype.claimKerbau = function (u, team) {
     if (u.own === team) return false;
     if (this.kerbauCount(team) >= KB.cap) { if (team === 0 && this.t - (this._kbMsg || -9) > 8) { this._kbMsg = this.t; this.msg('You already keep ' + KB.cap + ' kerbau.'); } return false; }
@@ -7838,7 +7858,7 @@ window.addEventListener('resize', () => { resize(); });
     const other = farm.kb && this.byId.get(farm.kb);
     if (other && other !== u && other.hp > 0) return false;     // one kerbau per plot
     const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0;
-    farm.kb = u.id; u.job = 'plough'; u.bid = farm.id; u.path = null; u.order = { t: 'kb' };
+    farm.kb = u.id; if (u.bid !== farm.id) u.arrived = false; u.job = 'plough'; u.bid = farm.id; u.path = null; u.order = { t: 'kb' };
     return true;
   };
   Game.prototype.kerbauToGranary = function (u, b) {
@@ -7846,7 +7866,7 @@ window.addEventListener('resize', () => { resize(); });
     if (b) {
       const n = this.units.filter(k => k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.job === 'granary' && k.bid === b.id).length;
       if (n >= KB.perGran) return false;
-      u.job = 'granary'; u.bid = b.id; u.path = null; u.order = { t: 'kb' }; return true;
+      u.job = 'granary'; u.bid = b.id; u.path = null; u.arrived = false; u.order = { t: 'kb' }; return true;
     }
     sendHome(this, u); return true;
   };
@@ -7874,6 +7894,43 @@ window.addEventListener('resize', () => { resize(); });
     return r;
   };
 
+  /* standing spots: a row on the quietest side of the granary (3) or behind the Town Centre (2 rows of 3) */
+  const SIDES = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+  function kbSide(g, b) {
+    if (b.kbSide != null && g.t - (b.kbSideT || 0) < 20) return b.kbSide;
+    const bw = b.size || 2, bh = b.h || bw; let best = 0, bs = 1e9;
+    SIDES.forEach(([sx, sy], i) => {
+      // the strip two tiles deep along that side
+      const x0 = sx > 0 ? b.tx + bw : sx < 0 ? b.tx - 3 : b.tx - 1, x1 = sx > 0 ? b.tx + bw + 3 : sx < 0 ? b.tx : b.tx + bw + 1;
+      const y0 = sy > 0 ? b.ty + bh : sy < 0 ? b.ty - 3 : b.ty - 1, y1 = sy > 0 ? b.ty + bh + 3 : sy < 0 ? b.ty : b.ty + bh + 1;
+      let sc = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { g.wt = b.team; if (x < 0 || y < 0 || x >= W || y >= H || !g.walkable(x, y, 0)) sc += 3; }
+      for (const o of g.buildings) if (o !== b && o.hp > 0 && o.tx < x1 && o.tx + (o.size || 2) > x0 && o.ty < y1 && o.ty + (o.h || o.size || 2) > y0) sc += FIELD[o.kind] ? 8 : 4;
+      for (const n of g.nodes) if (n.amt > 0 && n.tx >= x0 - 1 && n.tx < x1 + 1 && n.ty >= y0 - 1 && n.ty < y1 + 1) sc += 2;
+      if (sy < 0) sc += 0.5;              // north last: kerbau there hide behind the roof
+      if (sc < bs) { bs = sc; best = i; }
+    });
+    b.kbSide = best; b.kbSideT = g.t; return best;
+  }
+  function slotIndex(g, u, b) {
+    // spots fill in order of arrival at this building, and close up when one leaves
+    if (u.slotB !== b.id) { u.slotB = b.id; u.slotT = g.t + u.id * 1e-6; }
+    let i = 0; for (const k of g.units) if (k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.bid === b.id && k.slotB === b.id && k.slotT < u.slotT) i++;
+    u.slot = i; return i;
+  }
+  function slotPoint(g, u, b) {
+    const i = slotIndex(g, u, b), side = kbSide(g, b), [sx, sy] = SIDES[side];
+    const bw = b.size || 2, bh = b.h || bw, cx = b.tx + bw / 2, cy = b.ty + bh / 2;
+    const row = Math.floor(i / 3), col = (i % 3) - 1;
+    let x, y;
+    if (sy) { x = cx + col * 1.5; y = sy > 0 ? b.ty + bh + 0.9 + row * 1.1 : b.ty - 0.4 - row * 1.1; }
+    else { y = cy + col * 1.05 + 0.3; x = sx > 0 ? b.tx + bw + 0.9 + row * 1.6 : b.tx - 0.9 - row * 1.6; }
+    g.wt = u.own;
+    if (!g.walkable(Math.floor(x), Math.floor(y), 0)) { const p = g.nearestFree(x, y, 0, 3); if (p) { x = p.x + 0.5; y = p.y + 0.5; } }
+    const face = sx ? -sx : (col < 0 ? 1 : col > 0 ? -1 : (u.id % 2 ? 1 : -1));
+    return { x, y, face };
+  }
+
   function kbTick(g, dt) {
     g._kbT = (g._kbT || 0) + dt; const scan = g._kbT >= 0.4; if (scan) g._kbT = 0;
     for (const u of g.units) {
@@ -7895,22 +7952,54 @@ window.addEventListener('resize', () => { resize(); });
       }
       if (u.own < 0) continue;
       if (u.order.t !== 'kb') { if (u.order.t === 'flee' || u.order.t === 'wander' || u.order.t === 'idle') u.order = { t: 'kb' }; else continue; }
+      u.pose = 0;
+      if (u.job === 'stay') {      // led to a spot by the player: walk there, then graze
+        const d = Math.hypot(u.sx - u.x, u.sy - u.y);
+        if (d > 0.35) { if (!u.path && !g.setPath(u, g.pathToPoint(u, u.sx, u.sy))) { u.sx = u.x; u.sy = u.y; continue; } if (g.stepMove(u, dt)) u.path = null; u.arrived = false; }
+        else { u.path = null; u.arrived = true; u.pose = ((g.t + u.id * 3.7) % 9) < 5 ? 1 : 0; }
+        continue;
+      }
       let b = g.byId.get(u.bid);
       if (!b || b.hp <= 0 || b.team !== u.own) { sendHome(g, u); b = g.byId.get(u.bid); }
       if (!b) continue;
       const c = center(b), d = Math.hypot(c.x - u.x, c.y - u.y), near = (b.size || 2) / 2 + 1.9;
-      if (d > near) {
-        if (!u.path) { const p = g.nearestFree(c.x + ((u.id % 3) - 1) * 1.3, c.y + (b.size || 2) / 2 + 0.6, 0, 4); if (!p || !g.setPath(u, g.pathToPoint(u, p.x + 0.5, p.y + 0.5))) { u.path = null; continue; } }
-        if (g.stepMove(u, dt)) u.path = null;
-        u.arrived = false;
-      } else {
-        u.path = null; u.arrived = true;
+      if (u.job === 'plough' && (u.arrived || d <= near)) {     // walk furrows up and down the plot
+        u.path = null; u.arrived = true; u.pose = 2;
+        const bw = b.size || 2, bh = b.h || bw, x0 = b.tx + 0.55, x1 = b.tx + bw - 0.55, rows = Math.max(2, Math.round(bh * 1.5));
+        if (u.fr == null || u.fb !== b.id) { u.fb = b.id; u.fr = 0; u.fd = 1; }
+        const ty = b.ty + 0.55 + (bh - 0.9) * (u.fr / (rows - 1)), tx = u.fd > 0 ? x1 : x0;
+        const dx = tx - u.x, dy = ty - u.y, dd = Math.hypot(dx, dy), st = 0.4 * dt;
+        if (dd <= st) { u.x = tx; u.y = ty; u.fd = -u.fd; u.fr = (u.fr + 1) % rows; }
+        else { u.x += dx / dd * st; u.y += dy / dd * st; if (Math.abs(dx) > 0.02) u.face = dx > 0 ? 1 : -1; }
+        u.moving = true;
+        continue;
+      }
+      // a newly free granary pulls kerbau waiting at the Town Centre
+      if (scan && u.job === 'home') { const h = homeFor(g, u); if (h.job === 'granary') { sendHome(g, u); continue; } }
+      const sp = slotPoint(g, u, b);
+      if (!u.arrived || Math.hypot(sp.x - u.x, sp.y - u.y) > 0.6) {
+        if (Math.hypot(sp.x - u.x, sp.y - u.y) > 0.25) {
+          if (!u.path && !g.setPath(u, g.pathToPoint(u, sp.x, sp.y))) { u.path = null; continue; }
+          if (g.stepMove(u, dt)) u.path = null;
+          u.arrived = false; continue;
+        }
+      }
+      {
+        u.path = null; u.arrived = true; u.x += (sp.x - u.x) * Math.min(1, dt * 4); u.y += (sp.y - u.y) * Math.min(1, dt * 4);
+        u.face = sp.face;
+        if (u.job === 'granary') { u.pose = u.fat < KB.fatMax ? 1 : (((g.t + u.id * 3.7) % 9) < 3 ? 1 : 0); }
+        else u.pose = ((g.t + u.id * 3.7) % 9) < 4 ? 1 : 0;
         if (u.job === 'granary' && u.fat < KB.fatMax) u.fat = Math.min(KB.fatMax, u.fat + (KB.fatMax - KB.fat0) / KB.fatTime * dt);
         // the computer player eats its kerbau once they are fat
         if (u.own === 1 && u.job !== 'plough' && u.fat >= KB.fatMax) { g.butcherKerbau(u); }
       }
     }
   }
+  const _sep = Game.prototype.separate;
+  Game.prototype.separate = function () {
+    const ks = []; for (const u of this.units) if (u.kind === 'kerbau' && u.hp > 0 && u.own >= 0 && u.layer === 0) { u.layer = 9; ks.push(u); }
+    try { return _sep.apply(this, arguments); } finally { for (const u of ks) u.layer = 0; }
+  };
   const _upd = Game.prototype.update;
   Game.prototype.update = function (dt) { const r = _upd.apply(this, arguments); try { kbTick(this, dt); } catch (e) { if (!this._kbErr) { this._kbErr = 1; console.warn('kerbau', e); } } return r; };
 
@@ -7988,10 +8077,13 @@ window.addEventListener('resize', () => { resize(); });
   paintUnit = function (u) {
     if (u.kind !== 'kerbau') return _pu(u);
     const px = u.x * TILE, py = u.y * TILE, col = u.own >= 0 ? (TEAMC[CV(u.own)] || TEAMC[0]) : null;
-    const spr = kerbauSprite(col, u.moving ? Math.floor(u.anim * 5) % 2 : 0, fatStage(u));
+    const pose = u.own >= 0 ? (u.pose || 0) : 0, fr = pose === 1 ? Math.floor((u.anim || 0) * 2.5) % 2 : u.moving ? Math.floor(u.anim * (pose === 2 ? 3 : 5)) % 2 : 0;
+    const spr = kerbauSprite(col, fr, fatStage(u), pose), ox = pose === 2 ? 20 : 0;
     shadow(px, py + 4, 12, 3);
     if (isSel(u)) { ctx.strokeStyle = col ? col.ring : '#ddd'; ctx.lineWidth = 1.5; ell(px, py + 4, 14, 5); ctx.stroke(); }
-    ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -spr.width / 2, 6 - spr.height); ctx.restore();
+    ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1);
+    if (pose === 1 && u.job === 'granary') { ctx.drawImage(haySprite(), 19, 6 - 11); }     // padi straw from the granary
+    ctx.drawImage(spr, -(spr.width - ox) / 2 - ox, 6 - spr.height); ctx.restore();
     if (u.own >= 0 && u.job === 'granary' && u.arrived && u.fat < KB.fatMax) {   // gold fattening bar
       const f = (u.fat - KB.fat0) / (KB.fatMax - KB.fat0);
       const by = py + 6 - spr.height + 6; ctx.fillStyle = '#17110c'; ctx.fillRect(px - 9, by, 18, 4); ctx.fillStyle = GOLD; ctx.fillRect(px - 8, by + 1, Math.round(16 * f), 2);
@@ -8011,7 +8103,7 @@ window.addEventListener('resize', () => { resize(); });
     const cm = P.querySelector('.p-cmds'), nm = P.querySelector('.p-name'), sub = P.querySelector('.p-sub');
     if (single.isUnit && single.kind === 'kerbau') {
       const k = single, cnt = G.kerbauCount(0);
-      const subTxt = () => k.own === 0 ? (k.job === 'plough' ? 'Ploughing \u00b7 ' : k.job === 'granary' ? (k.arrived && k.fat < KB.fatMax ? 'Fattening ' : 'Granary ') + Math.round(k.fat) + ' food \u00b7 ' : Math.round(k.fat) + ' food \u00b7 ') + 'Kerbau ' + G.kerbauCount(0) + '/' + KB.cap : k.own === 1 ? 'Enemy kerbau: walk a unit up to lead it away' : 'Wild: walk any unit up to it to claim it';
+      const subTxt = () => k.own === 0 ? (k.job === 'plough' ? (k.arrived ? 'Ploughing \u00b7 ' : 'Going to plough \u00b7 ') : k.job === 'stay' ? (k.arrived ? 'Grazing \u00b7 ' : 'Walking \u00b7 ') : k.job === 'granary' ? (k.arrived && k.fat < KB.fatMax ? 'Fattening ' : 'Granary ') + Math.round(k.fat) + ' food \u00b7 ' : Math.round(k.fat) + ' food \u00b7 ') + 'Kerbau ' + G.kerbauCount(0) + '/' + KB.cap : k.own === 1 ? 'Enemy kerbau: walk a unit up to lead it away' : 'Wild: walk any unit up to it to claim it';
       pdyn.push(() => { const e = P.querySelector('.p-sub'); if (e) e.textContent = subTxt(); });
       if (k.own === 0 && cm) {
         let h = '<button class="cmd" data-a="kb-gran" title="Fatten it at a granary"><img alt="" src="' + bldIcon('granary', 0) + '"><span class="nm">Granary</span><span class="ct">fatten</span></button>';
@@ -8021,7 +8113,7 @@ window.addEventListener('resize', () => { resize(); });
         pdyn.push(() => { const e = $('kb-food'); if (e) e.textContent = Math.round(k.fat); });
       }
       const line = document.createElement('div'); line.className = 'p-line';
-      line.textContent = k.own === 0 ? (k.job === 'plough' ? 'Ploughing: the farm gathers 30% faster while a villager works it.' : k.job === 'granary' ? 'Fattening at the granary: 200 to 400 food over about 4 minutes. Tap Butcher when you want it.' : 'Build a granary to fatten it.') : 'Kerbau give 200 food, or up to 400 after fattening at a granary.';
+      line.textContent = k.own === 0 ? (k.job === 'plough' ? 'Ploughing: the farm gathers 30% faster while a villager works it.' : k.job === 'granary' ? 'Fattening at the granary: 200 to 400 food over about 4 minutes. Tap Butcher when you want it.' : k.job === 'stay' ? 'Grazing here. Tap a granary or farm to put it to work.' : 'Build a granary to fatten it.') + ' Tap the ground to lead it.' : 'Kerbau give 200 food, or up to 400 after fattening at a granary.';
       const info = P.querySelector('.p-info'); if (info) info.appendChild(line);
     } else if (single.isBld && isSyah(single) && single.team === 0) {
       if (nm) nm.innerHTML = 'Syahbandar Port <span class="en">(Harbour Master)</span>';
@@ -8047,16 +8139,23 @@ window.addEventListener('resize', () => { resize(); });
   // tap a granary or a farm with your kerbau selected
   const _cc = contextCommand;
   contextCommand = function (wx, wy) {
-    const s = sel.length === 1 ? sel[0] : null;
-    if (mine(s)) {
+    const ks = sel.length && sel.every(mine) ? sel.slice() : null;
+    if (ks) {
       const hit = G.pick(wx, wy);
-      if (hit && hit.isBld && hit.team === 0 && hit.kind === 'granary') { toast(G.kerbauToGranary(s, hit) ? 'Off to the granary to fatten.' : 'That granary already has ' + KB.perGran + ' kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return; }
-      if (hit && hit.isBld && hit.team === 0 && FIELD[hit.kind] && melaka(0)) { toast(G.kerbauPlough(s, hit) ? 'Ploughing this farm.' : 'That farm already has a kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return; }
-      return;
+      if (hit && hit.isBld && hit.team === 0 && hit.kind === 'granary') {
+        let n = 0; for (const k of ks) if (G.kerbauToGranary(k, hit)) n++; else G.kerbauToGranary(k, null);
+        toast(n ? 'Off to the granary to fatten.' : 'That granary already has ' + KB.perGran + ' kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return;
+      }
+      if (hit && hit.isBld && hit.team === 0 && FIELD[hit.kind] && melaka(0)) {
+        const ok = G.kerbauPlough(ks[0], hit); for (const k of ks.slice(1)) G.kerbauPlough(k, null);
+        toast(ok ? 'Ploughing this farm.' : 'That farm already has a kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return;
+      }
+      ks.forEach((k, i) => G.kerbauStay(k, wx + (i % 3 - 1) * 0.9, wy + Math.floor(i / 3) * 0.9));
+      addMarker(wx, wy, 'move'); panelKey = ''; return;
     }
     return _cc.apply(this, arguments);
   };
-  window.KERBAU_ART = { kerbauSprite, bananaSprite, syahbandarSprite };
+  window.KERBAU_ART = { kerbauSprite, bananaSprite, syahbandarSprite, haySprite };
 })();
 /* ===== end animal pack ===== */
 </script>
