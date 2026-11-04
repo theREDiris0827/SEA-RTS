@@ -917,7 +917,61 @@ class Game {
     if (this.map === 'strait') { this.reserveRoute(S[0].x + 1, S[0].y + 2, road[0].x, road[0].y); this.reserveRoute(S[1].x + 1, S[1].y + 2, road[1].x, road[1].y); }
     else S.forEach((st, i) => { const h = this.portHint[i]; if (h) this.reserveRoute(st.x + 1, st.y + 2, h.x, h.y); });
     this.populate();
+    this.openWoods();
     this.updateFog();
+  }
+  /* thin the woods so nothing gets trapped: no one-tile squeezes between trees, and no little clearings
+     walled in by trees (a kerbau or deer could spawn in one and never get out). Only trees are removed. */
+  openWoods() {
+    const tree = new Map();
+    for (const n of this.nodes) if (n.kind === 'tree' && n.hp > 0) tree.set(n.ty * W + n.tx, n);
+    const cut = (i) => { const n = tree.get(i); if (n) { this.removeNode(n); tree.delete(i); return true; } return false; };
+    const open = (x, y) => this.inb(x, y) && this.walkable(x, y, 0);
+    const isT = (x, y) => this.inb(x, y) && tree.has(y * W + x);
+    // 1. squeezes: an open tile with trees (or a tree and a wall of rock/water) on both sides gets one of them cut
+    for (let pass = 0; pass < 2; pass++) for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      if (!open(x, y)) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        if (open(x - dx, y - dy) || open(x + dx, y + dy)) continue;
+        const a = isT(x - dx, y - dy), b = isT(x + dx, y + dy);
+        if (!a && !b) continue;
+        const pick = a && b ? (hash2(x, y, this.seed + 7) < 0.5 ? -1 : 1) : a ? -1 : 1;
+        cut((y + dy * pick) * W + x + dx * pick);
+      }
+    }
+    // 2. walled-in clearings: cut the fewest trees that join each small open patch to the open country around it
+    const comp = new Int32Array(W * H).fill(-1), size = [];
+    for (let i = 0; i < W * H; i++) {
+      if (comp[i] >= 0 || !open(i % W, (i / W) | 0)) continue;
+      const id = size.length, q = [i]; comp[i] = id;
+      for (let k = 0; k < q.length; k++) { const c = q[k], cx = c % W, cy = (c / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = cx + dx, Y = cy + dy, j = Y * W + X; if (!open(X, Y) || comp[j] >= 0) continue; comp[j] = id; q.push(j); } }
+      size.push(q.length);
+    }
+    const BIG = 40, done = new Uint8Array(size.length);
+    for (let i = 0; i < W * H; i++) {
+      const id = comp[i]; if (id < 0 || size[id] >= BIG || done[id]) continue;
+      done[id] = 1;
+      // 0-1 search: open tiles cost nothing, tree tiles cost one cut; stop at the first tile of a big open patch
+      const dist = new Int32Array(W * H).fill(1e9), from = new Int32Array(W * H).fill(-1), dq = [];
+      for (let j = 0; j < W * H; j++) if (comp[j] === id) { dist[j] = 0; dq.push(j); }
+      let goal = -1;
+      for (let h = 0; h < dq.length && goal < 0; h++) {
+        const c = dq[h], cx = c % W, cy = (c / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const X = cx + dx, Y = cy + dy, j = Y * W + X; if (!this.inb(X, Y)) continue;
+          const o = open(X, Y), t = tree.has(j); if (!o && !t) continue;
+          const nd = dist[c] + (t ? 1 : 0); if (nd >= dist[j] || nd > 6) continue;
+          dist[j] = nd; from[j] = c;
+          if (o && comp[j] >= 0 && size[comp[j]] >= BIG) { goal = j; break; }
+          dq.push(j);
+        }
+        // keep the queue roughly in cost order (cheap paths first)
+        if (h % 64 === 63) { const rest = dq.splice(h + 1).sort((p, q) => dist[p] - dist[q]); dq.push(...rest); }
+      }
+      for (let j = goal; j >= 0 && dist[j] > 0; j = from[j]) cut(j);
+    }
+    this.nodes = this.nodes.filter(n => n.hp > 0);
   }
   reserveRoute(ax, ay, bx, by) {
     const dummy = { x: ax + 0.5, y: ay + 0.5, layer: 0 };
@@ -1709,10 +1763,12 @@ class Game {
   }
   orderLand(g, x, y) { g.order = { t: 'land', x, y }; g.path = null; g.wait = 0; }
   /* the water tile next to a beach nearest (x, y), leaning towards (bx, by) */
-  shoreTile(x, y, bx, by) {
+  shoreTile(x, y, bx, by, ship) {
     let best = null, bd = 1e9;
+    // only water the ship can sail to (a river or lake cut off from its sea is no use)
+    const reach = ship ? this.waterReach(ship) : null;
     for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
-      if (!this.walkable(tx, ty, 1)) continue;
+      if (!this.walkable(tx, ty, 1) || (reach && !reach[ty * W + tx])) continue;
       let beach = false;
       for (let dy = -1; dy <= 1 && !beach; dy++) for (let dx = -1; dx <= 1; dx++) if (this.walkable(tx + dx, ty + dy, 0)) { beach = true; break; }
       if (!beach) continue;
@@ -1720,6 +1776,20 @@ class Game {
       if (d < bd) { bd = d; best = { x: tx, y: ty }; }
     }
     return best;
+  }
+  /* every water tile a ship can sail to from where it is */
+  waterReach(ship) {
+    const seen = new Uint8Array(W * H), sx = Math.floor(ship.x), sy = Math.floor(ship.y), q = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = sx + dx, y = sy + dy; if (this.inb(x, y) && this.walkable(x, y, 1) && !seen[y * W + x]) { seen[y * W + x] = 1; q.push(y * W + x); } }
+    for (let k = 0; k < q.length; k++) {
+      const c = q[k], cx = c % W, cy = (c / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const x = cx + dx, y = cy + dy, j = y * W + x;
+        if (!this.inb(x, y) || seen[j] || !this.walkable(x, y, 1)) continue;
+        seen[j] = 1; q.push(j);
+      }
+    }
+    return seen;
   }
   /* a land unit climbs aboard once it reaches the galley */
   doBoard(u, dt) {
@@ -1767,7 +1837,7 @@ class Game {
     }
     if (!g.path) {
       if (g.wait > 0) return;
-      const w = this.shoreTile(o.x, o.y);
+      const w = this.shoreTile(o.x, o.y, null, null, g);
       if (!w || !this.setPath(g, this.pathToPoint(g, w.x + 0.5, w.y + 0.5))) { if (g.team === 0) this.msg('No beach the galley can reach there.'); this.idleOrder(g); return; }
       o.s = 1;
     }
@@ -1799,7 +1869,8 @@ class Game {
     if (!us.length) return;
     // a galley with troops aboard, sent to a beach, lands them
     const landing = us.filter(u => u.cargo && u.cargo.length);
-    if (landing.length && this.isLand(Math.floor(wx), Math.floor(wy)) && !(target && target.hp > 0 && target.team !== landing[0].team && target.team !== 2)) {
+    // a tree, bush or gold mine on the beach counts as the beach; only an enemy to fight stops the landing
+    if (landing.length && this.isLand(Math.floor(wx), Math.floor(wy)) && !(target && target.hp > 0 && (target.isUnit || target.isBld) && target.team !== landing[0].team && target.team !== 2)) {
       for (const g of landing) this.orderLand(g, wx, wy);
       us = us.filter(u => !landing.includes(u)); if (!us.length) return;
     }
@@ -1811,7 +1882,7 @@ class Game {
         for (const u of land) this.orderBoard(u, target);
         if (target.order.t === 'idle' || target.order.t === 'move') {
           const cx = land.reduce((a, u) => a + u.x, 0) / land.length, cy = land.reduce((a, u) => a + u.y, 0) / land.length;
-          const w = this.shoreTile(cx, cy, target.x, target.y); if (w) this.orderMove(target, w.x + 0.5, w.y + 0.5);
+          const w = this.shoreTile(cx, cy, target.x, target.y, target); if (w) this.orderMove(target, w.x + 0.5, w.y + 0.5);
         }
         return;
       }
@@ -3096,7 +3167,7 @@ class Game {
       const g = ready[Math.floor(i / UD.galley.troops)]; if (!g) return;
       this.orderBoard(u, g); if (!used.includes(g)) used.push(g);
     });
-    for (const g of used) { const w = this.shoreTile(cx, cy, g.x, g.y); if (w) this.orderMove(g, w.x + 0.5, w.y + 0.5); }
+    for (const g of used) { const w = this.shoreTile(cx, cy, g.x, g.y, g); if (w) this.orderMove(g, w.x + 0.5, w.y + 0.5); }
     ai.ferry = { gs: used.map(g => g.id), t0: this.t, sailed: 0 };
     ai.atk = { ids: army.slice(0, want).map(u => u.id), n: Math.min(want, army.length), t0: this.t };
     ai.wave++; ai.next = this.t + D.gap;
@@ -5594,7 +5665,9 @@ function paintUnit(u) {
   }
   let anim = 'idle', f = 0, tool = '';
   const fighting = u.order.t === 'attack';
-  if (u.atkT > 0 && u.cls === 'healer') { anim = 'attack'; f = u.atkT > 0.3 ? 0 : u.atkT > 0.15 ? 1 : 2; }
+  const torch = torchFor(u);
+  if (torch) { anim = 'idle'; f = 0; }
+  else if (u.atkT > 0 && u.cls === 'healer') { anim = 'attack'; f = u.atkT > 0.3 ? 0 : u.atkT > 0.15 ? 1 : 2; }
   else if (u.atkT > 0 && u.cls !== 'vil') { anim = 'attack'; f = u.ranged ? 1 : (u.atkT > 0.18 ? 1 : 2); }
   else if (u.ranged && fighting && u.cd > 0 && u.cd < 0.35) { anim = 'attack'; f = 0; }
   else if (u.moving) { anim = 'walk'; f = Math.floor(u.anim * 9) % 4; }
@@ -5604,10 +5677,33 @@ function paintUnit(u) {
   if (selected) { ctx.strokeStyle = TEAMC[CV(u.team)].ring; ctx.lineWidth = 1.6; ell(px, py + 3, 10, 5); ctx.stroke(); }
   ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -(spr.width >> 1), 5 - spr.height);
   if (u.hit > 0) { ctx.globalAlpha = 0.55; ctx.drawImage(whiteOf(spr), -(spr.width >> 1), 5 - spr.height); }
+  if (torch) paintTorch(u, spr);
   ctx.restore();
   if (u.stance === 'hold' && u.team === 0) { const ty = py - spr.height - 4; ctx.fillStyle = '#1a120c'; ctx.fillRect(px + 3, ty - 1, 9, 7); ctx.fillRect(px + 3, ty, 2, 12); ctx.fillStyle = '#6e4626'; ctx.fillRect(px + 3.5, ty, 1, 11); ctx.fillStyle = '#f2c94c'; ctx.fillRect(px + 4.5, ty, 6.5, 5); ctx.fillStyle = '#fff0a0'; ctx.fillRect(px + 4.5, ty, 6.5, 1); }   // on Hold: a small flag
   if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px + 2, py - 34, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px + 3, py - 33, 6, 6); }
   if (selected || u.hp < u.maxHp || settings.bars === 'always') hpBar(px - 8, py - 6 - spr.height, 16, u.hp / u.maxHp);
+}
+/* foot soldiers burn buildings with an obor (torch) rather than hacking at them with their weapons (lore/siege.md) */
+function torchFor(u) {
+  if (u.ranged || u.moving || u.order.t !== 'attack' || !(u.cls === 'sword' || u.cls === 'spear' || u.cls === 'elite') || UD[u.kind].big) return false;
+  const t = G.byId.get(u.order.id);
+  return !!(t && t.isBld && t.hp > 0 && t.team !== u.team && t.team !== 2 && !BD[t.kind].neutral && rectDist(u.x, u.y, t.rect) < 1.6);
+}
+function paintTorch(u, spr) {
+  // drawn in the unit's own frame (already flipped to face the building): the obor is held out in front and thrust in on each blow
+  const thrust = u.atkT > 0 ? Math.round(Math.min(1, u.atkT / 0.14) * 5) : 0;
+  const hx = 8 + thrust, hy = 5 - Math.round(spr.height * 0.42);
+  ctx.fillStyle = '#17110c'; ctx.fillRect(hx - 2, hy - 11, 5, 16);
+  ctx.fillStyle = '#7a4a22'; ctx.fillRect(hx - 1, hy - 10, 3, 15);
+  ctx.fillStyle = '#5a3418'; ctx.fillRect(hx + 1, hy - 10, 1, 15);
+  ctx.fillStyle = '#c9a060'; ctx.fillRect(hx - 2, hy - 12, 5, 3);   // oiled rag binding
+  const fl = Math.floor(nowS * 10 + u.id) % 3, fh = 10 + fl * 2;
+  ctx.fillStyle = '#17110c'; ctx.fillRect(hx - 4, hy - 12 - fh, 9, fh + 1);
+  ctx.fillStyle = '#c23a1a'; ctx.fillRect(hx - 3, hy - 12 - fh, 7, fh);
+  ctx.fillStyle = '#f08a24'; ctx.fillRect(hx - 2, hy - 12 - fh + 3, 5, fh - 3);
+  ctx.fillStyle = '#ffe27a'; ctx.fillRect(hx - 1, hy - 12 - fh + 6 + (fl === 1 ? 1 : 0), 3, fh - 7);
+  ctx.fillStyle = '#f08a24'; ctx.fillRect(hx + (fl === 0 ? 2 : fl === 1 ? -2 : 0), hy - 15 - fh, 2, 3);
+  if (thrust) { ctx.fillStyle = '#ffe27a'; for (let i = 0; i < 4; i++) ctx.fillRect(hx + 6 + i * 2, hy - 14 - fh + ((i * 5 + fl * 3) % 11), 1, 1); }
 }
 function paintNode(n) {
   const px = n.tx * TILE, py = n.ty * TILE;
@@ -6637,7 +6733,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.39 \u00b7 4 Nov 2026';
+const BUILD = '0.9.40 \u00b7 4 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
