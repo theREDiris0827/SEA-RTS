@@ -686,6 +686,8 @@ const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutt
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
 /* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
 const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };
+/* Melaka land soldiers cost 10% less (kerah levies; balance test 2026-11-04: civs 45/47/48% with it) */
+const MEL_LEVY = 0.9;
 /* naval weapons (lore/naval-combat.md). navTier per team is the age at sea: 0 arrows and boarding,
    1 adds fire arrows and swivel guns (lela/rentaka, cetbang) or crossbow volleys, 2 adds cannon.
    Burning ignores armour; buildings burn by material (timber, brick, stone), demos can change BURNMAT. */
@@ -1276,7 +1278,8 @@ class Game {
   unitName(u) { return civName(u.kind, u.team); }
   costOf(kind, team) {
     const base = UD[kind] ? UD[kind].cost : BD[kind].cost, o = {};
-    const m = UD[kind] && CV(team) === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1) : 1;
+    const m = UD[kind] && CV(team) === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1)
+      : UD[kind] && CV(team) === 0 && !UD[kind].layer && kind !== 'villager' ? MEL_LEVY : 1;   // Melaka kerah: chiefs call up cheap levies
     for (const k in base) o[k] = m !== 1 ? Math.ceil(base[k] * m) : base[k];
     return o;
   }
@@ -6634,7 +6637,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.38 \u00b7 2 Nov 2026';
+const BUILD = '0.9.39 \u00b7 4 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -6736,7 +6739,7 @@ const ENCY_BLDS = {
   gate: 'Set into a wall. Opens for your own people; enemies have to break it down.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
 };
 const ENCY_CIVS = [
-  ['mel', 'Melaka', 'Maritime trade. Fewer, better soldiers paid for by the harbour. Timber buildings burn fast.'],
+  ['mel', 'Melaka', 'Maritime trade. Chiefs call up cheap levies: soldiers cost 10% less. Timber buildings burn fast.'],
   ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate.'],
   ['ayu', 'Ayutthaya', 'The river kingdom: raft houses, households that pay food, women who carry more, and war elephants.'],
   ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.'],
@@ -8158,6 +8161,46 @@ window.addEventListener('resize', () => { resize(); });
   window.KERBAU_ART = { kerbauSprite, bananaSprite, syahbandarSprite, haySprite };
 })();
 /* ===== end animal pack ===== */
+/* ===== ai plus: the computer uses trade ships and kerbau (Kerbau Minang for Melaka) ===== */
+(function () {
+  const AIP = { traders: { easy: 2, normal: 3, hard: 4 }, claimEvery: 8, claimR: 26 };
+  window.AI_PLUS = AIP;
+  const _ai = Game.prototype.aiTick;
+  Game.prototype.aiTick = function () {
+    _ai.apply(this, arguments);
+    try { aiPlus(this, 1); } catch (e) { if (!this._aipErr) { this._aipErr = 1; console.warn('ai plus', e); } }
+  };
+  function aiPlus(g, t) {
+    const tc = g.buildings.find(b => b.team === t && b.kind === 'towncentre' && b.done && b.hp > 0); if (!tc) return;
+    const r = g.res[t], pop = g.popOf(t), cap = g.popCap(t);
+    // trade: keep a few ships sailing between a port and the trading post (Majapahit's post already pays tribute)
+    const post = g.buildings.find(b => b.team === t && b.kind === 'tradepost' && b.done && b.hp > 0);
+    const ports = g.buildings.filter(b => b.team === t && b.kind === 'port' && b.done && b.hp > 0);
+    if (post && ports.length && CV(t) !== 1) {
+      const traders = g.units.filter(u => u.team === t && u.kind === 'trade' && u.hp > 0);
+      const want = AIP.traders[g.diff] || 3, queued = ports.reduce((a, p) => a + p.queue.filter(q => q.kind === 'trade').length, 0);
+      const port = ports.slice().sort((a, b) => a.queue.length - b.queue.length)[0];
+      if (traders.length + queued < want && port.queue.length < 2 && pop < cap && g.canAfford(t, g.costOf('trade', t)) && r.gold >= 120) g.queueUnit(port, 'trade', t);
+      for (const u of traders) if (!u.order || u.order.t === 'idle') g.orderTrade(u, post);
+    }
+    // kerbau: claim wild ones near home; Melaka ploughs its worked farms with them
+    if (typeof KERBAU === 'undefined' || !g.claimKerbau) return;
+    const herd = g.units.filter(u => u.kind === 'kerbau' && u.hp > 0 && u.own === t);
+    if (herd.length < KERBAU.cap && g.t - (g.ai.kbT || -99) > AIP.claimEvery) {
+      const wild = g.units.filter(u => u.kind === 'kerbau' && u.hp > 0 && (u.own == null || u.own < 0) && Math.hypot(u.x - tc.x, u.y - tc.y) < AIP.claimR && g.regionAt(u.x, u.y) === g.regionAt(tc.x, tc.y))
+        .sort((a, b) => Math.hypot(a.x - tc.x, a.y - tc.y) - Math.hypot(b.x - tc.x, b.y - tc.y))[0];
+      const goer = wild && g.units.filter(u => u.team === t && u.kind === 'villager' && u.hp > 0 && u.order && u.order.t !== 'build' && !u.kbGo)
+        .sort((a, b) => Math.hypot(a.x - wild.x, a.y - wild.y) - Math.hypot(b.x - wild.x, b.y - wild.y))[0];
+      if (goer) { g.ai.kbT = g.t; goer.kbGo = wild.id; g.orderMove(goer, wild.x, wild.y); }
+    }
+    for (const v of g.units) if (v.kbGo && v.team === t) { const k = g.byId.get(v.kbGo); if (!k || k.hp <= 0 || k.own === t || v.order.t !== 'move') { v.kbGo = 0; if (v.order.t === 'move' || v.order.t === 'idle') g.idleOrder(v); } }
+    if (CV(t) === 0) for (const k of herd) if (k.job !== 'plough' && k.job !== 'stay') {
+      const free = g.buildings.some(b => b.team === t && FIELD[b.kind] && b.done && b.hp > 0 && (!b.kb || !g.byId.get(b.kb) || g.byId.get(b.kb).hp <= 0) && g.units.some(v => v.hp > 0 && v.team === t && v.order.t === 'gather' && v.order.id === b.id));
+      if (free) g.kerbauPlough(k, null); else break;
+    }
+  }
+})();
+/* ===== end ai plus ===== */
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;
