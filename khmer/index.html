@@ -461,6 +461,8 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 body, button, .card, #hud { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'clig' 0; }
 #obj .obj-i.lost { color: #e07a5a; } #obj .obj-i.lost span { color: #e07a5a; }
 .cmd[disabled] { opacity: .45; }
+
+#obj .obj-how { color: #e8d48a; font-size: 12px; line-height: 1.25; margin-top: 1px; }
 </style>
 
 </head>
@@ -567,7 +569,7 @@ body, button, .card, #hud { font-variant-ligatures: none; font-feature-settings:
     <div class="m-scr" id="m-ency" hidden>
       <div class="m-sky"><img class="m-strip" alt="" data-art="stripBg"><img class="m-strip m-ship" alt="" data-art="stripShip"><img class="m-strip m-wake" alt="" data-art="stripWake"><img class="m-strip m-wake m-wake2" alt="" data-art="stripWake2"><button class="px m-ico m-back" data-m="go" data-v="home" aria-label="Back"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M8 1 L3 6 L8 11" stroke="currentColor" stroke-width="2" fill="none"></path></svg></button><h2>Encyclopedia</h2></div>
       <div class="m-body">
-        <div class="m-tabs" id="m-tabs"><button class="px" data-m="tab" data-v="heroes">Heroes</button><button class="px" data-m="tab" data-v="units">Units</button><button class="px" data-m="tab" data-v="ships">Ships</button><button class="px" data-m="tab" data-v="blds">Buildings</button><button class="px" data-m="tab" data-v="civs">Civs</button></div>
+        <div class="m-tabs" id="m-tabs"><button class="px" data-m="tab" data-v="heroes">Heroes</button><button class="px" data-m="tab" data-v="units">Units</button><button class="px" data-m="tab" data-v="ships">Ships</button><button class="px" data-m="tab" data-v="blds">Buildings</button><button class="px" data-m="tab" data-v="civs">Civs</button><button class="px" data-m="tab" data-v="guide">Guide</button></div>
         <div class="m-list" id="m-list"></div>
       </div>
     </div>
@@ -777,6 +779,8 @@ const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutt
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
 /* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
 const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };
+/* Melaka land soldiers cost 10% less (kerah levies; balance test 2026-11-04: civs 45/47/48% with it) */
+const MEL_LEVY = 0.9;
 /* naval weapons (lore/naval-combat.md). navTier per team is the age at sea: 0 arrows and boarding,
    1 adds fire arrows and swivel guns (lela/rentaka, cetbang) or crossbow volleys, 2 adds cannon.
    Burning ignores armour; buildings burn by material (timber, brick, stone), demos can change BURNMAT. */
@@ -1006,7 +1010,61 @@ class Game {
     if (this.map === 'strait') { this.reserveRoute(S[0].x + 1, S[0].y + 2, road[0].x, road[0].y); this.reserveRoute(S[1].x + 1, S[1].y + 2, road[1].x, road[1].y); }
     else S.forEach((st, i) => { const h = this.portHint[i]; if (h) this.reserveRoute(st.x + 1, st.y + 2, h.x, h.y); });
     this.populate();
+    this.openWoods();
     this.updateFog();
+  }
+  /* thin the woods so nothing gets trapped: no one-tile squeezes between trees, and no little clearings
+     walled in by trees (a kerbau or deer could spawn in one and never get out). Only trees are removed. */
+  openWoods() {
+    const tree = new Map();
+    for (const n of this.nodes) if (n.kind === 'tree' && n.hp > 0) tree.set(n.ty * W + n.tx, n);
+    const cut = (i) => { const n = tree.get(i); if (n) { this.removeNode(n); tree.delete(i); return true; } return false; };
+    const open = (x, y) => this.inb(x, y) && this.walkable(x, y, 0);
+    const isT = (x, y) => this.inb(x, y) && tree.has(y * W + x);
+    // 1. squeezes: an open tile with trees (or a tree and a wall of rock/water) on both sides gets one of them cut
+    for (let pass = 0; pass < 2; pass++) for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      if (!open(x, y)) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        if (open(x - dx, y - dy) || open(x + dx, y + dy)) continue;
+        const a = isT(x - dx, y - dy), b = isT(x + dx, y + dy);
+        if (!a && !b) continue;
+        const pick = a && b ? (hash2(x, y, this.seed + 7) < 0.5 ? -1 : 1) : a ? -1 : 1;
+        cut((y + dy * pick) * W + x + dx * pick);
+      }
+    }
+    // 2. walled-in clearings: cut the fewest trees that join each small open patch to the open country around it
+    const comp = new Int32Array(W * H).fill(-1), size = [];
+    for (let i = 0; i < W * H; i++) {
+      if (comp[i] >= 0 || !open(i % W, (i / W) | 0)) continue;
+      const id = size.length, q = [i]; comp[i] = id;
+      for (let k = 0; k < q.length; k++) { const c = q[k], cx = c % W, cy = (c / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = cx + dx, Y = cy + dy, j = Y * W + X; if (!open(X, Y) || comp[j] >= 0) continue; comp[j] = id; q.push(j); } }
+      size.push(q.length);
+    }
+    const BIG = 40, done = new Uint8Array(size.length);
+    for (let i = 0; i < W * H; i++) {
+      const id = comp[i]; if (id < 0 || size[id] >= BIG || done[id]) continue;
+      done[id] = 1;
+      // 0-1 search: open tiles cost nothing, tree tiles cost one cut; stop at the first tile of a big open patch
+      const dist = new Int32Array(W * H).fill(1e9), from = new Int32Array(W * H).fill(-1), dq = [];
+      for (let j = 0; j < W * H; j++) if (comp[j] === id) { dist[j] = 0; dq.push(j); }
+      let goal = -1;
+      for (let h = 0; h < dq.length && goal < 0; h++) {
+        const c = dq[h], cx = c % W, cy = (c / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const X = cx + dx, Y = cy + dy, j = Y * W + X; if (!this.inb(X, Y)) continue;
+          const o = open(X, Y), t = tree.has(j); if (!o && !t) continue;
+          const nd = dist[c] + (t ? 1 : 0); if (nd >= dist[j] || nd > 6) continue;
+          dist[j] = nd; from[j] = c;
+          if (o && comp[j] >= 0 && size[comp[j]] >= BIG) { goal = j; break; }
+          dq.push(j);
+        }
+        // keep the queue roughly in cost order (cheap paths first)
+        if (h % 64 === 63) { const rest = dq.splice(h + 1).sort((p, q) => dist[p] - dist[q]); dq.push(...rest); }
+      }
+      for (let j = goal; j >= 0 && dist[j] > 0; j = from[j]) cut(j);
+    }
+    this.nodes = this.nodes.filter(n => n.hp > 0);
   }
   reserveRoute(ax, ay, bx, by) {
     const dummy = { x: ax + 0.5, y: ay + 0.5, layer: 0 };
@@ -1367,7 +1425,8 @@ class Game {
   unitName(u) { return civName(u.kind, u.team); }
   costOf(kind, team) {
     const base = UD[kind] ? UD[kind].cost : BD[kind].cost, o = {};
-    const m = UD[kind] && CV(team) === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1) : 1;
+    const m = UD[kind] && CV(team) === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1)
+      : UD[kind] && CV(team) === 0 && !UD[kind].layer && kind !== 'villager' ? MEL_LEVY : 1;   // Melaka kerah: chiefs call up cheap levies
     for (const k in base) o[k] = m !== 1 ? Math.ceil(base[k] * m) : base[k];
     return o;
   }
@@ -1797,10 +1856,12 @@ class Game {
   }
   orderLand(g, x, y) { g.order = { t: 'land', x, y }; g.path = null; g.wait = 0; }
   /* the water tile next to a beach nearest (x, y), leaning towards (bx, by) */
-  shoreTile(x, y, bx, by) {
+  shoreTile(x, y, bx, by, ship) {
     let best = null, bd = 1e9;
+    // only water the ship can sail to (a river or lake cut off from its sea is no use)
+    const reach = ship ? this.waterReach(ship) : null;
     for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
-      if (!this.walkable(tx, ty, 1)) continue;
+      if (!this.walkable(tx, ty, 1) || (reach && !reach[ty * W + tx])) continue;
       let beach = false;
       for (let dy = -1; dy <= 1 && !beach; dy++) for (let dx = -1; dx <= 1; dx++) if (this.walkable(tx + dx, ty + dy, 0)) { beach = true; break; }
       if (!beach) continue;
@@ -1808,6 +1869,20 @@ class Game {
       if (d < bd) { bd = d; best = { x: tx, y: ty }; }
     }
     return best;
+  }
+  /* every water tile a ship can sail to from where it is */
+  waterReach(ship) {
+    const seen = new Uint8Array(W * H), sx = Math.floor(ship.x), sy = Math.floor(ship.y), q = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = sx + dx, y = sy + dy; if (this.inb(x, y) && this.walkable(x, y, 1) && !seen[y * W + x]) { seen[y * W + x] = 1; q.push(y * W + x); } }
+    for (let k = 0; k < q.length; k++) {
+      const c = q[k], cx = c % W, cy = (c / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const x = cx + dx, y = cy + dy, j = y * W + x;
+        if (!this.inb(x, y) || seen[j] || !this.walkable(x, y, 1)) continue;
+        seen[j] = 1; q.push(j);
+      }
+    }
+    return seen;
   }
   /* a land unit climbs aboard once it reaches the galley */
   doBoard(u, dt) {
@@ -1855,7 +1930,7 @@ class Game {
     }
     if (!g.path) {
       if (g.wait > 0) return;
-      const w = this.shoreTile(o.x, o.y);
+      const w = this.shoreTile(o.x, o.y, null, null, g);
       if (!w || !this.setPath(g, this.pathToPoint(g, w.x + 0.5, w.y + 0.5))) { if (g.team === 0) this.msg('No beach the galley can reach there.'); this.idleOrder(g); return; }
       o.s = 1;
     }
@@ -1887,7 +1962,8 @@ class Game {
     if (!us.length) return;
     // a galley with troops aboard, sent to a beach, lands them
     const landing = us.filter(u => u.cargo && u.cargo.length);
-    if (landing.length && this.isLand(Math.floor(wx), Math.floor(wy)) && !(target && target.hp > 0 && target.team !== landing[0].team && target.team !== 2)) {
+    // a tree, bush or gold mine on the beach counts as the beach; only an enemy to fight stops the landing
+    if (landing.length && this.isLand(Math.floor(wx), Math.floor(wy)) && !(target && target.hp > 0 && (target.isUnit || target.isBld) && target.team !== landing[0].team && target.team !== 2)) {
       for (const g of landing) this.orderLand(g, wx, wy);
       us = us.filter(u => !landing.includes(u)); if (!us.length) return;
     }
@@ -1899,7 +1975,7 @@ class Game {
         for (const u of land) this.orderBoard(u, target);
         if (target.order.t === 'idle' || target.order.t === 'move') {
           const cx = land.reduce((a, u) => a + u.x, 0) / land.length, cy = land.reduce((a, u) => a + u.y, 0) / land.length;
-          const w = this.shoreTile(cx, cy, target.x, target.y); if (w) this.orderMove(target, w.x + 0.5, w.y + 0.5);
+          const w = this.shoreTile(cx, cy, target.x, target.y, target); if (w) this.orderMove(target, w.x + 0.5, w.y + 0.5);
         }
         return;
       }
@@ -3184,7 +3260,7 @@ class Game {
       const g = ready[Math.floor(i / UD.galley.troops)]; if (!g) return;
       this.orderBoard(u, g); if (!used.includes(g)) used.push(g);
     });
-    for (const g of used) { const w = this.shoreTile(cx, cy, g.x, g.y); if (w) this.orderMove(g, w.x + 0.5, w.y + 0.5); }
+    for (const g of used) { const w = this.shoreTile(cx, cy, g.x, g.y, g); if (w) this.orderMove(g, w.x + 0.5, w.y + 0.5); }
     ai.ferry = { gs: used.map(g => g.id), t0: this.t, sailed: 0 };
     ai.atk = { ids: army.slice(0, want).map(u => u.id), n: Math.min(want, army.length), t0: this.t };
     ai.wave++; ai.next = this.t + D.gap;
@@ -5615,7 +5691,7 @@ function clampCam() {
   cam.y = HH + 2 * my > vh ? clamp(cam.y, -my, HH - vh + my) : (HH - vh) / 2;
 }
 function setZoom(z, sx, sy) {
-  z = clamp(z, 0.4, 2.6);
+  z = clamp(z, 0.38, 2.6);
   if (sx == null) { sx = view.w / 2; sy = view.h / 2; }
   const wx = sx / view.zoom + cam.x, wy = sy / view.zoom + cam.y;
   view.zoom = z; cam.x = wx - sx / z; cam.y = wy - sy / z; clampCam();
@@ -5682,7 +5758,9 @@ function basePaintUnit(u) {
   }
   let anim = 'idle', f = 0, tool = '';
   const fighting = u.order.t === 'attack';
-  if (u.atkT > 0 && u.cls === 'healer') { anim = 'attack'; f = u.atkT > 0.3 ? 0 : u.atkT > 0.15 ? 1 : 2; }
+  const torch = torchFor(u);
+  if (torch) { anim = 'idle'; f = 0; }
+  else if (u.atkT > 0 && u.cls === 'healer') { anim = 'attack'; f = u.atkT > 0.3 ? 0 : u.atkT > 0.15 ? 1 : 2; }
   else if (u.atkT > 0 && u.cls !== 'vil') { anim = 'attack'; f = u.ranged ? 1 : (u.atkT > 0.18 ? 1 : 2); }
   else if (u.ranged && fighting && u.cd > 0 && u.cd < 0.35) { anim = 'attack'; f = 0; }
   else if (u.moving) { anim = 'walk'; f = Math.floor(u.anim * 9) % 4; }
@@ -5692,10 +5770,33 @@ function basePaintUnit(u) {
   if (selected) { ctx.strokeStyle = TEAMC[CV(u.team)].ring; ctx.lineWidth = 1.6; ell(px, py + 3, 10, 5); ctx.stroke(); }
   ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1); ctx.drawImage(spr, -(spr.width >> 1), 5 - spr.height);
   if (u.hit > 0) { ctx.globalAlpha = 0.55; ctx.drawImage(whiteOf(spr), -(spr.width >> 1), 5 - spr.height); }
+  if (torch) paintTorch(u, spr);
   ctx.restore();
   if (u.stance === 'hold' && u.team === 0) { const ty = py - spr.height - 4; ctx.fillStyle = '#1a120c'; ctx.fillRect(px + 3, ty - 1, 9, 7); ctx.fillRect(px + 3, ty, 2, 12); ctx.fillStyle = '#6e4626'; ctx.fillRect(px + 3.5, ty, 1, 11); ctx.fillStyle = '#f2c94c'; ctx.fillRect(px + 4.5, ty, 6.5, 5); ctx.fillStyle = '#fff0a0'; ctx.fillRect(px + 4.5, ty, 6.5, 1); }   // on Hold: a small flag
   if (u.carry.amt > 0) { ctx.fillStyle = '#17110c'; ctx.fillRect(px + 2, py - 34, 8, 8); ctx.fillStyle = RESCOL[u.carry.type]; ctx.fillRect(px + 3, py - 33, 6, 6); }
   if ((selected || u.hp < u.maxHp) && !UD[u.kind].hero) hpBar(px - 8, py - 6 - spr.height, 16, u.hp / u.maxHp);
+}
+/* foot soldiers burn buildings with an obor (torch) rather than hacking at them with their weapons (lore/siege.md) */
+function torchFor(u) {
+  if (u.ranged || u.moving || u.order.t !== 'attack' || !(u.cls === 'sword' || u.cls === 'spear' || u.cls === 'elite') || UD[u.kind].big) return false;
+  const t = G.byId.get(u.order.id);
+  return !!(t && t.isBld && t.hp > 0 && t.team !== u.team && t.team !== 2 && !BD[t.kind].neutral && rectDist(u.x, u.y, t.rect) < 1.6);
+}
+function paintTorch(u, spr) {
+  // drawn in the unit's own frame (already flipped to face the building): the obor is held out in front and thrust in on each blow
+  const thrust = u.atkT > 0 ? Math.round(Math.min(1, u.atkT / 0.14) * 5) : 0;
+  const hx = 8 + thrust, hy = 5 - Math.round(spr.height * 0.42);
+  ctx.fillStyle = '#17110c'; ctx.fillRect(hx - 2, hy - 11, 5, 16);
+  ctx.fillStyle = '#7a4a22'; ctx.fillRect(hx - 1, hy - 10, 3, 15);
+  ctx.fillStyle = '#5a3418'; ctx.fillRect(hx + 1, hy - 10, 1, 15);
+  ctx.fillStyle = '#c9a060'; ctx.fillRect(hx - 2, hy - 12, 5, 3);   // oiled rag binding
+  const fl = Math.floor(nowS * 10 + u.id) % 3, fh = 10 + fl * 2;
+  ctx.fillStyle = '#17110c'; ctx.fillRect(hx - 4, hy - 12 - fh, 9, fh + 1);
+  ctx.fillStyle = '#c23a1a'; ctx.fillRect(hx - 3, hy - 12 - fh, 7, fh);
+  ctx.fillStyle = '#f08a24'; ctx.fillRect(hx - 2, hy - 12 - fh + 3, 5, fh - 3);
+  ctx.fillStyle = '#ffe27a'; ctx.fillRect(hx - 1, hy - 12 - fh + 6 + (fl === 1 ? 1 : 0), 3, fh - 7);
+  ctx.fillStyle = '#f08a24'; ctx.fillRect(hx + (fl === 0 ? 2 : fl === 1 ? -2 : 0), hy - 15 - fh, 2, 3);
+  if (thrust) { ctx.fillStyle = '#ffe27a'; for (let i = 0; i < 4; i++) ctx.fillRect(hx + 6 + i * 2, hy - 14 - fh + ((i * 5 + fl * 3) % 11), 1, 1); }
 }
 function paintNode(n) {
   const px = n.tx * TILE, py = n.ty * TILE;
@@ -6305,7 +6406,7 @@ cvs.addEventListener('pointermove', (e) => {
   if (!gest) return;
   if (gest.type === 'pinch' && ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()], cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-    view.zoom = clamp(gest.z0 * Math.hypot(a.x - b.x, a.y - b.y) / gest.d0, 0.4, 2.6);
+    view.zoom = clamp(gest.z0 * Math.hypot(a.x - b.x, a.y - b.y) / gest.d0, 0.38, 2.6);
     cam.x = gest.ax - cx / view.zoom; cam.y = gest.ay - cy / view.zoom; clampCam(); return;
   }
   if (gest.p !== p) return;
@@ -6731,7 +6832,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.36 \u00b7 2 Nov 2026';
+const BUILD = '0.9.41 \u00b7 5 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 function delAsk(on) {
@@ -6833,11 +6934,25 @@ const ENCY_BLDS = {
   gate: 'Set into a wall. Opens for your own people; enemies have to break it down.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
 };
 const ENCY_CIVS = [
-  ['mel', 'Melaka', 'Maritime trade. Fewer, better soldiers paid for by the harbour. Timber buildings burn fast.'],
-  ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate.'],
+  ['mel', 'Melaka', 'Maritime trade. Chiefs call up cheap levies: soldiers cost 10% less. Timber buildings burn fast.'],
+  ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate. Its Bandar on a coast village pays tribute in gold.'],
   ['ayu', 'Ayutthaya', 'The river kingdom: raft houses, households that pay food, women who carry more, and war elephants.'],
   ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.'],
   ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Battles.']
+];
+/* Guide tab: how the shared rules work, in every civ */
+const ENCY_GUIDE = [
+  ['Ages', 'Every civ climbs four ages at its Town Centre: Village, Kingdom (500 food), Commerce (800 food, 200 gold) and Golden (1000 food, 800 gold). Each age needs some buildings first, makes the Town Centre tougher and opens new units and buildings.'],
+  ['Town bell', 'Ring the bell at the Town Centre and villagers run inside to shelter: 15 in a Town Centre, 5 in a tower, and each one inside adds an arrow. Tap All clear to send them back to work.'],
+  ['Stances', 'Aggressive soldiers chase anything they see. Defensive (the default) chase a little, then go back to their post. Hold ground never moves.'],
+  ['Repair and demolish', 'Tap a villager onto your own damaged building to repair it, paid in wood. Demolish takes a building down with no refund; the Town Centre can\u2019t be demolished.'],
+  ['Walls and gates', 'Palisades from the start, walls once you have a Barracks. Walls are plain timber until the Age of Commerce, then they take each civ\u2019s own style. Your gate opens for your people; close it to shut out everyone.'],
+  ['Trade', 'Build a Trading Post on an Orang Laut landing, then send trade ships between it and your Port. The longer the route, the more gold.'],
+  ['Fruit groves', 'Banana groves and mango trees feed your villagers early. Durian trees hold more food but are slower to pick.'],
+  ['Hunting', 'Rusa, kancil and wild boar run from hunters. The seladang is big and fights back, so send several villagers or a few soldiers.'],
+  ['Kerbau', 'Walk any soldier or villager up to a wild kerbau to claim it; it walks to your Town Centre. Send it to a Granary to fatten (200 to 400 food in about 4 minutes, 3 per granary), then butcher it for food. At most 6 each, and enemies can lead an unguarded one away.'],
+  ['Kerbau Minang (Melaka)', 'A Melaka kerbau sent to a worked farm pulls a plough, and that farm gathers 30% faster. From the Kingdom Age, Melaka\u2019s Port becomes the Syahbandar Port and sells kerbau for 75 gold.'],
+  ['Fire', 'Foot soldiers set buildings alight with obor torches, gunners throw fire pots, and from the Kingdom Age archers\u2019 fire arrows sometimes catch. Timber burns fast, Majapahit brick at half rate. Villagers standing by or repairing put a fire out.']
 ];
 /* Golden Hour menu art, drawn from marketing/menus (menus.py, mendam.py, pages.py) and the hero portraits */
 const MENU_ART = {"hero":"data:image/png;base64,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","skyMain":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAEoCAIAAADwisfQAAAARUlEQVR42mP8caOCAQaYGJDAKGeUM8oZ5YxyBhOHBUL9eHABQwYiNhpUo5xRzihnaJdvHy58wJCBiI0G1ShnlDPKoTIHAN0ED1A0QPsQAAAAAElFTkSuQmCC","strip":"data:image/png;base64,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","skySub":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAACECAIAAAA4Ix3xAAAANUlEQVR42mP8caOCAQaYGJDAKGeUQ30OC4T68eAChgxEbDSoRjn4086HCx8wZCBio0E1IjgAsgkOCCkAru0AAAAASUVORK5CYII=","sea":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAACcCAIAAACY+57XAAAA/klEQVR42u2Z0QkCMRBEo1iAFRzWYwlWL1ZgCX6IcHA/Z7KzN0nefh+8DCyPZO603B/lN9fbUv6f9/O188tzSZxL3RnrJjUZMGDAkg2ynVhbOiWLtSXbCAzYXG6MtaV3shZbso3AgI3mxrXr6uyw35a5ydpvhqZtATBgwNJuV+qm8bhk6qaRbQQGbK43tcKWHskUtmQbgQGbxY0KW7oma7cl2wgM2Ghu/BpP3TQekazFeNZtATBgwNLcqHZHb25kQYAB400d/3Z2TaazJdsIDNj4btTZ0i9ZlC3ZRmDAZnRjlC17SNZBWwAMGLAEg2wtp/sv02ffaNcWAAMGTD8f4QRShNmuNrAAAAAASUVORK5CYII=","portraits":{"gajah-mada":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABwUlEQVR42mP00pJioCVgYqAxYCFG0YUX37CKG0hw0coHChIC1AwiTOMevPhAhSBCCplv+BXgCSuaRzJpFpxb53BunQNJWhhx5YOuMjWSDCrrukWaBbiSJi6AKxoI5INVFX5Pnr3Co+DWo2czDjwa9Dm5adUpCKMuzAyTSwUL0AwixlzCkRznpgdnFy04wcDA0JdggSly69EziMiJG2/I9wHcaIhxanJSyJYNcHGN3YJXn344BHBgiqvJSanJYQnStDwlZL1ExcGrTz9KQtAj89IpaJLXM5NDDjS0CHj16YcYHweBOICrQAZwc/EDMT4OuB1MaD7C9CNJAK4XYgcDAwMTnIVmPwMDw6JdlwiaqCYnhRw+yKZB2NA4QA41zHBEiw+0cMevlwnNZkw/4ooPTJVY9TKhiWL6EX9MEtTL6KUlhewjCw0ReODqGBAb21cucMDLjE2nniCHLRNWP1IC0PzBgplykd3FwMCA3x8QNZgxDDeNBc6CiAb5CcF0ohuBXHgc2IBuK1zjiRtvkO1AxAGERI4D7G7edYfBTQVr3YkcB3AzWZBNR4mDXXdwhgtWKQ0uzBQlxsfBhManPJLRXAwA1dQninP++GcAAAAASUVORK5CYII=","hang-jebat":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB6klEQVR42r1UPWjCQBR+HkKPo0O2iJOTiEPpVDoGp5KhFKdO4lTELtKxUAcHB4fioohDce3iKE7iKB07iHRyjNLBocRMocOjx3lnzjT+vCFcXu59733fd5eYnUzCMYPsWV8wWMFgmg3xfaBPwQAAPlc/0RmEHDMig5DoF8Z5dAZ6+gdooC8OE7oGT853SJRLyo54iqIzwOhX753lcuunr7nTHE6Pfg/2ZQAAz70xLupFS3wtWpnD3OR60UJoTYZHtT8Iy6BdygGAs1yW2yMAaJdzHB0zFTtbuckCwHg8DwKJaX7XD8Vr1VUASKcS4qvaoNof1PL2iUzezmDheSalIolyZ6QKiAw04wd6YFLKeyA6+vExnmHmysqUOyM0QDPfDg8WnvdSsjT0tzJAEo92DnuQheepuJzHfxUXa3FN+ErSB9fd3kQDl04l3oczqZZ7gDhxVXEp0+1NJK1EZdRa0QOTUiJNrXIM0krdic9a3m4NRvwrkfZJuKpDW5XU1MZFjmvfn7suAKz+UM4oXQGsXFeSHgB67tRgTNyJtZIHZOekEULkQcKoAQCNzePUCDhdb807mDVbr7ccLS46Pt+UgofBmAqKSb1DJqUxO5nk/qx9P0xxUHCrUoxxTMJXEe6txgOOSdQTtn+ImL9/oi5EHYMZHAAAAABJRU5ErkJggg==","hang-tuah":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB9klEQVR42sVUP0gCURj/PA7MUhFRkQhzOkSaHUWawqGpIWhxDAdxuEmi0cEWiRCppcnBIcJBguCQoIbGBgkHcSg45JDjDtShjoYnr9edvrvutL7pe+/78/t+v+/duWI7WVilMQ7rG/y4wY8pCayT1n/BAAC6PdE+A4tj2mRgsXuSi9pnQKe/BAB6sRWjATxV3iwrzdkBqIqS1TE3Ofvfwc3poTgczg31BmL1rrvy78D+DrCVrjvIKecy5DGXSSwHAPU1HnsD80fsovxNz/fXkJOvCQBQy+/iELopZpPoePEScARAbhUAuHhUx4AC8E9LnqiSxxcqtKbfKtUF8g8CALXj3bnjo1oTAI8vRObl6wJq99x5RTepTCJfF4p7SdNa2g4mqnR1tEWhj3YwdwEYg5mokjGGZ/mt4mQt8hns6Tgiv9CaUtpx8ejZ48eiWuTPJNJtRnej00qnDL2W0SEbOS7Sypg5UaUmH2nyEbKW0eUZOS7Sx5hJzoGjLBlzfyqarLgBvNrs+Xo3WNBkRRkBJEnpAUB76Ib9QdBknKnI/YOTfjo2RcmoM2M6qQ0jmTFW1ACA0q1IOVLUc4W3U1g7Te4jx+8P2hhcUUYAkI5N798jWHnG+H6cG/leWOx5fKE2v+6scxQAypcDsidLorUroyXMH/jB4Au5mSOqykFTIgAAAABJRU5ErkJggg==","hayam-wuruk":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB3ElEQVR42sVWPWjCQBR+CRlcAulSQoguLSKplEwiTqWDY+kUHDuVzh2kk4NjC85FF8fi1K3QyVGcQnEI0qmIiIuBWxw6dDh7Hne5y2kqfUO4e9z7+b7vXRLNq3mgYIPbYwBwfR8AZmEIAEF3qRJowC6GU+9kOhzYtFSKMDkiSyVqZwSTx9lhKSo33T+jSE6OIlFKCIKpo+hURYB7n0QLVd5KtgiH7B7cd1ULvHfs/S/a4OFqNk+mePo1fx5+/fNFU3pVtAdjvGgFFXrbqLqZxjSO5ooUWSVnnwKtSmGjdn8EAJ2b6lb//ggA7i43B14W35kK0C0DQLHg0Ft5gYOLnFwAxQgA2mN2BIsFh7RPjGkfx6ZMkWmZKEamZTL+j9+S5xx7olhDfo5xSvKKauh8FuLhEaQaHYvXOt8p7eFlYCTpRStRLF5vxpRnnPagGD3Vz5hhJdrKY3WmMo9RxBV/MjFWZ7w8RpUpkMRqXs2jETVsg/Bb9teqfwJhjtzqXrSiudUTMWYxBochuVmTMAcAchz4DK8wyablvTyN6K15Ioq8uN56hq9sVdJH0F3SNbYa4CetgeD7+wn108RvA60ByWnQ2VGMwD5iOmLNdwHWSQWAnyjTMnVmn11kpuMfXvs3uoSiOJgAAAAASUVORK5CYII=","parameswara":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABt0lEQVR42mO00gpgoCVgYqAxGGgLti1TmFX2AT+bIgueXLhAkE3lIPoQwEWSekb8qYiYcEjrEhjISGbBL33lxgsiDBEgM4gevDhApDMVJBzI9AEDA8O6uogXr15hlbr14MWEHdcGOKOxEKOoagE0rNoSHJC5CQ4a1LEAYi4m99aDFxTlg7IAaABmTdvHwMAwLcsJLgURKfDSgnA3XBCjyALkWGVgYFBTkEDzAR4LBqg0/fDlFQMDg4XbPzRxNQUJuPPhIC5NDFMvAQsEeMQ+fHkVlIUufurADQhCFkRTBtFLOBXB1KG414yIdAnXK8AjxsDAwITmI2Q/QlSQVpgj6YWwmdB8hObHrg3/8BinpiCx4AjO8IGwockU7iNkt8BFPnx51RYjgZZY4UkTv14mNJsx/YgrrDBVYtXLhCaK6UdCqYCAXkYrrQC4j1pbDCDSmlooqeX6tRsfz1xCs4DfRA9TGYRRXXMB7ksmgi4lAyD7g4mY0GBgYLCIC8PDxRN6LPDwwZPqIUGBZiha+GCmIgjJhJkGKAfIcc6CbJvoJ2hV9ebEATLMFUX44BfcTBZk25Z1sVHdBwDHyRMV3CbyFQAAAABJRU5ErkJggg==","taming-sari":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACDElEQVR42s1Wv0sCURz/ehxxg4M2NBxxRISERESDiJM4SDQc4SDiILWEU8MNEg0G/gFHOLUZDgo3RDREON0oThIOEU0iDi53ww03NDQ8ez7eu3tepeUbjvfz8/1+Pp/3vbtQSo7DMpsAS25LDyAG3GdH6JmIvfoM2Kz9VjlsFsPAjvhm868SGZWNgCjnVxNEgtWKFyCr9QMG2JLkn19T41IdjSeeS2/D8a055Pu8GoVWM3qoU80nyGEhubmYQqvmEwiaM4Obft8KykAvJQFgNJ5od10A0E+TGB3NlDNKOa0AwHP3ww8kxHldX+QV1lUAiCkyOWQD6PctLVf8I5O9GViuE5XCJAmt2WUFRAw46ft6EJXCOAZCR3689Ka3fj+haM0uMoCT3xwPLNe5LvE+qJ4MEImzYxXFECzXYXExj+8qTp5FfQH3KH1Qv24MOXAxRW6bNnUWe4BwRFZxaqZuDCmtSGXYs6QHUSksUFmzHP20Yneip5YrNp4e8apA7aNwWYc8leScDaXkOMnxKCliffcO3IDeDvoSrupspYnrwHIdwVOfXzaSh+BZWTivQV+amzu5J6sewutNQ8/gGCLpuOU6OXX76+QMAnXSJzMg84FWL6euA4DD3MOZB+hJeuCdc+cdsjt+VQ0AbdMmPRdJdMt1AKb/N7WOX4mtgddSYVdkb1RUCgvUeCEOk5ifJPU/V7EM83wAAAAASUVORK5CYII=","tribhuwana":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB5ElEQVR42mO00pJioCVgIahi3TQzo6ADWKXOrXMIyjqFXzsTA40BIzFB9ODFN6ziChJclAYRLqORZfFbw0K8Z3f1GVzpeqJTJsPAwOBWdIFIXaTFAcR0asbBrDI1gkakdd0i3wL8cUBMVDNRaDpBZYQjeVWF35Nnr7BK3Xr0bMaBRwOc0WhuAVH5YNKGCwwMDHkBBmgiHkZiFFnQF2fBwMDw5NmrBx9+oEcsTCTDQY6BgWHHjTfkJNM8Nz3MWGVgYFCTk0Lm4rdggCL5/ecfDAwMDgEcaOJqclJw5yNycp4Spl4CFgjycrz//ANLZXLlE8OVT2hiaMogeglHMpo6WGnHR0ywQPQK8nIwMDAwYZoCF4GoIAkg64WwmTBdiiwyadclPMapyUktP/0El14IG5pM4T5Cdgtc5P3nH/XBZmiJFZ408etlQrMZ04+4wgpTJVa9TGiimH4kJhXg0ctopSWF7CMPDRF4+OoY/CAybq9c4IDn6uWnnyCHLRNWP1IC0PzBgplykd3FwMCA3x8QNZgxDDeNBc6C5l4/IZhOdCOQS44DG9BthWvcceMNsh2IOICQyHGAo3l0h8FNBWv1iRwHcDNZkE1HjoNLu3CFjAwDNikODQbMFCXIy8GExqc8ktFcDAB7ITTSyqN5VwAAAABJRU5ErkJggg==","tun-perak":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB4UlEQVR42r1UMWvCQBR+HiFDCkXBSrCLg8gpHTo5dChSOvkTMjk7SIcOJRSHDpmKdHIoDp2cOvkDioOTdCwlCAUnCRqwSHWQDB1OruEuuVwT2ze9e3nvfe/73uVSxcsz+EtDCetHvc6o1xEkKEla/wcDALDtt/gMJMeMyUCyO8Yn8RmI6e8BQFwsYyIAd3iT/AqIAL6Kt9J92gn+g9dnZz4P/DKZOufNu/gMmF5MpFTQk0pEzXwaEsdq1HxHu1HD+wEgffkjT4u3lOA1va/uRGh2XwCg27ygn0jkql4hx8d5AgaTqUNbk5FLBZ1EZBhEP3aSy/ydRBt3qWUzRCVsmHbfwobJviJ9CxvmwGox+tBakURaNuPPIxgAMB7aJFKtYR4ysDZ0ByQPQKcYAIANKVn8GGjjLnl9aB6RIqzRwGoJaomPqMfNDgBwPXbCMOy+VSroD++htcTfLZnZDBPZuMtuvcw8G3S34lrEIPMcqVaRagTWIibKc4y6BRG1in/jalr1vLWaVrWctsvLaQCwmi34X8+bfWQrxz94OW01W5AOinJAMVDkpDHMzwPJqAEA7elKcBSol8qflukOPW9NnMP8UYzBqZLbzy1VHvF3ILn5d46oF3gXY++AZbDfPft7fgMGWyKRHxO4MQAAAABJRU5ErkJggg==","afonso-de-albuquerque":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABtElEQVR42mPU0jJgoCVgYqAxoLkFLPilP7x5QtAIARGZYR1EAx0HCnIyBI348I10C+Bx+4EUx2KNbRY8ShOiPIg0esGyHWQGEQMDQ5qLwYcXL7BK3bhx49IfgcEdyRDgldUEYWybVofM7csLo44FaObCRW7cuEGRBWE6EgwMDB9evLBKaGBgYDi2oAFuOkRkXkWEHssHKvgAbjTEyRoaGhARYnxAOJJ/qNjgzIY+KWRa8PnzJwYGBq+qBWjiGhoaGhoaaIJFi05g6iUQRLy8fJ8/f+Ll5SPoCYJ6mfCrIy/tI+tlwjQFLgJxBcedI7gMerBlDh69EDYTpkuRRTCjAS1KUqfuwqUXwmaEtCqQQw3uFrjI58+fdm9fhWZ6UFgKpkpMESY0mzH9CA8rgqGBVS8TmiimH4mJSTx6GbW0DOA+wtqGuHbtDAMDw4sXb9DEJSREGBgYtLRM8NQ86HGAp5Fy7doZZDskJESwGg0BzOx8OOMAF0AzDo/p+OKAWpUMcnwg4uDz509/f35aJ8TFwMAQ9O4bJRYIiMjAzWSUlVWCpwFiGorEAEgcQMxkwkxhlANkMwFGKQLK8SsHdAAAAABJRU5ErkJggg==","ang-chan-i":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACBElEQVR42mMUUbFioCVgIkn1nTVmd9aY0dACMgAj8UE0JeQdnJ2zRojKFhyoYUMTcWj5RTULkN2ODIjxB2ELMN1Okj8IWIDL7cT7gwW/2690/SEmevD4gwV/yBS9eEPQgl0MMnjsYCGof1aGw7NX2APq3rM3i048G+CMxkKMognbrkAYBV46yFw/AwnyLXBo+cX27hpWc+Ei9569YWBgcCu68EtIi5xk2uYAtb5hzSUGBoaGED24FEQkzkoKwp1zS4AiC5BjlYGBQUlKBJmL34IBiuRfX9+zcQv6xQhtWgJNoA3rLiHJP2NgYGgIgoZYQZnanJRXaHoJBxFEHSSUGtZdghj34Bo0TBS0RBrWXYqzkMIaPsh24IuDX1/f93iL4vE+JA6wRgDcDqZfX99jykEYyD4lEiDrhbCZ4Cw4QBapOoCvsFOSEpl2/j8uvRA2NIjQYgZNBC2s0EIGv14mNJsx/YgrrDBVYtXLhCaK6Udc4YOpEqteRhEVK2Qfpah9gIevlQ2x2fDYkX/wXD3t/H/ksGXC6kdKAJo/WND8yMDwAdldDAwM+P0BUYMZw/BQYeST1ET20bF2cVw6/WIQlTu8CIEDuDscWn4h24GIAwiJHAdYncx37NknWCmNmavhcQA3kwXZ9F9f3zMwMMINwhUs2KUU2DBTFBu3IBMan/JIRnMxAIACTZ1qM0q+AAAAAElFTkSuQmCC","bhre-wirabhumi":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB40lEQVR42mO0khJhoCVgwSMXwslBpClrvv/AJcXEQGPARJ67IODun793//zFr4xkH7jVqlDNB1jBruY7tLWAmnFA82Q6q02HSFPSqq7gkmLEk9Ee/PhDpAUKHCzk+AACVlX4PXn2CqvUrUfPZhx4NIjjAA6aVp2CMOrCzJC5ERYy1LEAzVy4yK1HzwjqxRfJeWEmEEbRghMMDAx9CRZwKYhIhpMchLvjxDOKLECOVQYGBjU5KWQufgsGKJLf//glyMHmEMBxYAO0pCxadAJJ/hEDA0NfHDTE0vKUkH0A0Us4iCDqIKFUtOgExLhLp6CpXs9MrmjRiQwHOazhg2wHvjh4/+NXfZwVHu9D4gBrBMDtYHr/4xemHISB7FMiAbJeCJsJzoIDZJFJq87gMU5NTmr5gQe49ELY0CBCixk0EbSwQgsZ/HqZ0GzG9COusMJUiVUvE5ooph9xhQ+mSqx6Ga2kRJB95GEhBQ9fHYMfRMbtlQsc8Fy9/MAD5LBlwupHSgCaP1jQ/IjmLgYGBvz+gKjBjGG4aSxwFkQ0yE8IphPdCIcAhFnwIgQO4Bp3nHiGbAciDiAkchzgaBjdYXBTwZWr4XEAN5MF2XSUONiFu4GFVUqDCzNFCXKwMaHxKY9kNBcDAPS+P4ZlRgBHAAAAAElFTkSuQmCC","borommatrailokanat":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABzklEQVR42mPUkrJiIBoc22bGwMBg5XWKeC2MRFpQF/cOTaRpkRAxGpkYaAwI+2BVGxse2bCqX4PbB5hBjwnwRwbpPtj0h2o+wB/6RMYEsT4IuyVFUIQEH0Dc7lZ0gUjrd/UZ4PIHC+Ewb0t48+IFVqkbDx50bboxwMmUhRhFRbN2QRh9aW7I3DQ3NepYADEXk3vjwQOKLJiX58HAwPDmxYukCTsYGBjmFXjApSAiZQEaZX4a5OeDvjQ5zFhlYGDQUFBA88GsXUwDFsnYLfj84z0DA4OBww80cQ0FBbjz4SAiQQJTLwELeDkEP/947xT1Ck380K5LEIQsiKYMopdwJMPUoUSDnZseMcEC0cvLIcjAwMCE5iNkP0JUkASQ9ULYTGg+QvNj0axHeIzTUFDo3fQRl14IG5pM4T5Cdgtc5POP97Pz9NESKzxp4tfLhGYzph9xhRWmSqx6mdBEMf1IKBUQ0MuoJWUF99FvbR2INKuoCrRicNtGuC7a5QVh/H59B6r96hW4L5kIupQMgOwPFmQfceBwHS5/wN2OJx+wwFm8HIK/CQUCAwND3YVZTQZpBH0At4MJMw0QaAURMh0tzpmQbaNiHKD7gLrxjGwmAHlCE3wfZfz3AAAAAElFTkSuQmCC","brawijaya":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACEklEQVR42rVVP0gCYRR/HofcqGEOh90Q4STRECFOR0M4hThIOESTNMgNIQ0NBQ1NR4M4OUSb4BBOEU03NEg0RDhJg0jcEIG1xHkuDc8+P767+zxPfYN8f957v/d7v++doYwcg2WayLn7jsR9Zol8f3pdCbBkE4LVhTayhyN7yHebmUHzND6Tf4gvMl+GkT0EgNXfn0UyWKQGS3+m9auUvyRrpbNOEABxW/ddaDYIANrXffXDdH+I3b5ZuLwJ3iImF3OSVOR5NSB22XzGxXlhZ7JtfxykE4sBwLzOrZPWbIOmFbZxcXLbBoDrozS5wpPjXQW3D20zOINu3ySpseSkIuOJHwbTB82nmLMxGFh2VAqrOcloWWqlZuhltVIDAJXyMfRyqXpX1/IlbZ1uEcZOAYhK4YFl54tPKANiAMDbcx8dNncUhASAfPHJGUswPDVAP7J1MuAYjSHQWQhH4oet8PxYaXlOLK4FplKm9mrzxQvD0MtJRW4YPa9YXI/ngFGGORlY9sVhhvlsEGH5sQKD7ORIejW1G66xAnPq5OjnFXBiQxk5RjPKpmUyX6kty+c0dV4lMtUNo0f3VnDlOI8xPETX6SB1AQCfB/o4FSbZRLIaT+/+yn8km0LNTXIZLRaVBD60TRpjogH+0hq41/z4DnsbnL881IDkFOnstAaendlKAFhuAOB8UVEpLDD7+UVmKv4D2KBL6L+nB2MAAAAASUVORK5CYII=","girindrawardhana":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB6klEQVR42mO0khJhoCVgwSOnIOBGpCkPPuzCJcXEQGPARJ67IODNr9dvfr3Gr4xkH1SVPaOaD7CCti4p2lpAzTigeTKd1abDwEBMiOukVV3BJceIJ6M9+PGHSGcqcLCQ4wMIWFXh9+TZK6xStx49m3Hg0SCOAzhoWnUKwqgLM0PmRljIUMcCNHPhIrceEU4C+CI5L8wEwihacIKBgaEvwQIuBRHJcJKDcHeceEaRBcixysDAoCYnhczFb8EARfL7H78EOdgcAjgObPgBDZNFJ5DkHzEwMPTFQUMsLU8J2QcQvYSDCKIOEkpFi05AjLt0Cprq9czkihadyHCQwxo+yHbgi4P3P37Vx1nh8T4kDrBGANwOpvc/fmHKQRjIPiUSIOuFsJngLDhAFpm06gwe49TkpJYfeIBLL4QNDSK0mEETQQsrtJDBr5cJzWZMP+IKK0yVWPUyoYli+hFX+GCqxKqX0UpKBNlHHhZS8PDVMfhBZNxeucABz9XLDzxADlsmrH6kBKD5gwXNj2juYmBgwO8PiBrMGIabxgJnQUSD/IRgOtGNcAhAmAUvQuAArnHHiWfIdiDiAEIixwF2N++6w+CmgitXw+MAbiYLsunIcdC0C1dly8aATSpCgwUzRQlysDGh8SmPZDQXAwCSjkFStsR0MAAAAABJRU5ErkJggg==","hang-kasturi":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABtElEQVR42mOUs9JioCVgolD/f0Ph/4bCeBSwUGI0PXzAwMDw/ekH8n1ApDPJ9AGRpnNKC5DvA/zep4IF+DUTA/BZsN2UmUhTvM7jlGLEk9H+3HhGrDM1pMjPB+vqIl68eoVV6taDFxN2XKN5PiA/DuCgasEBCKMtwQGZm+CgQR0LIOZicm89eEFQL75IngRzYNa0fQwMDNOynOBSEJECL6jeKQ8+UGQBcqwyMDCoKUig+QCPBTSPZOwWfP/whYGBIe/ADTRxNQUJuPPhAM35EL0EIplTgOf7hy+cAjxo4qdgVprhTj9oelnwq0MTNCMiXaLZwYRpClwE0weEKx8kvRA2E6ZLkUUwowEtSrovPMGlF8KGJlPMEEcW+f7hy+wAE7TECo9b/HqZ0GzG9COusMJU+f3Dl1VpZqvSzJD1MqGpw/QjMakAM9XBZRnlrLTgcovK4iDSmjo6yGZdv3Llw6lTaBYImJlhKmNgYJjVNeMIAxfcl0wEXUpOQwbJZ0zEhAYDA4NlUhIeLp7QY4GHD55UDwkKNEPRwgczFUFIJsz0QzlATi9MyLZRMQ7QfUDdeEY2EwCK0ALfOGdwHgAAAABJRU5ErkJggg==","hang-lekir":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABtElEQVR42mOUs9JioCVgolA/O1sSO1sSHgUslBhNDx8wMDB8fXeLfB8Q6UwyfUCk6dxCauT7AL/3qWABfs3EAHwWrE/YQqQpXrNwSjHiyWh/bjwj1pkaUuTng3V1ES9evcIqdevBiwk7rtE8H5AfB3BQteAAhNGW4IDMTXDQoI4FEHMxubcevCCoF18kT4I5MGvaPgYGhmlZTnApiEiBF1TvlAcfKLIAOVYZGBjUFCTQfIDHAppHMnYffP/whVOAByWUZuxDUzMtwwniAzTnw/Xii2ROAR5kdVkz9k3LcGJgYDh14AZExMxBI2vGvgIPLYJ68cXB9w9fZgeY4PE+Vh+g+YPp+4cvmHJwt5Aa4sh6IWwmOAvNjxB2HixMsAI1BYnuC09w6YWwoUGEFjNoImhhhRYy+PUyodmM6UdcYYWpEqteJjRRTD/iCh9MlVj1MspZacF9tKgsDiKtqaODbNb1K1c+nDqFZoGAmRmmMggjrmsR3JdMBF1KBkD2BxMxocHAwGCZlISHiyf0WODhgyfVQ4ICzVC08MFMRRCSCTMNUA6Q45wJ2TYqxgG6D6gbz8hmAgAMkQ67jI0ZnwAAAABJRU5ErkJggg==","hang-lekiu":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABoUlEQVR42mOUs9JioCVgolC/L0OKL0MKHgUslBhNDx8wMDA8/nCLfB8Q6UwyfUCk6bICauT7AL/3qWABfs3EAHwWZKZtItKUzbNwSjHiyWh/bjwj1pkaUuTng3V1ES9evcIqdevBiwk7rtE8H5AfB3BQteAAhNGW4IDMTXDQoI4FaObCRW49eEFQL75IngRzYNa0fQwMDNOynOBSEJECL6jeKQ8+UGQBcqwyMDCoKUggc/FbQPNIxm7B9w9fGBgY8g7cQBNXU5CAOx8O0JwP0UsgkjkFeL5/+MIpwIMmfgpmpRnu9IOmlwW/OjRBMyLSJZodTJimwEUwfUAQIOuFsJkwXYosghkNaFHSfeEJLr0QNjSZYoY4ssj3D19mB5igJVZ43OLXy4RmM6YfcYUVpkqsepnQRDH9SEwqwKOXUc5KC+6jRWVxEGlNHR1ks65fufLh1Ck0CwTMzDCVQRhxXYvgvmQi6FIyALI/mIgJDQYGBsukJDxcPKHHAg8fPKkeEhRohqKFD2YqgpBMmGmAcoAc50zItlExDtB9QN14RjYTAMrWAhP5fGtvAAAAAElFTkSuQmCC","ho-nguyen-trung":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABx0lEQVR42mO0MhBhoCVgYqAxYCFG0YNn2MUVpAa/D3C5HVkWvz/o6AP8jiXVl3Bv0dEH2IOSRYawGX+ekBnJDx79YWB4QIwzFeRYyM8HxxaVfHjzBqvUjVsPimYcGAo5OapqEYSxrC0OmVuXYEcdCyDmYnJv3CIcQ4x4StNpBTEQhlfBAgYGhm0TEuBSEJG+LAcId9K2IxT5AG40xMkaagoQEWJ8QPNIxh5E7z/9EuRjQwmlogXo3upLgPgALXzgevEFkSAfG7I6r6IF2/oSGBgYVs3aBREJS3PzKlrQl+FAUC++SH7/6dfyuiQ83sfqAzR/ML3/9AtTDu4WUkMcWS+EzQRnofkRws6asASPcRpqCo0r9uHSC2FDgwgtZtBE0MIKLWTw62VCsxnTj7jCClMlVr1MaKKYfsQVPpgqsepltDIQgfvoNZcNRJpVAKX2WZ+2fcKFUjQLCgy6GRgYAmd5wkV+f4BWnqLfEKGHEge4LIDYgWwWVgC3gOXFPpxxgAsEzvJcn7Yd2T48inHGAX4Hwu0g6Bvk+GDCTAME7SAYVshxzgRnEZNvIabjDx9kHwjysSFS0ftPv/5IOOGKZGIAciqCmwkAOeIrVmrIuboAAAAASUVORK5CYII=","ho-quy-ly":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACEUlEQVR42rVUMUtCURT+fIrYYkkN0fQmcxBKcJKIJod+QESIRYFDOEhDg4MUiEODSESDLRFi0lJDODQEhURDYEGDRMObmoKkhkISGm7cnve+e+9T8w6Pe88953z3O985zxGZHsMglya6MF5QTAWNF0W80s0hYkBj9AkFgNzNpeSoJNFjiQaugWhd7AQHCxDdfOzKX6gBEc2OAPIucPVfkERBxskhGbT8XsVmHTaSiz0yADDevG2+vlpeNZ4MfT7ZowZ8LsYS8Ot9iWxeS+kjsinn4qbjdWZl9n8ASF7+yNPqDsDzfA6gCcynDgFUCyv0iljy63NGda9fBo0ng6YmTw74dWKxw0A9yTbF7G4O3t5bPq8bwH4q5gnHvu5KnnCM8SHG+3J2t1qzjJWVyOd1m/0IBoCT4gWxLCSiPKRlrFAD4vcneDgGIC5IKsHQzFkoR+pHSiFKdF/OSmLJXmNeyrx9vVASYXzdlQJ+fbtyKYol+1+RGWUYy9t76zizyvw2qLbyWI1B5jnSWimrYRmrMVaeo50ukMS6zIpvLg8DAIYiUx3dVU87xyY/6HFmchQAzkbgQWirTe03D9/AEICD00+K4eI7l1+hXLu2dhXKtTuNwjal2Xxet2anGgSjnnaaOSnnwEID+fhQjHraybCxZMDOgZyBGUOendFcozslA/p2eX3MDHxet8Z3mJwB/dpk8AMxxj8ruU2izAAAAABJRU5ErkJggg==","le-lai":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABy0lEQVR42mO0MhBhoCVgYqAxoLkFLBTqz/slAGFMYvtAjgVw/TQJIspNp1oc4AofAkF07ucvYm1gIyuSjdjZiDT/CMM3ciwoevGGSAsU5FjIT6bHFpV8eIPdphu3HhTNODAUMlpU1SIIY1lbHDK3LsGOOhagmQsXuXHrAUG9jHhK02kFMRCGV8ECBgaGbRMS4FIQkb4sB2g+2HaEIh/AjYY4WUNNASJCjA8GqLh+/+kXAwND1oQlaOIaagoaagro5QRq+ED0EggiQT62959+CfKh5+RVs3ZBGGFpbricjKaXBb86NEE85uKygwnTFLgIpg8IAmS9EDYTpkuRRTCjAS1KGlfsw6UXwobmA8wQRxZ5/+nX8rok5CIIOW7x62VCsxnTj7jCClMlVr1MaKKYfiQmFeDRy4Ic42Xx/AwMDAwMnFb6KKnrfBWziPpnONdGXZiBgYFhgwADB4Nhw19EwX7xDwMDJwMDw+z13+F2sOBJ9XBg2Pb3SPJBw7a/qIL40hLENEE+NiZiQgNix/kqZmQ/EcwHWOIAfxqH23G+ihnNN1h9gJ4P8PsA2Q78pqPFOROcRUy+hZiOP3yQfSDIx8aEmcLw+wBOEukDAAaKF5E0sUnnAAAAAElFTkSuQmCC","le-loi":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABrklEQVR42mO0MhBhoCVgYqAxoLkFLJQa8IsLymD7RpYFcP00CSKKTadeHOAIHwJB9OXnHyLN52EjK5J52IlPAr/IseDBi09EGq8gx0J+Mj22qOTDmzdYpW7celA048BQyGhRVYsgjGVtccjcugQ76liAZi5c5MatBwT1MuIpTacVxEAYXgULGBgYtk1IgEtBRPqyHCDcSduOUOQDuNEQJ2uoKUBEiPEBzSMZexC9//RLkI8NEkpeRQu29SV4FS1A91ZfglfRgr4MB7TwgevFF0SCfGzI6iB2MDAwrJq1CyISluaGaSVWvTjjAKIOEauoxi3AYTqmHUzIpsD9CFcHCQpcBvVlOODRC2EzobkUze1ZE5bgsmNbX4KGmkLjin249ELY0EhGixk0kfeffi2vS0IugpDTPn69TGg2Y/oRHlYEQwOrXiY0UUw/EpMK8OhltDIQgftofgMvVTJXYsNnuC9ZkO2fuEryyYtPMhJ8FJLvP72FuFiQjw2Rk99/+uVooUMVH1y4dgtLPhDkY3vy4hMDAwPlJHJ8IOKAFj54/+kXE5wF8RFVPIFsJs19AACEs3WoAYcQJAAAAABJRU5ErkJggg==","le-thanh-tong":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB8ElEQVR42sWVv0vDQBTHX8MROgUjTg4lU+nQQermUDJ16B8gIiLFoUhcShAHh0IXB4cQHIp0KlVUnJw6dJBQxM3NoXQKDp0KlU5SMjicnOld8pK2Bm8o7+7ej3y+7x1N7WxtQJJLCrtwR9Cq5d1RRHykWyqMgMVomxEFcDcSyRgJsaREifcgbPUu88kWKJ29L+Qf2gPatDgNwKeArC5I1caYUshDcz+8mDpoGbIkAQC8dk4/x+PAq8HQNa+dfx5TEsdp/7xDjbuLQ/+2Xin+TQGaV9wOhm5kLNbkZu2AGuVaGwC6doVd0RPL0On2qvuyEgFLTT85l9XoSRyCxJscLNFkOlMVeU4ls81jWRVKwOnDYjGJVEX2+5XNdteqAMBjq0dPdqulstm2jvXIWKzJk+nsvn6E4AcScBzSZDoT79i3LKq4P5baErM4Rmob9i2SLpfVGg/PYbHU/pGI6wx3wmnFKYPHSlxlkTFMK9EzMFbiTkXGMH1Ez8BY4p+qxokCAADp4vbc+DoGyRSmbJsprAMAPK1BGnT79z+j/+YBpAHAvvliNYg4ueLSm15vr683vflDbJZoNlWRpThq0BqOQfxMiHNoD/AZZzUcg3A0gQT8O8AJ/DXw7FzPJWbFebc0O66Pn0BVZEmcMJyA/cYk+AbT7TOZPPRHaQAAAABJRU5ErkJggg==","lieu-thang":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB1ElEQVR42tVVPUjDQBR+DZ2EC8VduKFDydRJHJ1CpuIUxEkcSghYsIiDg0hHhQ4ZSuwgnUrJINJBSyZH6ZQxQ4eODiIlB51EHK4k5zV/bVLUNxwvL/fed9/7ci8FSapCarv/+gCAE2E7fYqwanXWSWOFNAyO61povNc1swIcqIeJJR6tQT4tYg1jjDHOWYP17P8DFONfO46zUnwFgOruHgC8DAeJJfZrhwDgjF/XYQAAY+t69v4W+sqdTBvt0d/WgJra7FLHatfZx5Yu5wPA1fUj7mS6/qigIl8qJQCQNRMAbDOYSDRinCsA8DApZRKZLU2PXCljGknD4JdEJsRbUFYUWTftjibr/GS2O1qjPTKaCtccQjyExAQAhER2H8UAgL4xpJGjRm0ZMjQ3UgO6L1D1Z7meHverYTEEtorP0d9HWxFVyGgqMbnUF7iTcmdXW6MoDLujVcr47G4clUv9xT3glOEihHjPtyo7ggDgqu+GqspFBA55maPfq8RuhOYKXHSZY5qvICa3IElVn5F1Ucrlcqk3M59lkcV/6s5cMq+grYwrIZ/0xAiJwbAjxDvdEXNh0JtByD1ASHTJHACyr6wegQabYECIJ/geZZQLCbbmxhl8AySjhqbjaMllAAAAAElFTkSuQmCC","maha-chakkraphat":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB9klEQVR42mPUkrJiIBoc22bGwMBg5XWKeC2MRFpQF/cOTaRpkRAxGpkYaAwI+2BVGxse2bCqX4PbB5hBjwnwRwbpPtj0h2o+wB/6RMYEsT4IuyVFUIQEH0Dc7lZ0gUjrd/UZ4PIHC+Ewb0t48+IFVqkbDx50bbqBXzsLkW688eABmoiGggIxGomyoGjWLgijL80NiXsrzU2NOhZAzMXkYnqLNAvm5XkwMDC8efEiacIOBgaGeQUecCmISFmARpmfBvn5oC9NDuJMeHBDnIzGZWBgmLWLifx8QGRkkhZEn3+85+UQNHD4ceEAB7TA2YKUHK/cYGBgqPOBBk5EgsSsXa/Q9BIOIog6SCg1bbkBMe7QrksQWTs3vaYtN8J0OLCGD7Id+OLg84/3s/P0CWYOrBEAt4Pp84/3mHIQBrJPiQTIeiFsJjgLDpBFimY9wh//vZs+4tILYUODCC1m0ETQwgotZPDrZUKzGdOPuMIKUyVWvUxooph+xBU+mCqx6mXUkrKC+4iNixsizcUmCs2iZc8IRmxaF7Tm+fbrNYTx69tXuC+ZCLqUDIDsD0Q++PzjvbCQDJoP8PsD7nZMH8BDhVFWSBMeh5hBhAnyGE5NYjDDKgW34O27J/BYYcJMA/gBLtMx4x9CMsFZZORbPHGA7gPqxjOymQDR7SpvOfPgwgAAAABJRU5ErkJggg==","naresuan":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB0UlEQVR42mPUkrJiIBoc22bGwMBg5XWKeC1MDDQGjMT4YFUbG1bxsKpfg94HuNxOvD9I9sGVrickqSfZAp0yGdpaQCpgIRAgN14QYYgQmZFcF/eOgYGhaBY+O/rSJBgYGJoWCZHpAwYGhk1tCW9eYLfjxoMHDAwfBnccQEDRrF2wAHFD5qa5qVHHAjRz4SI3HjygggVvXrxImrCDgYFhXoEH3HSISFmABkVFRV+aHLZYZdBQUEDmMjAwzNrFNGCRjN2Czz/eMzAwGDj8QBPXUFCAOx8OIhIkMPUSsICXQ/Dzj/dOUa/QxA/tugRByIJoyiB6CUcyTB1KNNi56RETLBC9vByCDAwMTGg+QvYjRAVJAFkvhM2E5iM0PxbNeoTHOA0Fhd5NH3HphbChyRTuI2S3wEU+/3g/O08fLbHCkyZ+vUxoNmP6EVdYYarEqpcJTRTTj4RSAQG9jFpSVnAf/WaFhjgrKzR1rapRIFzpt0Dz8+/ff6Daf8vBfclE0KVkAGR/IMqizz/ec/B+RvMBfn/A3Y7pA3ioMMoKacLjEDOIsNSjbCxNv/5glYJb8OMzLzxWmDDTAH6Ay3SsOfnzj/dMcBYZ+RZPHKD7gLrxjGwmAPs4Edd5lkqMAAAAAElFTkSuQmCC","nguyen-trai":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABzUlEQVR42mO0MhBhoCVgYqAxYCFG0YNn2MUVpAa/D3C5HVkWvz/o6AP8jiXVl3Bv0dEH2IOSRYawGX+ekBnJDx79YWB4QIwzFeRYyM8HxxaVfHjzBqvUjVsPimYcGAo5OapqEYSxrC0OmVuXYEcdCyDmYnJv3CIcQ4x4StNpBTEQhlfBAgYGhm0TEuBSEJG+LAcId9K2IxT5AG40xMkaagoQEWJ8QDiSo1o24JJqWnWBzDh4/+mXIB9b1oQl8FBCteYCAwPDspoArOED0UvAB4J8bO8//cLvCVw+Q9OLM4jQ1JEEkPUyYZoCF4H4FB4UmKAuzACPXgibCdOlyCJZE5bgcamGmkLjin249ELY0HyAFjNoIu8//WJkEkIzXYDnC9ZYRRNhQrMZ04/wsCIYGlj1MqGJYvqRmJjEo5fRykAE7qNH/w2h1nKLIpt1almek0sEmgX79qxgYGAwi5oEF/n39TWEIcd4HhG2yHGAywJMO76IWWH6CW4B7+eTOOMAF0B2KcQ+kvMB1pgk0j6sJQ16PiCYb7+IWX0Rs9q3ZwXW8MH0AYRkgrOI8cGpZXlmUZPwhw+yDwT52BCp6P2nX595zXFFMjEAORXBzQQA9Lobmqg0D2AAAAAASUVORK5CYII=","ponhea-yat":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB60lEQVR42mMUUbFioCVgIkn1nTVmd9aY0dACMgAj8UE0JeQdnJ2zRojKFhyoYUMTcWj5RTULkN2ODIjxB2ELMN1Okj8IWIDL7cT7gwW/2690/SEmevD4gwV/yBS9eEPQgl0MMnjsYCGof1aGw7NX2APq3rM3i048G+CMxkKMognbrkAYBV46yFw/AwmKkinbu2tEBtEvIS1yLGhzgPqvYc0lBgaGhhA9uBREJM5KCsKdc0uAIguQnczAwKAkJYLMxW8BzSMZuwW/vr5nYGDwi0HPokpSInDnw0FBmRqmXgIWsHEL/vr6XiflFZr4g2tvIAhZEE0ZRC/hZApTJ4osqKAlQkywQPSycQsyMDAwofkI2Y8QFSQBZL0QNhOaj9D8WHUAX2GnJCUy7fx/XHohbGgyhfsI2S1wkV9f3/d4i6IlVnjSxK+XCc1mTD/iCitMlVj1MqGJYvqRUCogoJdRRMUK2Ucpah/g4WtlQ2w2PHbkHzxXTzv/HzlsmbD6kRKA5g8WjJT7AdldDAwM+P0BUYMZw/BQYeST1ET20bF2cVw6kUuOTUvQC3C4OxxafiHbgYgDCIkcB1idzHfs2SdYKY1Z0MLjAG4mC7Lpv76+Z2BghKhbwNKFPVDscAknYaYoNm5BJjQ+5ZGM5mIAORU+d+pIf1UAAAAASUVORK5CYII=","setthathirath":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABs0lEQVR42mPU0jJgIBocW+bAwMBgFXWAeC2MRFqwqkwATSSs6wMxGpkYaAxobgHhIKrz+4FHtmkTB5V9MOnDAmr6ADNuMQH+2B7ekfzhxQMiTRGQUMAlxUJQ86a2hDcvXmCVuvHgQdemGwMcRCzEKCqatQvC6EtzQ+amualRxwKIuZjcGw8eUBTJfWEaEEbShB0MDAzzCjzgUhCRsgCoglmnflBkAXKsMjAwaCgooPkAjwUDlNE+f/7EwMBg4IDuLg0FBbjz4SAiQQJTLwELeHn5Pn/+5JSFHoeHdl2CIGRBNGUQvYRTEZo6CLBz0yMmWCB6eXn5GBgYmDBNgYtAVJAEkPVC2EyYLkUWKVqFryTQUFDo3fsKl14IG5pM4T5Cdgtc5PPnT7OTzdASKzxp4tfLhGYzph9xhRWmSqx6mdBEMf1ITCrAo5dRS8sA7qPfaqIQaVYpKGOV2TPCVeYpKQjj97PXUO23XsN9yUTQpWQAZH+wIPuIg0EUq+tw+QPudjz5gAXO4uXl+00oEBgYGOoOnGpyMCPoA7gdTJhpAD8gaDpanDMh20bFOED3AXXjGdlMAHe9C50aN0yyAAAAAElFTkSuQmCC","sultan-mahmud-shah":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACCElEQVR42r1VMWvbQBT+fHiojQcRaDClBOHhUFwX3FA6eCimgwkhg8gPKJkzhEwe8gM8OFspWbr0N5ROHoLx0MFDYygYc4PRkMF4CBqMFAiUDKdcxJ10vkpu3iB07977vve9dycVdlp1/E8jOfPHPTruUU1AMQ/0cygAMJl42RUYlplRgSF6s2lnV6CXvwECfbKJ6Qj2joamKM6rLATu0aEhwc/p7+z34HOjslguE7eYt/DKtewtkrAkD7WreWcg7Px7NIzecTu2nB23nc0QcFx1qcr6N4LOdgBgsQxOLq8AXJ58Elvcc3ZQt4N5XgXMWwhoXjK1q9xjomD9x85wmGlWSPzhhP6qZFUAfGk7rExpwPoDuRXdTo2VKaajr56fmKtrUcmqxOP6g3m3UwMwHs6450Pb6Q/mrkvX5qbOgMdFV9rdZwAA6yBCZEAiuspBBEpco4gDQAOW2uDpSJPL30m8UrX20+EsjYMGjNrVi8lNWi5/j4YsTUbyhP7qm/te+myI2epzicSsahS9WtuNxFwieVWNJqdAk1vYadWFov7HW7797m0pjnX9J3xBWhLB3d9falh0RUZbQiVZW2kGi+sgJt0AsPvmWrPUdK8o+lOyKsBtYgJvhQQq9Uc9RfxJ1DOQ3+IzL8bZGs42j7i/z4LbePy/hT/mAvPpFIX+6iVeb0TByvIF5gO+uyap7kZw1QAAAABJRU5ErkJggg==","sultan-mansur-shah":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB1ElEQVR42mOUs9JioCVgolD/qTa1U21qeBSwUGI0PXzAwMBw4cID8n1ApDPJ9AGRphsYKJDvA/zep4IF+DUTA/BZcCDrCrHGCLCRY0HRizfEOlNAivx8sK4u4sWrV1ilbj14MWHHNZrnA/LjAA6qFhyAMNoSHJC5CQ4a1LEAYi4m99aDFwT1MuIpTSfBHJg1bR8DA8O0LCe4FESkwAuqd8qDDxRZgByrDAwMagoSaD7AYwHNIxm7D75/+MIpwAPxRNaMfdMynLJm7ENTAxEs8NBCcz5cL75I5hTgQVYHsYOBgeHUgRsQETMHDUwrserFmYog6hCximrcghvP8AQLsh1MyKbA/QhXBwkKXAYVeGjh0QthM6G5FM3teQdu4LJjWoaTmoJE94UnuPRC2NBIRosZNJHvH77MDjBBS6zwuMWvlwnNZkw/wsOKYGhg1cuEJorpR2JSAR69jHJWWnAfddm9g0gb6nIim3X+8ncOJis0C378O4apDMIoOyQE9yUTQZeSAZD9wURMaDAwMGhqn8fDxRN6LPDw4RTgYWB4h1UDJCjQDEULH8xUBCGZMNMA5QA5zlmQbdPREIOo+P2bHHN1YKX790334GayINu2rEuM6j4AAPQmG9fSmOz5AAAAAElFTkSuQmCC","sultan-trenggana":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABp0lEQVR42mPU0jJgoCVgYqAxYCGo4tihDXhkrewCqOwDq74qktQz4okDuNtvXLmAVYGGjgFBf7AQ4wq4QVSOA1wOp5oFlDh8cCRTLTVifSAgoUB+JK+q8Hvy7BVWqVuPns048GjQ52QGBoamVacgjLowM2RuhIUMdSyAmIvJvfXoGUU5uc5NAsIoWnCCgYGhL8ECLgURyXCSg3BX3GCiyALkWGVgYFCTk0LzAR4LaB7J2H3w+fMnXl4+iCeKFp3oi7MoWnQCTQ1EMMNBDs35cL34IpmXlw9ZHcQOBgaGS6egqV7PTA7TSqx6caYiiDoGBgm4HagFIb70g2wH0+fPnzDDB64OEhS4DMpwkMOjF8JmgrMw3M7AwMDQtOsFLjv64izU5KRmn/6CSy+EDY1ktJhBE/n8+VN3sBpaYoXHLX69TGg2Y/oRHlYEQwOrXiY0UUw/EkoFBPQyamkZwH30SZoTaq2oIFZDt7l9Y2Bg8NrFhVX23+v3EAbf0+9wXzIRdCkZANkfTMSEBqkAZxxQ0QdY8gHVfQAhmeAsWviAl5ePCTOFUdcHAI17B7NzURMmAAAAAElFTkSuQmCC","suriyothai":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABqElEQVR42mPUkrJiIBoc22bGwMBg5XWKeC1MDDQGjMT4YFUbG1bxsKpfg94HuNxOvD9I9sGVrickqSfZAp0yGdpaQCpgIRAgN14QYYgQmZFcF/eOgYGhaBY+O/rSJBgYGJoWCZHpAwYGhk1tCW9eYLfjxoMHDAwfBjgOBjqSIaBpwQEGBoa6BAc0kTAHBSpY8ObFiwcffqAJYoqQk4r60uSwxSqDhoICMpeBgWHWLqZBFsmff7xnYGAwcEAPBw0FBbjz4SAiQQJTLwELeDkEP/947xT1Ck38w5FHH448QhNEUwbRSziSYepQokHARo6YYIHo5eUQZGBgYELzEbIfISpIAsh6IWwmNB+h+bFo1iM8xmkoKPRu+ohLL4QNTaZwHyG7BS7y+cf72Xn6aIkVnjTx62VCsxnTj7jCClMlVr1MaKKYfiSUCgjoZdSSsoL7CNKuohzAW2aff7xnQbb/xK5TJ65/stDko5D8/OMvxMW8HIKIsujzj/ezKwSp4oOiCQxY8gEvh+CJ658YGBgoJ5HjAxEHtPDB5x/vmeAsiI+o4glkM2nuAwBlU11FLYEN5QAAAABJRU5ErkJggg==","the-kalahom":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABu0lEQVR42mPUkrJiIBqsamNjYGAIq/pFvBZGkiw4en4RhGFtGEekFiYyTEdjU8cC4k0kxwKsphNpJRMlbifGDiYGygBBO5goD3r8aljwp/qn21Mo9CK+fPDhxzUiTRHg0CLHBxCwqS3hzYsXWKVuPHjQtekGbSOZIGAhRlHRrF0QRl+aGzI3zU2NOhagmQsXufHgAUWR3JcmB2EkTdjBwMAwr8ADLgURKQvQgHBn7WKiyALkWGVgYNBQUEDm4reA5pGM3Qeff7zn5RBECaVJO9DUzMvzgPgAzflwvfgimZdDEFld0qQd8/I8GBgYDu26BBGxc9NLmrSjzE+DoF58cfD5x/vZefp4vI/VB2j+YPr84z2mHNwtpIY4sl4ImwnOQvMjLIs9wmOchoJC76aPuPRC2NAgQosZNBG0sEILGfx6mdBsxvQjrrDCVIlVLxOaKKYfcYUPpkqsehm1pKzgPgrmegqR1mZjhTB0ymQIRuyVricQxtVfvyGMtd+k4b5kIuhSMgCyP1hQfMSF3XW4/AF3O568xgJn8XIIMjB8I8kgPD6A28GEmQYoB8hxzoRsGxXjAN0H1I1nZDMBIUohr9+tBDIAAAAASUVORK5CYII=","u-thong":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB00lEQVR42mPUkrJiIBoc22bGwMBg5XWKeC2MRFpQF/cOTaRpkRAxGpkYaAwI+2BVGxse2bCqX4PbB5hBjwnwRwbpPtj0h2o+wB/6RMYEsT4IuyVFUIQEH0Dc7lZ0gUjrd/UZ4PIHC+Ewb0t48+IFVqkbDx50bboxwMmUhRhFRbN2QRh9aW7I3DQ3NepYADEXk3vjwQOKLJiX58HAwPDmxYukCTsYGBjmFXjApSAiZQEaZX4a5OeDvjQ5zFhlYGDQUFBA88GsXUyDLJI//3jPyyFo4PDjwgEOaJhM2oHsE3gAMjAwRCRIzNr1Ck0v4SCCqIOEUtKkHRDjDu26BJG1c9NLmrQDEgGY4YNsB744+Pzj/ew8fTzeh8QB1giA28H0+cd7TDkIA9mnRAJkvRA2E5wFB8giRbMe4TFOQ0Ghd9NHXHohbGgQocUMmghaWKGFDH69TGg2Y/oRV1hhqsSqlwlNFNOPuMIHUyVWvYxaUlZwHxkru0Ok5YSgARIZOIFgxC5fXwBhPHp3EcI4e3cn3JdMBF1KBkD2Bwv+0IC4Dpc/4G7HGnqQUGGBs/CkemSDdG+XXFbtIegDuB1MmGkAPyBoOlqcMyHbRsU4QPcBdeMZ2UwA84Eg9ag9CFkAAAAASUVORK5CYII=","wikramawardhana":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAB7UlEQVR42mO0khJhoCVgwSO39fwJIk3xNrTAJcXEQGPARJ67IODAgSMHDhzBr4xkHzzdnkI1H2AF0p5zaGsBNeOAKoARTz6Y1aZDpClpVVfIseDBjz9EWqDAwUJORoOAVRV+T569wip169GzGQceDXAcsBCjqGnVKQijLswMmRthIUMdCyDmYnJvPXpGUSrKCzOBMIoWnGBgYOhLQBQJEJEMJzkId8eJZxRZgByrDAwManJSaD7AY8EA5eT3P34xMDA4BHAwMDAULULUCmpyUnDnMzAwQNJoWp4Spl4CFghysL3/8Sso6gia+KVTjyAIWRBNGUQv4VSErA7ZE1BwA1/6gegV5GBjYGBgQvMRsh8hKvricNYnGQ5yePRC2ExoPkJz+6RVZ3DZ0RdnoSYntfzAA1x6IWxoMoX7CNktcJH3P37Vx1mhJVZ40sSvlwnNZkw/wsOKYGhg1cuEJorpR2JSAR69jFZSIsg+8rCQgid5HYMfROamKxc44Ll6+YEHyGHLhNWPlAA0f7BgplxkdzEwMOD3B0QNZgzDTWOBs6C5108IphPdCEjJAW1ybUC3Fa5xx4lnyHYg4gBCIscBdjfvusPgpoK1+kSOA7iZLMimI8cBzpAxkGFg+IHNAgbMFCXIwcaExqc8ktFcDAB2jTVUeH7ECgAAAABJRU5ErkJggg=="},"thumb_lamson":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKkAAABACAIAAADu/MAyAAACbklEQVR42u2cL08DQRDFe7AhBIUgJBhAIFEnSdOgEBUoPgRBIAlBI1AEieQDoE6gL82FVNWTIBo0H4EQHCGle3/2ZndnZt9T/Sfuvd/szuw1bTZ9nw6gJLWCCMAeAnsI7CGwh8AeAnsI7CGwh8AeAnsI7DWqqEpNdjJ8l+NA/XR4DPapr3XRRQD2BNu70AoAe8qmLqsIwJ5+lJNSAR7ZF1UpJQVPAzxz+17YS5mKw5zZ2NonZi9lKo5yUmdVBEVVkrFvn2bcCKLfn+Fjn4a9W6CBU+B2Vy6YfZvxvuz7BxogAs73Yv3Zb3Ttzp48UPIUZN1+J7HfybILe6+Zho9AQQW4+e3GPmSmIVOQWAT9nbZlHyvT9hWg7AtWm31Cm83smWRqKwKVyMOojj3DWP9WAKj7Yo9k1cuAOtiDeqrsQT1BrW7nB28fc26XVc0muzt7wBO630fkbXs6zEdApZD9AvLGz6isg2o2Ce8ru3m648m7jeTWQX0CYXwFZU+FXGIdOHv358s7e6+8OdcBuXFyU2Tsy9uHe7Nme/fq5DAWA4fI6r0U1xfRq5ykDohnvf3HJT/unJ9/M1l/nSJr9BJlSyMcfg3hRciasJwj42bZ2ZRJAXk658ZOpows3l8vMx9TRRRrnrz8N2UrAiNxiTOcKjh7sW0Ghpa3UADqvSwlawiXeMSDHLk0ebH2ewVTG+Qm/NdSunI8430+vw4Gg62zo9/HmxvrC69L6cSavIRgj06swAv2fPT7/hvIONfTCBV5qVE2uhyzvbilndiM8zCdWL0X7PnY8yGwRydOxwvrfg9h3UNgD4E9BPYQ2ENO+gHRc1DlZj9nBAAAAABJRU5ErkJggg==","thumb_angkor":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKkAAABACAIAAADu/MAyAAABoElEQVR42u3bv0sCcRjHcQ3HBkeHkNuDcG7oT4hoanJuKnCOhmhoauhPcGqK6E9wapSDoFGkwdHBOVqMJM0fd+D1ve/rPXkHPtw9b57nPgdafb87qyBKdrSAe3AP7sF9mbnpDbmPlOujZsy3X4v2zrvfM99umntwDzu/5CTJ3vTT54e5B/ew88se8qerfhBr1Df3Ec99PakHeumdbnrfPsj45eF49ihzE3JdQ9FUR4/nwV30y3B39vC4OQmxgp0P7mHnr+ShN54/eXFUD6uCdzzkoDFacHLUCGDnd7opfcX2Yds7/1c8zhCSVfhz6DccfVkvXjzvw2RmuE+vnp9uT/77zl8YjzcKySrMk9m9nR8v3Hveb4Wfn8osYKLC+hXMPbhHJraX85eE2zUjrgpyPux8hJLzl4bbtSKuCuYe3COInL8y3K6MuCrI+bDzUezO71cSHSyWVmWQeefnesdL04HuF+w+x5+C7HzPe3AP7sE9uEcJ3+8PL191wdyDe3CPclNr7Td0IVL3/beRLtj54B7cg3twD+7BPbgH9+AeYfAFrzefoeg/mwgAAAAASUVORK5CYII=","map_strait":"data:image/png;base64,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","map_river":"data:image/png;base64,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","map_islands":"data:image/png;base64,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"};
@@ -6943,6 +7058,9 @@ function renderEncyList() {
   const cost = (c) => Object.keys(c || {}).map((k) => c[k] + ' ' + k).join(', ');
   let h = '';
   if (encyTab === 'heroes') h = renderHeroes();
+  else if (encyTab === 'guide') {
+    for (const [name, txt] of ENCY_GUIDE) h += '<div class="px m-ent"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
+  }
   else if (encyTab === 'civs') {
     for (const [cls, name, txt] of ENCY_CIVS) h += '<div class="px m-ent cv-' + cls + '"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
   } else {
@@ -9989,6 +10107,9 @@ NAVWPN.tierDefault = 1;
 BURNMAT[0] = 0.25; BURNMAT[1] = 1;
 Object.assign(UD.canoe, { wpn: 'arrow', swivel: true, pierce: true, kb: { light: 3, boat: 4 } });
 Object.assign(UD.light, { atk: 5, rate: 1.6, rng: 5, fireA: false, kb: { boat: 4 } });
+
+/* hand-made map: keep every tree (the main game thins woods on random maps, v0.9.40) */
+Game.prototype.openWoods = function () {};
 /* ===== km-art.js ===== */
 /* Khmer blue for the player, Ayutthaya royal purple for the besiegers (Iylia, 2026-10-23) */
 Object.assign(TEAMC[0], { name: 'Khmer', main: '#2f6fd0', dark: '#1c4590', trim: '#f2c94c', roofA: '#a8573a', roofB: '#86432c', roofR: '#2a1810', ring: '#8ab8ff' });
@@ -10936,10 +11057,10 @@ function loadLine(L) {
   if (s.st === 'saved') return { t: L.name + ': saved', ok: true };
   if (s.st === 'lost') return { t: L.name + ': lost', opt: true, lost: true };
   if (s.st === 'river') return { t: L.name + ': on the lake' };
-  if (s.st === 'road') return { t: L.name + ': ' + (u && u.lst === 'wait' ? 'waiting for a barge' : 'on the road') };
+  if (s.st === 'road') return { t: L.name + ': ' + (u && u.lst === 'wait' ? 'waiting for a barge' : 'on the road'), how: u && u.lst === 'wait' ? 'Build a river barge at the landing.' : '' };
   if (M.phase < L.phase) return { t: L.name + ': ' + (L.phase === 2 ? 'not ready (the river phase)' : 'last of all'), opt: true };
   if (L.key === 'royal' && !M.courtReady) return { t: L.name + ': the court gathers (' + Math.max(0, Math.ceil(M.courtAt - M.t)) + 's)' };
-  return { t: L.name + ': ready to send' };
+  return { t: L.name + ': ready to send', how: 'Select the royal compound and tap this load, then build a barge at the river landing for it.' };
 }
 function objList() {
   const M = G.M; if (!M) return null;
@@ -10957,7 +11078,7 @@ function updateObj() {
   $('obj-tog').textContent = objOpen ? '▴' : '▾';
   if (!L || !objOpen) { if (!box.hidden) box.hidden = true; objKey = ''; return; }
   const html = '<div class="obj-h">' + L.title + '</div>' + L.items.map(i =>
-    '<div class="obj-i' + (i.ok ? ' ok' : '') + (i.opt ? ' opt' : '') + (i.tip ? ' tip' : '') + (i.lost ? ' lost' : '') + '"><span>' + (i.tip ? '·' : i.ok ? '✓' : i.lost ? '✗' : '○') + '</span>' + i.t + '</div>').join('');
+    '<div class="obj-i' + (i.ok ? ' ok' : '') + (i.opt ? ' opt' : '') + (i.tip ? ' tip' : '') + (i.lost ? ' lost' : '') + '"><span>' + (i.tip ? '·' : i.ok ? '✓' : i.lost ? '✗' : '○') + '</span><div>' + i.t + (i.how && !i.ok ? '<div class="obj-how">' + i.how + '</div>' : '') + '</div></div>').join('');
   if (html !== objKey) { objKey = html; box.innerHTML = html; }
   box.hidden = false;
 }
@@ -11628,6 +11749,509 @@ kmBoot();
 })();
 
 /* ===== end maps ===== */
+/* ===== animal pack (2026-11-02, lore thread design, Iylia approved) =====
+   Banana groves and mango trees in place of berry bushes (same 'berry' node, new look).
+   Hunt animals: rusa (sambar deer), kancil and seladang on every skirmish map; seladang fights back;
+   no wild boar when Melaka is playing.
+   Kerbau (water buffalo): neutral herd animals. A soldier or villager who walks up to one claims it,
+   its halter turns team colour and it walks home. Send it to a granary to fatten (200 -> 400 food in
+   about 4 minutes, 3 per granary), butcher it any time for what it is worth. Enemies can lead it away
+   when no owner is near. At most 6 per player. Melaka only: Kerbau Minang (a kerbau ploughing a worked
+   farm makes it 30% faster) and, from the Kingdom Age, the Syahbandar Port, which sells kerbau.
+   Loaded after the maps block (uses window.NEWMAPS and CALM). Missions (G.M) get the new look only. */
+(function () {
+  if (typeof Game === 'undefined') return;
+  const KB = { cap: 6, perGran: 3, fat0: 200, fatMax: 400, fatTime: 240, plough: 1.3, buy: { gold: 75 }, buyT: 15, claimR: 1.2, guardR: 4 };
+  window.KERBAU = KB;
+  const MEL = 0;
+  const melaka = (team) => team !== 2 && CV(team) === MEL;
+
+  /* ---------- art ---------- */
+  function bananaSprite() {
+    return sprite('sea|banana', 24, 24, 2, (P) => {
+      const r = P.r;
+      for (const [x, h] of [[5, 13], [10, 17], [15, 15], [19, 11]]) { r(x, 23 - h, 2, h, '#6a8a3a'); r(x, 23 - h, 1, h, '#55702e'); }
+      const leaf = (x, y, d, n) => { for (let t = 0; t < n; t++) { const yy = y - Math.round(t * 0.45) + (t > n - 3 ? t - n + 3 : 0); r(x + d * t, yy, 2, 3, t % 2 ? '#5aa04a' : '#6ab456'); r(x + d * t, yy + 1, 1, 1, '#3e7a34'); } };
+      leaf(10, 6, -1, 9); leaf(11, 5, 1, 9); leaf(6, 10, -1, 6); leaf(16, 8, 1, 7); leaf(19, 12, 1, 4); leaf(4, 12, -1, 4);
+      r(9, 1, 3, 4, '#7ac45e'); r(10, 0, 1, 1, '#7ac45e');
+      for (const [bx, by] of [[10, 9], [16, 10]]) {
+        r(bx + 1, by, 1, 2, '#4e6e2a');
+        for (let i = 0; i < 4; i++) r(bx + (i % 2), by + 2 + i, 3, 1, i % 2 ? '#e8d23a' : '#c8c040');
+        r(bx + 1, by + 6, 2, 2, '#8a2a4a'); r(bx + 1, by + 6, 1, 1, '#b04a6a');
+      }
+      r(3, 22, 19, 1, '#2e5a24');
+    });
+  }
+  const isMango = (n) => hash2(n.tx, n.ty, 9191) < 0.33;
+  function berryArt(n) { return isMango(n) && window.CALM ? CALM.tree('mango') : bananaSprite(); }
+
+  function kerbauSprite(col, f, fat, pose) {
+    pose = pose || 0;
+    const l = pose === 1 ? 0 : (f ? 1 : 0), M = col ? col.main : '#b89a60', D = col ? col.dark : '#8a7438', OX = pose === 2 ? 10 : 0;
+    return sprite('kerbau|' + (col ? col.main : 'n') + '|' + f + '|' + fat + '|' + pose, 24 + OX, 20, 2, (P) => {
+      const r0 = P.r, c = '#4c4c54', cl = '#60606a', cd = '#36363c', horn = '#a89e88', hornT = '#e2dac2';
+      const W = '#7a5228', WL = '#a0703a';
+      if (pose === 2) {           // tenggala: wooden plough dragged behind, shaft runs under the belly to the yoke
+        r0(4, 12, 20, 1, W); r0(1, 14, 5, 2, W); r0(1, 14, 5, 1, WL); r0(0, 16, 4, 1, '#b8b8b0');
+        r0(2, 10, 1, 4, W); r0(1, 8, 1, 2, W); r0(0, 7, 1, 1, WL);
+        r0(1 + (f ? 1 : 0), 17, 2, 1, '#6a4a2a'); r0(4 - (f ? 1 : 0), 18, 1, 1, '#8a6a42');   // turned earth
+      }
+      const r = (x, y, w, h, k) => r0(x + OX, y, w, h, k);
+      const HD = pose === 1 ? 5 : 0, hx = pose === 1 ? 1 : 0;      // head lowered to the grass
+      const rh = (x, y, w, h, k) => r(x + hx, y + HD, w, h, k);
+      if (fat === 0) {
+        r(5, 8, 11, 5, c); r(6, 7, 3, 1, c); r(11, 7, 4, 1, c); r(6, 7, 1, 1, cl); r(12, 6, 2, 1, cl);
+        for (const x of [9, 11, 13]) r(x, 9, 1, 3, cl);
+        r(6, 12, 9, 1, cd); r(4, 9, 1, 3, cd); r(3, 9, 1, 4, cd); r(3, 13, 1, 2, '#22222a');
+      } else if (fat === 1) {
+        r(4, 8, 13, 6, c); r(5, 7, 11, 1, c); r(7, 6, 7, 1, cl); r(6, 7, 6, 1, cl); r(5, 13, 11, 1, cd); r(3, 9, 1, 4, cd);
+        r(2, 9, 1, 4, cd); r(2, 13, 1, 2, '#22222a');
+      } else {
+        r(3, 7, 14, 7, c); r(4, 6, 12, 1, c); r(6, 5, 8, 1, c); r(4, 14, 12, 1, c); r(5, 15, 10, 1, cd);
+        r(7, 5, 6, 1, '#7a7a86'); r(5, 6, 9, 1, cl); r(9, 7, 3, 1, cl); r(2, 8, 1, 5, cd);
+        r(1, 8, 1, 4, cd); r(1, 12, 1, 2, '#22222a');
+      }
+      if (pose === 1) { r(16, 8, 3, 5, c); r(17, 10, 3, 6, c); r(18, 13, 2, 3, cd); } else r(16, 8, 3, 5, c);
+      rh(18, 10, 4, 4, c); rh(21, 12, 2, 2, '#72727a'); rh(22, 12 + (pose === 1 && f ? 1 : 0), 1, 1, '#22222a'); rh(19, 11, 1, 1, '#17110c');
+      if (pose !== 1) { r(18, 14, 3, 1, '#c8c0b0'); r(17, 13, 1, 1, '#c8c0b0'); }
+      rh(18, 9, 4, 1, horn); rh(16, 8, 3, 1, horn); rh(14, 7, 3, 1, horn); rh(13, 6, 2, 1, horn); rh(12, 5, 2, 1, horn); rh(12, 4, 1, 1, hornT);
+      rh(21, 8, 1, 1, horn); rh(22, 7, 1, 1, horn); rh(22, 6, 1, 1, hornT);
+      // two pairs seen from the side: the far leg darker and half hidden behind the near one
+      const top = fat === 2 ? 15 : fat === 0 ? 13 : 14, w = fat === 0 ? 1 : 2, rearX = fat === 2 ? 4 : 5, frontX = 14;
+      for (const [x, far] of [[rearX, 1], [frontX, 1], [rearX, 0], [frontX, 0]]) {
+        const sx = far ? (l ? -1 : 1) : (l ? 1 : -1) * (l ? 1 : 0), lx = x + (far ? 1 : 0) + sx;
+        r(lx, top, w, 17 - top, far ? cd : c); r(lx, 17, w, 1, '#26262a');
+      }
+      r(16, 8, 2, 6, M); r(16, 13, 2, 1, D);
+      r(16, 14, 2, 2, '#8a5a2b'); r(16, 14, 2, 1, '#a8773c');
+      rh(21, 11, 1, 1, M); rh(20, 13, 2, 1, M); rh(19, 14, 1, 1, D);
+      if (pose === 2) { r(14, 5, 2, 6, W); r(14, 5, 2, 1, WL); r(13, 4, 4, 1, W); }   // kuk (yoke) on the neck
+    });
+  }
+  function haySprite() {
+    return sprite('kb|hay', 9, 6, 2, (P) => { const r = P.r; r(1, 2, 7, 4, '#c9a24a'); r(0, 4, 9, 2, '#b08a36'); r(2, 1, 4, 1, '#e0bf62'); r(3, 3, 1, 2, '#e8cf7a'); r(6, 2, 1, 2, '#9a7a2e'); r(1, 5, 7, 1, '#7d6226'); });
+  }
+  const fatStage = (u) => u.fat >= 360 ? 2 : u.fat >= 270 ? 1 : 0;
+
+  // Syahbandar Port (Melaka, Kingdom Age on): the lore hall, same size and footing as the port
+  function syahbandarSprite(team) {
+    const T = TEAMC[team] || TEAMC[0];
+    return sprite('xmel|syahbandar|' + team, 48, 54, 2, (P) => {
+      const r = P.r;
+      r(0, 40, 48, 12, '#a47a45'); for (let x = 0; x < 48; x += 4) r(x, 40, 1, 12, '#7d5b30'); r(0, 40, 48, 1, '#c99b5d'); r(0, 51, 48, 1, '#5a3a1e');
+      posts(P, [1, 12, 24, 36, 46], 48, 53, 2);
+      planks(P, 2, 24, 34, 16, '#c99b5d', '#a97d45');
+      r(13, 28, 12, 12, '#3f2713'); r(18, 28, 2, 12, '#2a190a'); r(12, 27, 14, 1, GOLD);
+      r(4, 28, 5, 5, '#2b1a0c'); r(3, 27, 7, 1, T.trim); r(29, 28, 5, 5, '#2b1a0c'); r(28, 27, 7, 1, T.trim);
+      roofGable(P, 19, 16, 24, 11, 19, T.roofA, T.roofB, T.roofR); r(0, 24, 38, 1, T.main); r(0, 25, 38, 1, GOLD);
+      roofGable(P, 19, 6, 16, 3, 12, T.roofA, T.roofB, T.roofR); r(7, 16, 24, 1, T.main);
+      r(18, 2, 2, 4, GOLD); r(18, 1, 2, 1, '#fff2b0');
+      r(38, 36, 5, 4, '#a8773c'); r(38, 38, 5, 1, '#7d5b30'); r(43, 37, 4, 3, '#8a5a2b'); r(40, 33, 4, 3, '#b88a52');
+      for (const sx of [2, 6, 26, 30]) { r(sx, 37, 3, 3, '#d9c79a'); r(sx, 37, 3, 1, '#efe3c0'); }
+      r(44, 32, 3, 3, '#7a4a24'); r(44, 32, 3, 1, '#a8773c');
+      r(37, 22, 1, 10, WOOD_D); r(33, 22, 9, 1, STEEL_D); r(33, 23, 1, 3, STEEL_D); r(41, 23, 1, 3, STEEL_D);
+      r(32, 26, 3, 1, GOLD); r(40, 26, 3, 1, GOLD_D); r(36, 31, 3, 1, WOOD_D);
+      r(40, 6, 1, 16, WOOD_D); r(47, 10, 1, 12, WOOD_D);
+      const fl = [['#3a7bd5', '#ffffff'], ['#e8b830', '#c0392b'], ['#ffffff', '#c0392b'], ['#8e44ad', '#f2c94c']];
+      for (let i = 0; i < 4; i++) { const y = 8 + i * 3; r(41, y, 3, 2, fl[i][0]); r(41, y + 1, 3, 1, fl[i][1]); }
+      r(44, 11, 3, 2, '#e67e22'); r(44, 14, 3, 2, '#2c3e50'); r(44, 17, 3, 2, '#16a085');
+      r(0, 0, 1, 22, WOOD_D); r(1, 1, 8, 9, T.main); r(1, 1, 8, 1, GOLD); r(1, 9, 8, 1, GOLD); r(4, 4, 3, 3, GOLD); r(5, 5, 1, 1, T.main);
+    });
+  }
+  const isSyah = (b) => b && b.kind === 'port' && b.team !== 2 && melaka(b.team) && G && G.teamAge && G.teamAge(b.team) >= 2;
+
+  /* ---------- units and names ---------- */
+  const deer = UD.deer;
+  UD.deer.name = 'Rusa (sambar deer)';
+  UD.kerbau = Object.assign({}, deer, { name: 'Kerbau (water buffalo)', hp: 60, spd: 0.75, meat: KB.fat0 });
+  if (UD.seladang) Object.assign(UD.seladang, { atk: 6, rng: 0.9, rate: 1.6 });
+  NODE_NAME.berry = 'Fruit grove (banana, mango)';
+  if (typeof BRIEF !== 'undefined') Object.assign(BRIEF, {
+    deer: 'Wild deer, quick meat', kerbau: 'Claim it, fatten it at a granary, then butcher it',
+    seladang: 'Huge wild cattle: lots of meat, but it fights back'
+  });
+
+  /* ---------- sim ---------- */
+  const own = (g, team) => g.units.filter(u => u.kind === 'kerbau' && u.hp > 0 && u.own === team);
+  Game.prototype.kerbauCount = function (team) { return own(this, team).length; };
+  const center = (b) => ({ x: b.tx + b.size / 2, y: b.ty + (b.h || b.size) / 2 });
+  function homeFor(g, u) {
+    const grans = g.buildings.filter(b => b.team === u.own && b.done && b.hp > 0 && (b.kind === 'granary'));
+    let best = null, bd = 1e9;
+    for (const b of grans) {
+      const n = g.units.filter(k => k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.job === 'granary' && k.bid === b.id).length;
+      if (n >= KB.perGran) continue;
+      const c = center(b), d = Math.hypot(c.x - u.x, c.y - u.y); if (d < bd) { bd = d; best = b; }
+    }
+    if (best) return { job: 'granary', b: best };
+    const tc = g.buildings.find(b => b.team === u.own && b.kind === 'towncentre' && b.hp > 0);
+    return { job: 'home', b: tc || null };
+  }
+  function sendHome(g, u) { const h = homeFor(g, u); u.job = h.job; u.bid = h.b ? h.b.id : 0; u.path = null; u.arrived = false; u.order = { t: 'kb' }; }
+  Game.prototype.kerbauStay = function (u, x, y) { const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0; u.job = 'stay'; u.bid = 0; u.sx = x; u.sy = y; u.path = null; u.arrived = false; u.order = { t: 'kb' }; };
+  Game.prototype.claimKerbau = function (u, team) {
+    if (u.own === team) return false;
+    if (this.kerbauCount(team) >= KB.cap) { if (team === 0 && this.t - (this._kbMsg || -9) > 8) { this._kbMsg = this.t; this.msg('You already keep ' + KB.cap + ' kerbau.'); } return false; }
+    const was = u.own; u.own = team; if (u.fat == null) u.fat = KB.fat0;
+    const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0;
+    sendHome(this, u);
+    if (team === 0) this.msg(was === 1 ? 'You took a kerbau from the enemy.' : 'A kerbau joins your herd.');
+    else if (was === 0) this.msg('The enemy led away one of your kerbau!');
+    return true;
+  };
+  Game.prototype.kerbauPlough = function (u, farm) {
+    if (u.own == null || u.own < 0 || !melaka(u.own)) return false;
+    if (!farm) {
+      let bd = 1e9;
+      for (const b of this.buildings) if (b.team === u.own && FIELD[b.kind] && b.done && b.hp > 0 && (!b.kb || b.kb === u.id || !this.byId.get(b.kb) || this.byId.get(b.kb).hp <= 0)) {
+        const worked = this.units.some(v => v.hp > 0 && v.team === u.own && v.order.t === 'gather' && v.order.id === b.id);
+        const c = center(b), d = Math.hypot(c.x - u.x, c.y - u.y) - (worked ? 100 : 0); if (d < bd) { bd = d; farm = b; }
+      }
+    }
+    if (!farm) return false;
+    const other = farm.kb && this.byId.get(farm.kb);
+    if (other && other !== u && other.hp > 0) return false;     // one kerbau per plot
+    const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0;
+    farm.kb = u.id; if (u.bid !== farm.id) u.arrived = false; u.job = 'plough'; u.bid = farm.id; u.path = null; u.order = { t: 'kb' };
+    return true;
+  };
+  Game.prototype.kerbauToGranary = function (u, b) {
+    const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0;
+    if (b) {
+      const n = this.units.filter(k => k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.job === 'granary' && k.bid === b.id).length;
+      if (n >= KB.perGran) return false;
+      u.job = 'granary'; u.bid = b.id; u.path = null; u.arrived = false; u.order = { t: 'kb' }; return true;
+    }
+    sendHome(this, u); return true;
+  };
+  Game.prototype.butcherKerbau = function (u) { if (u.hp <= 0 || u.job === 'plough') return false; u.hp = 0; this.onKilled(u, null); return true; };
+
+  // carcass of a kerbau holds what it has grown to
+  const _addNode = Game.prototype.addNode;
+  Game.prototype.addNode = function (kind, x, y, amt) {
+    const n = _addNode.call(this, kind, x, y, amt);
+    if (kind === 'carcass' && amt == null) {
+      const a = this.units.find(u => u.kind === 'kerbau' && u.hp <= 0 && !u._meat && Math.floor(u.x) === x && Math.floor(u.y) === y);
+      if (a) { a._meat = 1; n.amt = n.max = Math.round(a.fat || KB.fat0); for (let i = this.fx.length - 1; i >= 0; i--) { const f = this.fx[i]; if (f.k === 'corpse' && f.kind === 'kerbau') { f.kind = 'deer'; break; } } }
+    }
+    return n;
+  };
+  // a kerbau doesn't bolt when hit; a seladang turns on whoever hurt it
+  const _dmg = Game.prototype.damage;
+  Game.prototype.damage = function (att, tgt) {
+    const prev = tgt && tgt.isUnit && tgt.cls === 'animal' ? tgt.order : null;
+    const r = _dmg.apply(this, arguments);
+    if (prev && tgt.hp > 0) {
+      if (tgt.kind === 'kerbau') { tgt.order = prev; }
+      else if (tgt.kind === 'seladang' && att && att.isUnit && att.hp > 0 && att.layer === 0) { this.orderAttack(tgt, att, {}); tgt.angry = 8; }
+    }
+    return r;
+  };
+
+  /* standing spots: a row on the quietest side of the granary (3) or behind the Town Centre (2 rows of 3) */
+  const SIDES = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+  function kbSide(g, b) {
+    if (b.kbSide != null && g.t - (b.kbSideT || 0) < 20) return b.kbSide;
+    const bw = b.size || 2, bh = b.h || bw; let best = 0, bs = 1e9;
+    SIDES.forEach(([sx, sy], i) => {
+      // the strip two tiles deep along that side
+      const x0 = sx > 0 ? b.tx + bw : sx < 0 ? b.tx - 3 : b.tx - 1, x1 = sx > 0 ? b.tx + bw + 3 : sx < 0 ? b.tx : b.tx + bw + 1;
+      const y0 = sy > 0 ? b.ty + bh : sy < 0 ? b.ty - 3 : b.ty - 1, y1 = sy > 0 ? b.ty + bh + 3 : sy < 0 ? b.ty : b.ty + bh + 1;
+      let sc = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { g.wt = b.team; if (x < 0 || y < 0 || x >= W || y >= H || !g.walkable(x, y, 0)) sc += 3; }
+      for (const o of g.buildings) if (o !== b && o.hp > 0 && o.tx < x1 && o.tx + (o.size || 2) > x0 && o.ty < y1 && o.ty + (o.h || o.size || 2) > y0) sc += FIELD[o.kind] ? 8 : 4;
+      for (const n of g.nodes) if (n.amt > 0 && n.tx >= x0 - 1 && n.tx < x1 + 1 && n.ty >= y0 - 1 && n.ty < y1 + 1) sc += 2;
+      if (sy < 0) sc += 0.5;              // north last: kerbau there hide behind the roof
+      if (sc < bs) { bs = sc; best = i; }
+    });
+    b.kbSide = best; b.kbSideT = g.t; return best;
+  }
+  function slotIndex(g, u, b) {
+    // spots fill in order of arrival at this building, and close up when one leaves
+    if (u.slotB !== b.id) { u.slotB = b.id; u.slotT = g.t + u.id * 1e-6; }
+    let i = 0; for (const k of g.units) if (k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.bid === b.id && k.slotB === b.id && k.slotT < u.slotT) i++;
+    u.slot = i; return i;
+  }
+  function slotPoint(g, u, b) {
+    const i = slotIndex(g, u, b), side = kbSide(g, b), [sx, sy] = SIDES[side];
+    const bw = b.size || 2, bh = b.h || bw, cx = b.tx + bw / 2, cy = b.ty + bh / 2;
+    const row = Math.floor(i / 3), col = (i % 3) - 1;
+    let x, y;
+    if (sy) { x = cx + col * 1.5; y = sy > 0 ? b.ty + bh + 0.9 + row * 1.1 : b.ty - 0.4 - row * 1.1; }
+    else { y = cy + col * 1.05 + 0.3; x = sx > 0 ? b.tx + bw + 0.9 + row * 1.6 : b.tx - 0.9 - row * 1.6; }
+    g.wt = u.own;
+    if (!g.walkable(Math.floor(x), Math.floor(y), 0)) { const p = g.nearestFree(x, y, 0, 3); if (p) { x = p.x + 0.5; y = p.y + 0.5; } }
+    const face = sx ? -sx : (col < 0 ? 1 : col > 0 ? -1 : (u.id % 2 ? 1 : -1));
+    return { x, y, face };
+  }
+
+  function kbTick(g, dt) {
+    g._kbT = (g._kbT || 0) + dt; const scan = g._kbT >= 0.4; if (scan) g._kbT = 0;
+    for (const u of g.units) {
+      if (u.hp <= 0) continue;
+      if (u.kind === 'seladang' && u.angry != null) { u.angry -= dt; if (u.angry <= 0 || u.order.t !== 'attack') { u.angry = null; if (u.order.t !== 'flee') u.order = { t: 'wander', next: 2 }; } continue; }
+      if (u.kind !== 'kerbau') continue;
+      if (u.own == null) u.own = -1;
+      if (scan) {
+        // claim (wild) or lead away (no owner close by)
+        let who = null, wd = KB.claimR;
+        for (const v of g.units) {
+          if (v.hp <= 0 || v.team === 2 || v.layer !== 0 || v.aboard || v.cls === 'boat' || v.cls === 'ship' || v.team === u.own) continue;
+          const d = Math.hypot(v.x - u.x, v.y - u.y); if (d < wd) { wd = d; who = v; }
+        }
+        if (who) {
+          const guarded = u.own >= 0 && g.units.some(v => v.hp > 0 && v.team === u.own && v.layer === 0 && v.cls !== 'animal' && Math.hypot(v.x - u.x, v.y - u.y) < KB.guardR);
+          if (!guarded) g.claimKerbau(u, who.team);
+        }
+      }
+      if (u.own < 0) continue;
+      if (u.order.t !== 'kb') { if (u.order.t === 'flee' || u.order.t === 'wander' || u.order.t === 'idle') u.order = { t: 'kb' }; else continue; }
+      u.pose = 0;
+      if (u.job === 'stay') {      // led to a spot by the player: walk there, then graze
+        const d = Math.hypot(u.sx - u.x, u.sy - u.y);
+        if (d > 0.35) { if (!u.path && !g.setPath(u, g.pathToPoint(u, u.sx, u.sy))) { u.sx = u.x; u.sy = u.y; continue; } if (g.stepMove(u, dt)) u.path = null; u.arrived = false; }
+        else { u.path = null; u.arrived = true; u.pose = ((g.t + u.id * 3.7) % 9) < 5 ? 1 : 0; }
+        continue;
+      }
+      let b = g.byId.get(u.bid);
+      if (!b || b.hp <= 0 || b.team !== u.own) { sendHome(g, u); b = g.byId.get(u.bid); }
+      if (!b) continue;
+      const c = center(b), d = Math.hypot(c.x - u.x, c.y - u.y), near = (b.size || 2) / 2 + 1.9;
+      if (u.job === 'plough' && (u.arrived || d <= near)) {     // walk furrows up and down the plot
+        u.path = null; u.arrived = true; u.pose = 2;
+        const bw = b.size || 2, bh = b.h || bw, x0 = b.tx + 0.55, x1 = b.tx + bw - 0.55, rows = Math.max(2, Math.round(bh * 1.5));
+        if (u.fr == null || u.fb !== b.id) { u.fb = b.id; u.fr = 0; u.fd = 1; }
+        const ty = b.ty + 0.55 + (bh - 0.9) * (u.fr / (rows - 1)), tx = u.fd > 0 ? x1 : x0;
+        const dx = tx - u.x, dy = ty - u.y, dd = Math.hypot(dx, dy), st = 0.4 * dt;
+        if (dd <= st) { u.x = tx; u.y = ty; u.fd = -u.fd; u.fr = (u.fr + 1) % rows; }
+        else { u.x += dx / dd * st; u.y += dy / dd * st; if (Math.abs(dx) > 0.02) u.face = dx > 0 ? 1 : -1; }
+        u.moving = true;
+        continue;
+      }
+      // a newly free granary pulls kerbau waiting at the Town Centre
+      if (scan && u.job === 'home') { const h = homeFor(g, u); if (h.job === 'granary') { sendHome(g, u); continue; } }
+      const sp = slotPoint(g, u, b);
+      if (!u.arrived || Math.hypot(sp.x - u.x, sp.y - u.y) > 0.6) {
+        if (Math.hypot(sp.x - u.x, sp.y - u.y) > 0.25) {
+          if (!u.path && !g.setPath(u, g.pathToPoint(u, sp.x, sp.y))) { u.path = null; continue; }
+          if (g.stepMove(u, dt)) u.path = null;
+          u.arrived = false; continue;
+        }
+      }
+      {
+        u.path = null; u.arrived = true; u.x += (sp.x - u.x) * Math.min(1, dt * 4); u.y += (sp.y - u.y) * Math.min(1, dt * 4);
+        u.face = sp.face;
+        if (u.job === 'granary') { u.pose = u.fat < KB.fatMax ? 1 : (((g.t + u.id * 3.7) % 9) < 3 ? 1 : 0); }
+        else u.pose = ((g.t + u.id * 3.7) % 9) < 4 ? 1 : 0;
+        if (u.job === 'granary' && u.fat < KB.fatMax) u.fat = Math.min(KB.fatMax, u.fat + (KB.fatMax - KB.fat0) / KB.fatTime * dt);
+        // the computer player eats its kerbau once they are fat
+        if (u.own === 1 && u.job !== 'plough' && u.fat >= KB.fatMax) { g.butcherKerbau(u); }
+      }
+    }
+  }
+  const _sep = Game.prototype.separate;
+  Game.prototype.separate = function () {
+    const ks = []; for (const u of this.units) if (u.kind === 'kerbau' && u.hp > 0 && u.own >= 0 && u.layer === 0) { u.layer = 9; ks.push(u); }
+    try { return _sep.apply(this, arguments); } finally { for (const u of ks) u.layer = 0; }
+  };
+  const _upd = Game.prototype.update;
+  Game.prototype.update = function (dt) { const r = _upd.apply(this, arguments); try { kbTick(this, dt); } catch (e) { if (!this._kbErr) { this._kbErr = 1; console.warn('kerbau', e); } } return r; };
+
+  // Kerbau Minang: a worked Melaka farm with its kerbau ploughing gathers 30% faster
+  const _gi = Game.prototype.gatherInfo;
+  Game.prototype.gatherInfo = function (o) {
+    const gi = _gi.call(this, o);
+    if (gi && o && o.isBld && FIELD[o.kind] && o.kb) { const k = this.byId.get(o.kb); if (k && k.hp > 0 && k.job === 'plough' && k.bid === o.id && k.arrived) gi.rate *= KB.plough; }
+    return gi;
+  };
+
+  // Syahbandar Port: buy a kerbau (one at a time)
+  Game.prototype.buyKerbau = function (port) {
+    const t = port.team;
+    if (!isSyah(port) || port.kbBuy > 0) return 'busy';
+    if (this.kerbauCount(t) + 1 > KB.cap) return 'cap';
+    if (!this.canAfford(t, KB.buy)) return 'cost';
+    this.pay(t, KB.buy); port.kbBuy = KB.buyT; return 'ok';
+  };
+  const _upd2 = Game.prototype.update;
+  Game.prototype.update = function (dt) {
+    const r = _upd2.apply(this, arguments);
+    for (const b of this.buildings) if (b.kbBuy > 0 && b.hp > 0) {
+      b.kbBuy -= dt;
+      if (b.kbBuy <= 0) {
+        b.kbBuy = 0;
+        const p = this.nearestFree(b.tx + b.size / 2, b.ty - 0.5, 0, 5) || this.nearestFree(b.tx + b.size / 2, b.ty + (b.h || b.size) + 0.5, 0, 5);
+        if (p && this.kerbauCount(b.team) < KB.cap) {
+          const k = this.addUnit('kerbau', 2, p.x + 0.5, p.y + 0.5); k.own = b.team; k.fat = KB.fat0; sendHome(this, k);
+          if (b.team === 0) this.msg('A kerbau arrives at the Syahbandar Port.');
+        }
+      }
+    }
+    return r;
+  };
+
+  // map placement: wild kerbau on every skirmish map, kancil and seladang on the old three, no boar with Melaka
+  const _pop = Game.prototype.populate;
+  Game.prototype.populate = function () {
+    const def = MAPDEF[this.map || 'strait'];
+    const melIn = [0, 1].some(t => CV(t) === MEL);
+    let saved = null;
+    if (def && def.wild && melIn) { saved = def.wild; def.wild = def.wild.filter(w => w[0] !== 'boar'); }
+    try { _pop.apply(this, arguments); } finally { if (saved) def.wild = saved; }
+    if (this.M) return;
+    const S = this.starts || [], rng = this.rng;
+    const farFromStarts = (x, y, r) => S.every(st => Math.hypot(x - st.x - 1, y - st.y - 1) > r);
+    const land = (x, y) => this.inb(x, y) && this.freeTile(x, y) && !(this.reserve && this.reserve[y * W + x]);
+    const spot = (x, y, r) => { for (let k = 0; k < 40; k++) { const a = rng() * 6.283, d = rng() * r, px = Math.round(x + Math.cos(a) * d), py = Math.round(y + Math.sin(a) * d); if (land(px, py) && farFromStarts(px, py, 9)) return { x: px, y: py }; } return null; };
+    const herd = (kind, x, y, n) => { const c = spot(x, y, 6); if (!c) return; for (let i = 0; i < n; i++) { const p = this.nearestFree(c.x + (i % 2), c.y + (i >> 1), 0, 3); if (!p) continue; const a = this.addUnit(kind, 2, p.x + 0.5, p.y + 0.5); a.order = { t: 'wander', next: 2 + rng() * 5 }; if (kind === 'kerbau') { a.own = -1; a.fat = KB.fat0; } } };
+    if (S.length >= 2) {
+      const [A, B] = S, dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+      const at = (f, o) => [A.x + 1 + dx * f + nx * o, A.y + 1 + dy * f + ny * o];
+      // kerbau: a pair on each side, a pair in the middle (fair for both players)
+      for (const [f, o] of [[0.3, 10], [0.7, -10], [0.5, 0]]) { const [x, y] = at(f, o); herd('kerbau', x, y, 2); }
+      if (!NEW_MAPS[this.map]) {
+        for (const [f, o] of [[0.3, -12], [0.7, 12]]) { const [x, y] = at(f, o); herd('kancil', x, y, 2); }
+        for (const [f, o] of [[0.42, 16], [0.58, -16]]) { const [x, y] = at(f, o); herd('seladang', x, y, 1); }
+      }
+    }
+  };
+  const NEW_MAPS = { highlands: 1, jungle: 1, delta: 1 };
+
+  /* ---------- drawing ---------- */
+  const _pn = paintNode;
+  paintNode = function (n) {
+    if (n.kind !== 'berry') return _pn(n);
+    const px = n.tx * TILE, py = n.ty * TILE, spr = berryArt(n);
+    shadow(px + 16, py + 28, 11, 4, 0.25); ctx.drawImage(spr, px + 16 - spr.width / 2, py + 31 - spr.height);
+    if (isSel(n)) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(px + 2, py + 2, 28, 28); }
+  };
+  const _ni = nodeIcon;
+  nodeIcon = function (n) { if (n.kind === 'berry') return dataURL('ni|banana', () => fitIcon(bananaSprite(), 44)); return _ni(n); };
+  const _pu = paintUnit;
+  paintUnit = function (u) {
+    if (u.kind !== 'kerbau') return _pu(u);
+    const px = u.x * TILE, py = u.y * TILE, col = u.own >= 0 ? (TEAMC[CV(u.own)] || TEAMC[0]) : null;
+    const pose = u.own >= 0 ? (u.pose || 0) : 0, fr = pose === 1 ? Math.floor((u.anim || 0) * 2.5) % 2 : u.moving ? Math.floor(u.anim * (pose === 2 ? 3 : 5)) % 2 : 0;
+    const spr = kerbauSprite(col, fr, fatStage(u), pose), ox = pose === 2 ? 20 : 0;
+    shadow(px, py + 4, 12, 3);
+    if (isSel(u)) { ctx.strokeStyle = col ? col.ring : '#ddd'; ctx.lineWidth = 1.5; ell(px, py + 4, 14, 5); ctx.stroke(); }
+    ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1);
+    if (pose === 1 && u.job === 'granary') { ctx.drawImage(haySprite(), 19, 6 - 11); }     // padi straw from the granary
+    ctx.drawImage(spr, -(spr.width - ox) / 2 - ox, 6 - spr.height); ctx.restore();
+    if (u.own >= 0 && u.job === 'granary' && u.arrived && u.fat < KB.fatMax) {   // gold fattening bar
+      const f = (u.fat - KB.fat0) / (KB.fatMax - KB.fat0);
+      const by = py + 6 - spr.height + 6; ctx.fillStyle = '#17110c'; ctx.fillRect(px - 9, by, 18, 4); ctx.fillStyle = GOLD; ctx.fillRect(px - 8, by + 1, Math.round(16 * f), 2);
+    } else if (u.hp < u.maxHp || settings.bars === 'always') hpBar(px - 8, py + 6 - spr.height + 6, 16, u.hp / u.maxHp);
+  };
+  const _ui = unitIcon;
+  unitIcon = function (kind, team) { if (kind === 'kerbau') return dataURL('ui|kerbau', () => fitIcon(kerbauSprite(null, 0, 1), 44)); return _ui(kind, team); };
+  const _bs = buildingSprite;
+  buildingSprite = function (kind, team, level) { if (kind === 'port' && team !== 2 && melaka(team) && typeof G !== 'undefined' && G && G.teamAge && G.teamAge(team) >= 2) return syahbandarSprite(CV(team)); return _bs(kind, team, level); };
+
+  /* ---------- panel and commands ---------- */
+  const mine = (o) => o && o.isUnit && o.kind === 'kerbau' && o.hp > 0 && o.own === 0;
+  const _bp = buildPanel;
+  buildPanel = function () {
+    _bp();
+    const single = sel.length === 1 ? sel[0] : null, P = $('panel'); if (!single || !P) return;
+    const cm = P.querySelector('.p-cmds'), nm = P.querySelector('.p-name'), sub = P.querySelector('.p-sub');
+    if (single.isUnit && single.kind === 'kerbau') {
+      const k = single, cnt = G.kerbauCount(0);
+      const subTxt = () => k.own === 0 ? (k.job === 'plough' ? (k.arrived ? 'Ploughing \u00b7 ' : 'Going to plough \u00b7 ') : k.job === 'stay' ? (k.arrived ? 'Grazing \u00b7 ' : 'Walking \u00b7 ') : k.job === 'granary' ? (k.arrived && k.fat < KB.fatMax ? 'Fattening ' : 'Granary ') + Math.round(k.fat) + ' food \u00b7 ' : Math.round(k.fat) + ' food \u00b7 ') + 'Kerbau ' + G.kerbauCount(0) + '/' + KB.cap : k.own === 1 ? 'Enemy kerbau: walk a unit up to lead it away' : 'Wild: walk any unit up to it to claim it';
+      pdyn.push(() => { const e = P.querySelector('.p-sub'); if (e) e.textContent = subTxt(); });
+      if (k.own === 0 && cm) {
+        let h = '<button class="cmd" data-a="kb-gran" title="Fatten it at a granary"><img alt="" src="' + bldIcon('granary', 0) + '"><span class="nm">Granary</span><span class="ct">fatten</span></button>';
+        if (melaka(0)) h += '<button class="cmd" data-a="kb-plough" title="Kerbau Minang: plough a worked farm, +30% food"><img alt="" src="' + bldIcon('farm', 0) + '"><span class="nm">Plough</span><span class="ct">+30%</span></button>';
+        if (k.job !== 'plough') h += '<button class="cmd" data-a="kb-butcher" title="Butcher it now for its food"><img alt="" src="' + resIcon('food') + '"><span class="nm">Butcher</span><span class="ct" id="kb-food">' + Math.round(k.fat) + '</span></button>';
+        cm.innerHTML = h;
+        pdyn.push(() => { const e = $('kb-food'); if (e) e.textContent = Math.round(k.fat); });
+      }
+      const line = document.createElement('div'); line.className = 'p-line';
+      line.textContent = k.own === 0 ? (k.job === 'plough' ? 'Ploughing: the farm gathers 30% faster while a villager works it.' : k.job === 'granary' ? 'Fattening at the granary: 200 to 400 food over about 4 minutes. Tap Butcher when you want it.' : k.job === 'stay' ? 'Grazing here. Tap a granary or farm to put it to work.' : 'Build a granary to fatten it.') + ' Tap the ground to lead it.' : 'Kerbau give 200 food, or up to 400 after fattening at a granary.';
+      const info = P.querySelector('.p-info'); if (info) info.appendChild(line);
+    } else if (single.isBld && isSyah(single) && single.team === 0) {
+      if (nm) nm.innerHTML = 'Syahbandar Port <span class="en">(Harbour Master)</span>';
+      if (cm && single.done) {
+        cm.insertAdjacentHTML('afterbegin', '<button class="cmd" data-a="kb-buy" data-tk="kb" title="Buy a kerbau from Java or Siam (75 gold)"><img alt="" src="' + unitIcon('kerbau', 0) + '"><span class="nm">Kerbau <span id="kb-cnt">' + G.kerbauCount(0) + '/' + KB.cap + '</span></span><span class="ct">' + KB.buy.gold + 'g</span></button>');
+        pdyn.push(() => { const e = $('kb-cnt'); if (e) e.textContent = single.kbBuy > 0 ? Math.ceil(single.kbBuy) + 's' : G.kerbauCount(0) + '/' + KB.cap; const bt = document.querySelector('#panel [data-a="kb-buy"]'); if (bt) bt.classList.toggle('no', single.kbBuy > 0 || G.kerbauCount(0) >= KB.cap || !G.canAfford(0, KB.buy)); });
+      }
+    }
+  };
+  const _co = Game.prototype.costOf;
+  if (_co) Game.prototype.costOf = function (k, t) { return k === 'kb' ? KB.buy : _co.apply(this, arguments); };
+  $('panel').addEventListener('click', (e) => {
+    const el = e.target.closest('[data-a]'); if (!el || !started || paused) return;
+    const a = el.dataset.a; if (!a.startsWith('kb-')) return;
+    const s = sel[0];
+    if (a === 'kb-buy') { const r = G.buyKerbau(s); toast(r === 'ok' ? 'A kerbau is on its way.' : r === 'cap' ? 'You already keep ' + KB.cap + ' kerbau.' : r === 'cost' ? 'Not enough gold.' : 'One kerbau at a time.'); panelKey = ''; return; }
+    if (!mine(s)) return;
+    if (a === 'kb-gran') { G.kerbauToGranary(s, null); toast(s.job === 'granary' ? 'Off to the granary to fatten.' : 'Every granary is full: build another.'); }
+    else if (a === 'kb-plough') { toast(G.kerbauPlough(s, null) ? 'Ploughing the nearest worked farm.' : 'No free farm to plough.'); }
+    else if (a === 'kb-butcher') { if (G.butcherKerbau(s)) { toast('Send villagers to gather the meat.'); select([]); } }
+    panelKey = '';
+  });
+  // tap a granary or a farm with your kerbau selected
+  const _cc = contextCommand;
+  contextCommand = function (wx, wy) {
+    const ks = sel.length && sel.every(mine) ? sel.slice() : null;
+    if (ks) {
+      const hit = G.pick(wx, wy);
+      if (hit && hit.isBld && hit.team === 0 && hit.kind === 'granary') {
+        let n = 0; for (const k of ks) if (G.kerbauToGranary(k, hit)) n++; else G.kerbauToGranary(k, null);
+        toast(n ? 'Off to the granary to fatten.' : 'That granary already has ' + KB.perGran + ' kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return;
+      }
+      if (hit && hit.isBld && hit.team === 0 && FIELD[hit.kind] && melaka(0)) {
+        const ok = G.kerbauPlough(ks[0], hit); for (const k of ks.slice(1)) G.kerbauPlough(k, null);
+        toast(ok ? 'Ploughing this farm.' : 'That farm already has a kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return;
+      }
+      ks.forEach((k, i) => G.kerbauStay(k, wx + (i % 3 - 1) * 0.9, wy + Math.floor(i / 3) * 0.9));
+      addMarker(wx, wy, 'move'); panelKey = ''; return;
+    }
+    return _cc.apply(this, arguments);
+  };
+  window.KERBAU_ART = { kerbauSprite, bananaSprite, syahbandarSprite, haySprite };
+})();
+/* ===== end animal pack ===== */
+/* ===== ai plus: the computer uses trade ships and kerbau (Kerbau Minang for Melaka) ===== */
+(function () {
+  const AIP = { traders: { easy: 2, normal: 3, hard: 4 }, claimEvery: 8, claimR: 26 };
+  window.AI_PLUS = AIP;
+  const _ai = Game.prototype.aiTick;
+  Game.prototype.aiTick = function () {
+    _ai.apply(this, arguments);
+    try { aiPlus(this, 1); } catch (e) { if (!this._aipErr) { this._aipErr = 1; console.warn('ai plus', e); } }
+  };
+  function aiPlus(g, t) {
+    const tc = g.buildings.find(b => b.team === t && b.kind === 'towncentre' && b.done && b.hp > 0); if (!tc) return;
+    const r = g.res[t], pop = g.popOf(t), cap = g.popCap(t);
+    // trade: keep a few ships sailing between a port and the trading post (Majapahit's post already pays tribute)
+    const post = g.buildings.find(b => b.team === t && b.kind === 'tradepost' && b.done && b.hp > 0);
+    const ports = g.buildings.filter(b => b.team === t && b.kind === 'port' && b.done && b.hp > 0);
+    if (post && ports.length && CV(t) !== 1) {
+      const traders = g.units.filter(u => u.team === t && u.kind === 'trade' && u.hp > 0);
+      const want = AIP.traders[g.diff] || 3, queued = ports.reduce((a, p) => a + p.queue.filter(q => q.kind === 'trade').length, 0);
+      const port = ports.slice().sort((a, b) => a.queue.length - b.queue.length)[0];
+      if (traders.length + queued < want && port.queue.length < 2 && pop < cap && g.canAfford(t, g.costOf('trade', t)) && r.gold >= 120) g.queueUnit(port, 'trade', t);
+      for (const u of traders) if (!u.order || u.order.t === 'idle') g.orderTrade(u, post);
+    }
+    // kerbau: claim wild ones near home; Melaka ploughs its worked farms with them
+    if (typeof KERBAU === 'undefined' || !g.claimKerbau) return;
+    const herd = g.units.filter(u => u.kind === 'kerbau' && u.hp > 0 && u.own === t);
+    if (herd.length < KERBAU.cap && g.t - (g.ai.kbT || -99) > AIP.claimEvery) {
+      const wild = g.units.filter(u => u.kind === 'kerbau' && u.hp > 0 && (u.own == null || u.own < 0) && Math.hypot(u.x - tc.x, u.y - tc.y) < AIP.claimR && g.regionAt(u.x, u.y) === g.regionAt(tc.x, tc.y))
+        .sort((a, b) => Math.hypot(a.x - tc.x, a.y - tc.y) - Math.hypot(b.x - tc.x, b.y - tc.y))[0];
+      const goer = wild && g.units.filter(u => u.team === t && u.kind === 'villager' && u.hp > 0 && u.order && u.order.t !== 'build' && !u.kbGo)
+        .sort((a, b) => Math.hypot(a.x - wild.x, a.y - wild.y) - Math.hypot(b.x - wild.x, b.y - wild.y))[0];
+      if (goer) { g.ai.kbT = g.t; goer.kbGo = wild.id; g.orderMove(goer, wild.x, wild.y); }
+    }
+    for (const v of g.units) if (v.kbGo && v.team === t) { const k = g.byId.get(v.kbGo); if (!k || k.hp <= 0 || k.own === t || v.order.t !== 'move') { v.kbGo = 0; if (v.order.t === 'move' || v.order.t === 'idle') g.idleOrder(v); } }
+    if (CV(t) === 0) for (const k of herd) if (k.job !== 'plough' && k.job !== 'stay') {
+      const free = g.buildings.some(b => b.team === t && FIELD[b.kind] && b.done && b.hp > 0 && (!b.kb || !g.byId.get(b.kb) || g.byId.get(b.kb).hp <= 0) && g.units.some(v => v.hp > 0 && v.team === t && v.order.t === 'gather' && v.order.id === b.id));
+      if (free) g.kerbauPlough(k, null); else break;
+    }
+  }
+})();
+/* ===== end ai plus ===== */
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;
