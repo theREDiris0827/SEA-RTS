@@ -8720,7 +8720,7 @@ Object.assign(CIV_NAMES, {
 // the Bandar trades with the coast villages from the start; the Kingdom Age brings the rest
 for (const k of ['patirthan', 'tower', 'palace']) BD[k].age = 2;
 BD.palace.train = ['bhaya', 'tuah'];
-BD.barracks.train = ['keris', 'tombak', 'archer', 'sumpit', 'lembing'];
+BD.barracks.train = ['keris', 'tombak', 'archer', 'sumpit', 'lembing', 'pembedil', 'bediraja'];
 delete BD.rumahtabib;
 BUILD_ORDER.length = 0;
 for (const k of ['house', 'sawah', 'store', 'granary', 'barracks', 'port', 'palisade', 'gate', 'wall', 'patirthan', 'tower', 'palace', 'tradepost']) BUILD_ORDER.push(k);
@@ -8872,7 +8872,7 @@ Game.prototype.addUnit = function (kind, team, x, y) {
 Game.prototype.trainable = function (kind, team) {
   const t = BD[kind].train; if (!t) return null;
   const age = this.age ? this.age[team] : 4;
-  return t.filter(k => (UD[k].civ == null || UD[k].civ === CV(team)) && (team !== 0 || ageOk(UD[k], age)));
+  return t.filter(k => civOk(UD[k], team) && (team !== 0 || ageOk(UD[k], age)));
 };
 const _placeBuilding = Game.prototype.placeBuilding;
 Game.prototype.placeBuilding = function (team, kind, tx, ty, ids) {
