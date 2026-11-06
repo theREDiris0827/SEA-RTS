@@ -1,0 +1,1 @@
+[["shrine",9,4],["graves",10.5,6],["bamboo",12,3],["bamboo",12,13],["stall",28,11],["stall",34,11],["well",22,9],["banana",45,7],["banana",17,2.8]].map(i => [i[0], i[1] * W / 64, i[2] * H / 48].concat(i.slice(3)))
