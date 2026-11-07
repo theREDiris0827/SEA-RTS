@@ -24,7 +24,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.41 \u00b7 5 Nov 2026';
+const BUILD = '0.9.42 \u00b7 7 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -160,7 +160,7 @@ Object.assign(MENU_ART, {"heroBg":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA
 /* campaign flow (Iylia, 2026-10-24): built missions are playable, every other planned mission is shown locked */
 const CAMPAIGNS = [
   ['mel', 'parameswara', 'Start here   1398-1511', 'Melaka', 'From a prince fleeing Singapura to the greatest port of the age.',
-    [['mel1', "The Treasurer's Gate"], ['mel2', 'Rise of Melaka'], [0, 'Torches in the Mangroves'], [0, 'Mendam Berahi'], [0, 'Tuah and Jebat'], [0, 'The Last Sultan']]],
+    [['mel1', "The Treasurer's Gate"], ['mel2', 'Rise of Melaka'], ['mel3', 'Torches in the Mangroves'], [0, 'Mendam Berahi'], [0, 'Tuah and Jebat'], [0, 'The Last Sultan']]],
   ['maj', 'gajah-mada', '1293-1527', 'Majapahit', 'From its founding to the war over Singapura: an empire holding to the Palapa oath.',
     [['maj1', 'Rise of Majapahit'], ['maj2', "The Treasurer's Gate"], [0, 'The Paregreg War'], [0, 'The Melaka Envoys'], [0, 'Sirna Ilang Kertaning Bumi'], [0, 'The Road to Bali']]],
   ['ayu', 'u-thong', '1351-1569', 'Ayutthaya', 'The river kingdom of war elephants.',
@@ -177,6 +177,9 @@ const MISSIONS = {
   mel2: { civ: 'mel', n: 2, site: 'melaka-ages/', year: '1400-1459', hero: 'tun-perak', name: 'Tun Perak', as: 'The Great Bendahara', foe: 'Majapahit, then Siam', fc: '#7b4fb0',
     story: 'A fishing village at the river mouth must grow into a sultanate while raiders come from Java, and then the great army of Siam.',
     obj: [['Grow', 'Rise from Kampung to Kesultanan'], ['Defend', 'Survive the raids on the coast'], ['Break', 'Defeat the Siamese army of 1446']] },
+  mel3: { civ: 'mel', n: 3, site: 'campaign/melaka-3/', year: 'c. 1456', hero: 'tun-perak', name: 'Tun Perak', as: 'Torches in the Mangroves', foe: 'Siamese war fleet', fc: '#7b4fb0',
+    story: 'A Siamese war fleet anchors off the mangrove coast, and Melaka has too few ships to fight it. Tun Perak has another idea.',
+    obj: [['Ready', 'Build a port and win over the Orang Laut'], ['Trick', 'Tie torches in the mangroves at night'], ['Chase', 'Break their courage and chase the fleet']] },
   maj1: { civ: 'maj', n: 1, site: 'majapahit-ages/', year: '1293-1336', hero: 'gajah-mada', name: 'Gajah Mada', as: 'The Oath of Palapa', foe: 'Kediri, Yuan, rebels', fc: '#8a6a4a',
     story: 'A new town rises in the Tarik forest. Kediri, a Yuan fleet and Majapahit’s own lords will test it before Gajah Mada swears his oath.',
     obj: [['Found', 'Grow the village into a kingdom'], ['Defend', 'Turn back Kediri, the Yuan and the rebels'], ['Unite', 'Crush Sadeng and Keta']] },

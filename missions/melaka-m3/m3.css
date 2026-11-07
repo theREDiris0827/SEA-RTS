@@ -1,0 +1,80 @@
+/* ---------- Melaka mission 3 additions (from the Melaka ages demo) ---------- */
+#strip { flex-wrap: wrap; row-gap: 2px; }
+#hint b { color: var(--text); font-weight: 600; }
+.tipline { font-size: 13px; border-left: 3px solid var(--gold-deep); padding-left: 8px; }
+.story { width: min(100%, 460px); }
+.story h2 { color: var(--gold); text-shadow: 0 3px 0 var(--gold-deep); }
+.story p { margin: 0; line-height: 1.4; text-wrap: pretty; }
+.story .quote { color: var(--text); font-style: italic; border-left: 3px solid var(--jade-deep); padding-left: 10px; }
+.story .goal { color: var(--jade); font-family: var(--font-hd); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.35; }
+.story .legend { color: var(--muted); font-size: 13px; }
+.story canvas { width: 100%; height: auto; image-rendering: pixelated; border: 2px solid var(--edge-dark); background: #0a120f; }
+#ov-start .waves { background: repeating-linear-gradient(90deg, #1f6b4a 0 12px, #f2c94c 12px 24px); border-top-color: #ffe27a; }
+.end-art canvas { width: 100%; height: auto; image-rendering: pixelated; border: 2px solid var(--edge-dark); margin: 6px 0; }
+/* playtest round 1 */
+#strip { pointer-events: auto !important; cursor: pointer; justify-content: flex-start; }
+#strip #clock { margin-left: auto; }
+#obj-tog { color: var(--muted); font-size: 12px; flex: none; }
+#obj { pointer-events: auto; cursor: pointer; align-self: flex-start; max-width: min(100%, 420px); display: flex; flex-direction: column; gap: 3px; padding: 6px 10px 8px; background: rgba(11, 22, 18, .9); border: 2px solid var(--edge-dark); border-top: 0; font-size: 14px; line-height: 1.3; }
+#obj .obj-h { font-family: var(--font-hd); color: var(--gold); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+#obj .obj-i { display: flex; gap: 7px; color: var(--text); }
+#obj .obj-i span { flex: none; width: 12px; color: var(--muted); }
+#obj .obj-i.ok { color: var(--jade); } #obj .obj-i.ok span { color: var(--jade); }
+#obj .obj-i.opt { color: var(--muted); }
+#obj .obj-i.tip { color: var(--muted); font-size: 13px; }
+#obj .obj-how { color: #e8d48a; font-size: 12px; line-height: 1.25; margin-top: 1px; }
+#vignette { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); width: min(80%, 260px); display: flex; flex-direction: column; gap: 6px; padding: 6px; background: rgba(8, 17, 13, .94); border: 2px solid var(--edge); color: var(--text); font-size: 13px; line-height: 1.35; text-align: center; pointer-events: none; animation: tin .25s ease-out; z-index: 2; }
+#vignette canvas { width: 100%; height: auto; image-rendering: pixelated; border: 2px solid var(--edge-dark); }
+#st-art canvas { display: block; }
+@media (max-width: 480px) {
+  /* the villager-count tag hangs off the chip's lower edge: leave room for it above the objectives bar */
+  #topbar { margin-bottom: 7px; }
+  .chip-r .gn { z-index: 3; opacity: 1; }
+  .chip-r .gn.zero { opacity: 1; color: #7d8a7a; }
+}
+#strip { flex-wrap: nowrap; }
+#hint { flex: 1 1 0; }
+#clock { white-space: normal; text-align: right; max-width: 42%; }
+/* Galaxy Fold and other short or very narrow screens */
+@media (max-height: 520px) {
+  #side { flex-direction: row; gap: 6px; }
+  .sbtn { width: 40px; height: 40px; }
+  #obj { max-height: 30vh; overflow: auto; font-size: 13px; }
+  #strip { min-height: 24px; padding: 2px 8px; font-size: 13px; }
+  .card { padding: 12px 14px; gap: 8px; width: min(100%, 560px); }
+  .story { width: min(100%, 620px); }
+  .story canvas, .end-art canvas { width: auto; max-width: 100%; max-height: 34vh; align-self: center; }
+  h1 { font-size: clamp(24px, 6vh, 34px); }
+  .btn { padding: 9px 12px; }
+  #vignette { width: min(50%, 240px); }
+}
+@media (max-height: 380px) {
+  #mini { width: 80px; height: 60px; }
+  .sbtn { width: 36px; height: 36px; }
+  .sbtn img { width: 20px; height: 20px; }
+  #panel { padding: 4px; }
+  .cmd { min-height: 44px; flex-basis: 50px; }
+  #vignette canvas { display: none; }
+}
+@media (max-width: 360px) {
+  #clock { max-width: 34%; font-size: 13px; }
+  #hint { font-size: 13px; }
+  .chip-r { font-size: 15px; padding: 3px 3px; }
+  #btn-menu { width: 34px; }
+  #obj { font-size: 13px; }
+  .card { padding: 14px 12px 12px; }
+  .seg button { padding: 8px 2px; font-size: 13px; }
+}
+
+/* the pixel font turns "fi" into one glyph that reads like "A" */
+body, button, input { font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0; }
+/* the courage meter, in the strip beside the clock */
+#courage { display: flex; align-items: center; gap: 6px; flex: none; margin-left: 8px; color: var(--text); font-size: 13px; white-space: nowrap; }
+#courage[hidden] { display: none; }
+#courage .cg-l { font-family: var(--font-hd); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #c9a3ff; }
+#courage .cg-bar { width: 110px; height: 10px; background: #17110c; border: 1px solid #4e2d78; position: relative; }
+#courage .cg-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: #9a6ad0; }
+#courage.rising .cg-bar i { background: #c0504a; }
+#courage .cg-n { min-width: 20px; text-align: right; color: #e8dcc0; }
+#courage.rising .cg-n { color: #e8807a; }
+@media (max-width: 700px) { #courage .cg-l { display: none; } #courage .cg-bar { width: 60px; } }

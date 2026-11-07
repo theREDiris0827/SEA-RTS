@@ -35,12 +35,12 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [SCREEN 4 · Touch, mouse and keys](#screen-4--touch-mouse-and-keys) | `src/js/ui/04-touch-mouse-keys.js` | 6672 to 6797 |
 | [SCREEN 5 · Action panel](#screen-5--action-panel) | `src/js/ui/05-action-panel.js` | 6798 to 7030 |
 | [SCREEN 6 · Top bar, game flow and saves](#screen-6--top-bar-game-flow-and-saves) | `src/js/ui/06-hud-saves.js` | 7031 to 7167 |
-| [SCREEN 7 · Menus and encyclopedia](#screen-7--menus-and-encyclopedia) | `src/js/ui/07-menus-encyclopedia.js` | 7168 to 7497 |
-| [SCREEN 8 · Sound](#screen-8--sound) | `src/js/ui/08-sound.js` | 7498 to 7754 |
-| [SCREEN 9 · Main loop](#screen-9--main-loop) | `src/js/ui/09-main-loop.js` | 7755 to 7795 |
-| [EXTRA 1 · Calm map look and new maps](#extra-1--calm-map-look-and-new-maps) | `src/js/extras/01-maps.js` | 7796 to 8323 |
-| [EXTRA 2 · Animals and kerbau](#extra-2--animals-and-kerbau) | `src/js/extras/02-animals-kerbau.js` | 8324 to 8805 |
-| [EXTRA 3 · Smarter AI](#extra-3--smarter-ai) | `src/js/extras/03-ai-plus.js` | 8806 to 8853 |
+| [SCREEN 7 · Menus and encyclopedia](#screen-7--menus-and-encyclopedia) | `src/js/ui/07-menus-encyclopedia.js` | 7168 to 7500 |
+| [SCREEN 8 · Sound](#screen-8--sound) | `src/js/ui/08-sound.js` | 7501 to 7757 |
+| [SCREEN 9 · Main loop](#screen-9--main-loop) | `src/js/ui/09-main-loop.js` | 7758 to 7798 |
+| [EXTRA 1 · Calm map look and new maps](#extra-1--calm-map-look-and-new-maps) | `src/js/extras/01-maps.js` | 7799 to 8326 |
+| [EXTRA 2 · Animals and kerbau](#extra-2--animals-and-kerbau) | `src/js/extras/02-animals-kerbau.js` | 8327 to 8808 |
+| [EXTRA 3 · Smarter AI](#extra-3--smarter-ai) | `src/js/extras/03-ai-plus.js` | 8809 to 8856 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -831,7 +831,7 @@ Resource bar, messages, pause, win/lose screens, autosave and the 3 save slots.
 
 ## SCREEN 7 · Menus and encyclopedia
 
-`src/js/ui/07-menus-encyclopedia.js` · lines 7168 to 7497
+`src/js/ui/07-menus-encyclopedia.js` · lines 7168 to 7500
 
 Home screen, Skirmish setup, Campaign and Battles lists, mission briefings, Encyclopedia text, Settings.
 
@@ -855,18 +855,18 @@ Home screen, Skirmish setup, Campaign and Battles lists, mission briefings, Ency
 | `exitApp` | 7245 | Exit button |
 | `toastMenu` | 7251 | pop-up message on the menu |
 | `syncMenuSegs` | 7256 | highlight the chosen Skirmish options |
-| `portraitImg` | 7376 | hero portrait picture |
-| `renderCampaign` | 7378 | Campaign screen |
-| `showBrief` | 7391 | mission briefing screen |
-| `renderHeroes` | 7405 | Encyclopedia heroes tab |
-| `paintMenuArt` | 7417 | menu background art |
-| `renderEncy` | 7424 | Encyclopedia screen |
-| `renderEncyList` | 7429 | Encyclopedia list for the chosen tab |
-| `togglePause` | 7493 | pause or resume |
+| `portraitImg` | 7379 | hero portrait picture |
+| `renderCampaign` | 7381 | Campaign screen |
+| `showBrief` | 7394 | mission briefing screen |
+| `renderHeroes` | 7408 | Encyclopedia heroes tab |
+| `paintMenuArt` | 7420 | menu background art |
+| `renderEncy` | 7427 | Encyclopedia screen |
+| `renderEncyList` | 7432 | Encyclopedia list for the chosen tab |
+| `togglePause` | 7496 | pause or resume |
 
 ## SCREEN 8 · Sound
 
-`src/js/ui/08-sound.js` · lines 7498 to 7754
+`src/js/ui/08-sound.js` · lines 7501 to 7757
 
 All sounds and music are made by code (SFX).
 
@@ -878,21 +878,21 @@ All sounds and music are made by code (SFX).
 
 | Name | Line | What it does |
 |---|---|---|
-| `unlock` | 7511 | start the sound system after the first tap (phones need a tap first) |
-| `note` | 7525 | play one music note |
-| `noiseAt` | 7536 | drum and splash noise |
-| `play` | 7582 | play a named sound effect |
-| `schedule` | 7606 | keep the music playing ahead of time |
-| `menuTheme` | 7635 | the menus: the asli melody slowed right down on a soft triangle, a gambus pluck under it, the sea washing in every two bars and a gong every four |
-| `setMood` | 7650 | switch music between calm and battle |
-| `apply` | 7652 | fade to the new music mood |
-| `sfxForMsg` | 7657 | which sound goes with which game message |
-| `sfxTick` | 7712 | play sounds for what happened this frame |
-| `endGame` | 7724 | game over: show the result |
+| `unlock` | 7514 | start the sound system after the first tap (phones need a tap first) |
+| `note` | 7528 | play one music note |
+| `noiseAt` | 7539 | drum and splash noise |
+| `play` | 7585 | play a named sound effect |
+| `schedule` | 7609 | keep the music playing ahead of time |
+| `menuTheme` | 7638 | the menus: the asli melody slowed right down on a soft triangle, a gambus pluck under it, the sea washing in every two bars and a gong every four |
+| `setMood` | 7653 | switch music between calm and battle |
+| `apply` | 7655 | fade to the new music mood |
+| `sfxForMsg` | 7660 | which sound goes with which game message |
+| `sfxTick` | 7715 | play sounds for what happened this frame |
+| `endGame` | 7727 | game over: show the result |
 
 ## SCREEN 9 · Main loop
 
-`src/js/ui/09-main-loop.js` · lines 7755 to 7795
+`src/js/ui/09-main-loop.js` · lines 7758 to 7798
 
 Starts the game and keeps it ticking: 30 rule steps a second, drawing every frame.
 
@@ -900,11 +900,11 @@ Starts the game and keeps it ticking: 30 rule steps a second, drawing every fram
 
 | Name | Line | What it does |
 |---|---|---|
-| `frame` | 7760 | ---------------- main loop ---------------- |
+| `frame` | 7763 | ---------------- main loop ---------------- |
 
 ## EXTRA 1 · Calm map look and new maps
 
-`src/js/extras/01-maps.js` · lines 7796 to 8323
+`src/js/extras/01-maps.js` · lines 7799 to 8326
 
 Add-on: the quieter ground painting and the newer skirmish maps (Highlands, Deep Jungle, Mangrove Delta...).
 
@@ -916,23 +916,23 @@ Add-on: the quieter ground painting and the newer skirmish maps (Highlands, Deep
 
 | Name | Line | What it does |
 |---|---|---|
-| `paint` | 7831 | paint the calm ground look |
-| `tree` | 7878 | paint a regional tree (palm, broadleaf...) |
-| `plant` | 7898 | biome plants, same palette and outline as the game's trees |
-| `wildSprite` | 7982 | ---------- sprites (game pixel style: 2x bake, auto outline) ---------- |
-| `foodSprite` | 8000 | durian and wild banana pictures |
-| `treeFor` | 8012 | which tree type grows at a spot |
-| `fields` | 8022 | ---------- the three maps: terrain fields worked out from the seed only ---------- |
-| `lookOf` | 8039 | which ground look a map uses |
-| `clearStarts` | 8055 | clear space around the start bases |
-| `linkStarts` | 8060 | make sure both bases can reach each other |
-| `genHighlands` | 8069 | make the Highlands map |
-| `genJungle` | 8096 | make the Deep Jungle map |
-| `genDelta` | 8112 | make the Mangrove Delta map |
+| `paint` | 7834 | paint the calm ground look |
+| `tree` | 7881 | paint a regional tree (palm, broadleaf...) |
+| `plant` | 7901 | biome plants, same palette and outline as the game's trees |
+| `wildSprite` | 7985 | ---------- sprites (game pixel style: 2x bake, auto outline) ---------- |
+| `foodSprite` | 8003 | durian and wild banana pictures |
+| `treeFor` | 8015 | which tree type grows at a spot |
+| `fields` | 8025 | ---------- the three maps: terrain fields worked out from the seed only ---------- |
+| `lookOf` | 8042 | which ground look a map uses |
+| `clearStarts` | 8058 | clear space around the start bases |
+| `linkStarts` | 8063 | make sure both bases can reach each other |
+| `genHighlands` | 8072 | make the Highlands map |
+| `genJungle` | 8099 | make the Deep Jungle map |
+| `genDelta` | 8115 | make the Mangrove Delta map |
 
 ## EXTRA 2 · Animals and kerbau
 
-`src/js/extras/02-animals-kerbau.js` · lines 8324 to 8805
+`src/js/extras/02-animals-kerbau.js` · lines 8327 to 8808
 
 Add-on: fruit groves, hunt animals (kancil, boar, seladang) and kerbau herding, fattening and ploughing.
 
@@ -946,21 +946,21 @@ Add-on: fruit groves, hunt animals (kancil, boar, seladang) and kerbau herding, 
 
 | Name | Line | What it does |
 |---|---|---|
-| `bananaSprite` | 8352 | ---------- art ---------- |
-| `berryArt` | 8369 | banana grove or mango tree picture |
-| `kerbauSprite` | 8372 | kerbau picture: standing, grazing (head down) or ploughing (yoke and plough) |
-| `haySprite` | 8416 | hay pile at the granary |
-| `syahbandarSprite` | 8422 | Syahbandar Port (Melaka, Kingdom Age on): the lore hall, same size and footing as the port |
-| `homeFor` | 8464 | where an owned kerbau should stand (granary, Town Centre or farm) |
-| `sendHome` | 8477 | walk a kerbau to its spot |
-| `kbSide` | 8541 | the quietest side of a building for kerbau spots |
-| `slotIndex` | 8558 | which standing spot a kerbau gets (by arrival time) |
-| `slotPoint` | 8565 | map position of a standing spot |
-| `kbTick` | 8579 | kerbau each tick: claim, fatten, plough, follow |
+| `bananaSprite` | 8355 | ---------- art ---------- |
+| `berryArt` | 8372 | banana grove or mango tree picture |
+| `kerbauSprite` | 8375 | kerbau picture: standing, grazing (head down) or ploughing (yoke and plough) |
+| `haySprite` | 8419 | hay pile at the granary |
+| `syahbandarSprite` | 8425 | Syahbandar Port (Melaka, Kingdom Age on): the lore hall, same size and footing as the port |
+| `homeFor` | 8467 | where an owned kerbau should stand (granary, Town Centre or farm) |
+| `sendHome` | 8480 | walk a kerbau to its spot |
+| `kbSide` | 8544 | the quietest side of a building for kerbau spots |
+| `slotIndex` | 8561 | which standing spot a kerbau gets (by arrival time) |
+| `slotPoint` | 8568 | map position of a standing spot |
+| `kbTick` | 8582 | kerbau each tick: claim, fatten, plough, follow |
 
 ## EXTRA 3 · Smarter AI
 
-`src/js/extras/03-ai-plus.js` · lines 8806 to 8853
+`src/js/extras/03-ai-plus.js` · lines 8809 to 8856
 
 Add-on: the computer runs trade ships, claims wild kerbau, and Melaka's AI ploughs with them.
 
@@ -973,4 +973,4 @@ Add-on: the computer runs trade ships, claims wild kerbau, and Melaka's AI ploug
 
 | Name | Line | What it does |
 |---|---|---|
-| `aiPlus` | 8823 | the AI's extra jobs: trade ships, claim kerbau, plough |
+| `aiPlus` | 8826 | the AI's extra jobs: trade ships, claim kerbau, plough |
