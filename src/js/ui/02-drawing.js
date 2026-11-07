@@ -465,6 +465,7 @@ function render() {
   refreshFog(); ctx.imageSmoothingEnabled = true; ctx.drawImage(fogC, 0, 0, W * TILE, H * TILE); ctx.imageSmoothingEnabled = false;
   ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
   paintPlaceButtons();
+  if (typeof paintAim === 'function') paintAim();
   if (boxRect) {
     const r = boxRect; ctx.fillStyle = 'rgba(125,255,168,0.14)'; ctx.strokeStyle = '#7dffa8'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
     ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);

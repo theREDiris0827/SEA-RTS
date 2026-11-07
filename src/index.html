@@ -145,6 +145,9 @@
         <div class="m-seg two" id="m-sound"><button class="px" data-m="set" data-k="sound" data-v="on">On</button><button class="px" data-m="set" data-k="sound" data-v="off">Off</button></div>
         <div class="m-lbl">Music</div>
         <div class="m-seg two" id="m-music"><button class="px" data-m="set" data-k="music" data-v="on">On</button><button class="px" data-m="set" data-k="music" data-v="off">Off</button></div>
+        <div class="m-lbl">Orders on touch</div>
+        <div class="m-seg two" id="m-tap"><button class="px" data-m="set" data-k="tapmode" data-v="single">One tap</button><button class="px" data-m="set" data-k="tapmode" data-v="double">Double tap</button></div>
+        <p class="m-note">One tap: tap the ground or an enemy to give the order; a quick two-finger tap deselects. Double tap: one tap selects, a double tap gives the order.</p>
         <div class="m-lbl">Version</div>
         <p class="m-note" id="m-vernote"></p>
         <button class="px m-learn" data-m="update"><b>Check for updates</b></button>
@@ -239,6 +242,8 @@
 @@include js/extras/01-maps.js
 @@include js/extras/02-animals-kerbau.js
 @@include js/extras/03-ai-plus.js
+@@include js/extras/04-groups-facing-taps.js
+@@include js/extras/05-compact-hud.js
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;

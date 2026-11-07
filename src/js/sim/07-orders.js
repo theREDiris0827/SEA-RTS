@@ -289,10 +289,17 @@
 
   // move a group in formation
   groupMove(us, wx, wy, opts) {
-    if (us.length === 1) { const u = us[0]; if (opts.amove) this.orderAMove(u, wx, wy); else this.orderMove(u, wx, wy); return; }
+    if (us.length === 1) {
+      const u = us[0];
+      if (opts.out) { opts.out.push({ u, x: wx, y: wy }); return; }
+      const dx = opts.dir ? opts.dir[0] : wx - u.x; if (u.cls !== 'ship') u.endFace = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : u.face;
+      if (opts.amove) this.orderAMove(u, wx, wy); else this.orderMove(u, wx, wy); return;
+    }
     let cx = 0, cy = 0; for (const u of us) { cx += u.x; cy += u.y; } cx /= us.length; cy /= us.length;
     let fx = wx - cx, fy = wy - cy; const fl = Math.hypot(fx, fy);
-    if (fl < 0.5) { fx = 1; fy = 0; } else { fx /= fl; fy /= fl; }
+    if (opts.dir) { const dl = Math.hypot(opts.dir[0], opts.dir[1]) || 1; fx = opts.dir[0] / dl; fy = opts.dir[1] / dl; }
+    else if (fl < 0.5) { fx = 1; fy = 0; } else { fx /= fl; fy /= fl; }
+    const endFace = Math.abs(fx) > 0.05 ? (fx > 0 ? 1 : -1) : 0;
     const lx = -fy, ly = fx;
     // melee (and villagers) take the formation up front; ranged units always line up in rows behind them
     const sorted = us.slice().sort((a, b) => ORDER_CLS[a.cls] - ORDER_CLS[b.cls]);
@@ -325,6 +332,8 @@
     for (let i = 0; i < n; i++) {
       const u = sorted[i], s = slots[i];
       const x = wx + lx * s.lat - fx * s.depth, y = wy + ly * s.lat - fy * s.depth;
+      if (opts.out) { opts.out.push({ u, x, y }); continue; }
+      if (u.cls !== 'ship') u.endFace = endFace || u.face;
       if (opts.amove) this.orderAMove(u, x, y); else this.orderMove(u, x, y);
     }
   }

@@ -24,7 +24,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.42 \u00b7 7 Nov 2026';
+const BUILD = '0.9.43 \u00b7 7 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -89,6 +89,7 @@ function toastMenu(t) {
 function syncMenuSegs() {
   const press = (box, attr, val) => document.querySelectorAll('#' + box + ' button').forEach((b) => b.setAttribute('aria-pressed', b.dataset[attr] === String(val) ? 'true' : 'false'));
   press('m-diff', 'v', diff); press('m-sage', 'v', startAge); press('m-map', 'v', mapChoice); press('m-mapk', 'v', mapKind); if ($('m-mapnote')) $('m-mapnote').textContent = MAP_NOTES[mapKind]; press('m-speed', 'v', settings.speed); press('m-bars', 'v', settings.bars); press('m-sound', 'v', settings.sound); press('m-music', 'v', settings.music);
+  let tap = 'single'; try { if (localStorage.getItem('seak-tapmode') === 'double') tap = 'double'; } catch (_) { /* ignore */ } press('m-tap', 'v', tap);
   document.querySelectorAll('#m-civpick [data-m="civ"]').forEach((b) => { const on = +b.dataset.v === pciv; b.classList.toggle('sel', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
   press('m-foe', 'v', pfoe); document.querySelectorAll('#m-foe button').forEach((b) => { b.disabled = +b.dataset.v === pciv; });
 }
@@ -310,6 +311,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'hero') { heroSel = v; renderEncy(); }
   else if (a === 'brief') showBrief(v);
   else if (a === 'locked') toastMenu('This mission comes in a later update.');
+  else if (a === 'set' && el.dataset.k === 'tapmode') { setTapMode(v); syncMenuSegs(); }
   else if (a === 'set') { settings[el.dataset.k] = el.dataset.k === 'speed' ? +v : v; saveSettings(); syncMenuSegs(); SFX.apply(); }
   else if (a === 'delsave') { for (let i = 0; i < SLOT_N; i++) slotDel(i); curSlot = null; refreshHome(); toastMenu('All saved games deleted.'); }
   else if (a === 'delcont') { if (el.classList.contains('ask')) { const i = slotNewest(); if (i >= 0) slotDel(i); if (curSlot === i) curSlot = null; refreshHome(); toastMenu('Saved game deleted.'); } else delAsk(true); }

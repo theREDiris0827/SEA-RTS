@@ -58,6 +58,8 @@ JS_PARTS = [
     ('/* ##### CHAPTER EXTRA 1 · Calm map look and new maps #####', 'js/extras/01-maps.js'),
     ('/* ##### CHAPTER EXTRA 2 · Animals and kerbau #####', 'js/extras/02-animals-kerbau.js'),
     ('/* ##### CHAPTER EXTRA 3 · Smarter AI #####', 'js/extras/03-ai-plus.js'),
+    ('/* ##### CHAPTER EXTRA 4 · Groups, facing and taps #####', 'js/extras/04-groups-facing-taps.js'),
+    ('/* ##### CHAPTER EXTRA 5 · Compact screen #####', 'js/extras/05-compact-hud.js'),
 ]
 
 

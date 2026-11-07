@@ -114,10 +114,10 @@ function buildPanel() {
       if (ln) extra2 = '<div class="p-later">' + ln + '</div>';
     }
     if (hasMil) {
+      cmds += grpPanelButtons();
       cmds += '<button class="cmd" data-a="fmt" title="Formation (F)"><img alt="" src="' + resIcon('form') + '"><span class="nm" id="p-fmt">' + formation + '</span><span class="ct">&nbsp;</span></button>';
       const st0 = stanceOfSel();
       cmds += '<button class="cmd" data-a="stance" title="Stance: Aggressive chases anything it sees, Defensive chases a little then returns to its post, Hold ground never moves"><img alt="" id="p-sti" src="' + resIcon(st0) + '"><span class="nm" id="p-st">' + STANCE_NAME[st0] + '</span><span class="ct">&nbsp;</span></button>';
-      cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
     if (us.some(u => UD[u.kind].troops)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
     if (!hasVil) {
@@ -217,6 +217,8 @@ $('panel').addEventListener('click', (e) => {
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
   else if (a === 'cancel') { const b = sel[0]; if (b && b.isBld) G.cancelQueue(b, +el.dataset.i); panelKey = ''; }
   else if (a === 'fmt') cycleFormation();
+  else if (a === 'grpmake') makeGroup();
+  else if (a === 'face') toggleFace();
   else if (a === 'btab') { buildTab = k; panelKey = ''; }
   else if (a === 'stance') cycleStance();
   else if (a === 'amove') { mode = mode && mode.kind === 'amove' ? null : { kind: 'amove' }; panelKey = ''; if (mode) toast('Tap where to attack-move.'); }

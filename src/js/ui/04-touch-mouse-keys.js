@@ -16,12 +16,13 @@ cvs.addEventListener('pointerdown', (e) => {
     if (gest && gest.timer) clearTimeout(gest.timer);
     boxRect = null;
     const [a, b] = [...ptrs.values()], cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-    gest = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom, ax: cam.x + cx / view.zoom, ay: cam.y + cy / view.zoom };
+    gest = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom, ax: cam.x + cx / view.zoom, ay: cam.y + cy / view.zoom, t0: performance.now(), c0: [cam.x, cam.y] };
     return;
   }
   if (ptrs.size > 2) return;
+  if (faceAim(p, e)) return;
   if (p.type === 'mouse') {
-    if (e.button === 2) { const w = s2w(q.x, q.y); if (mode) { mode = null; panelKey = ''; } else contextCommand(w.x, w.y); ptrs.delete(e.pointerId); return; }
+    if (e.button === 2) { const w = s2w(q.x, q.y); if (mode) { mode = null; panelKey = ''; ptrs.delete(e.pointerId); return; } if (aimable(w.x, w.y)) { gest = { type: 'raim', p }; return; } contextCommand(w.x, w.y); ptrs.delete(e.pointerId); return; }
     if (e.button === 1) { gest = { type: 'pan', p }; return; }
     gest = { type: 'press', p };
   } else if (mode && mode.kind === 'place' && mode.line && mode.tx != null && (() => { const w = s2w(q.x, q.y); return Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) < 0.9 && Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) <= Math.hypot(w.x - mode.tx - 0.5, w.y - mode.ty - 0.5); })()) {
@@ -58,6 +59,8 @@ cvs.addEventListener('pointermove', (e) => {
     }
     p.lx = q.x; p.ly = q.y; return;
   }
+  if (gest.type === 'raim' && dist > 12) { p.moved = true; startAim(p); }
+  if (gest.type === 'aim') { aimMove(q); p.lx = q.x; p.ly = q.y; return; }
   if (gest.type === 'press') {
     if (p.type === 'mouse') { if (dist > 5) { gest.type = 'box'; p.moved = true; } }
     else if (dist > 9) { p.moved = true; clearTimeout(gest.timer); gest.type = 'pan'; }
@@ -70,12 +73,14 @@ cvs.addEventListener('pointermove', (e) => {
 function endPointer(e, cancelled) {
   const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
   if (!gest) return;
-  if (gest.type === 'pinch') { if (ptrs.size < 2) { gest = ptrs.size === 1 ? { type: 'dead' } : null; } return; }
+  if (gest.type === 'pinch') { if (ptrs.size < 2) { if (typeof twoFingerTap === 'function') twoFingerTap(gest); gest = ptrs.size === 1 ? { type: 'dead' } : null; } return; }
   if (gest.type === 'dead') { if (!ptrs.size) gest = null; return; }
   if (!p || gest.p !== p) return;
   if (gest.timer) clearTimeout(gest.timer);
   const g0 = gest; gest = null;
-  if (cancelled) { boxRect = null; return; }
+  if (cancelled) { boxRect = null; aim = null; return; }
+  if (g0.type === 'aim') { aimEnd(); return; }
+  if (g0.type === 'raim') { const w = s2w(p.x, p.y); if (mode) { mode = null; panelKey = ''; } else contextCommand(w.x, w.y); return; }
   if (g0.type === 'box') {
     const r = boxRect; boxRect = null;
     if (r && (r.w > 6 || r.h > 6)) boxSelect(r, p.shift); else { const w = s2w(p.x, p.y); handleTap(w.x, w.y, { touch: p.type !== 'mouse', shift: p.shift }); }

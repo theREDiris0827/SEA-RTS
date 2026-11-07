@@ -234,9 +234,12 @@
   // which standing spot a kerbau gets (by arrival time)
   function slotIndex(g, u, b) {
     // spots fill in order of arrival at this building, and close up when one leaves
-    if (u.slotB !== b.id) { u.slotB = b.id; u.slotT = g.t + u.id * 1e-6; }
-    let i = 0; for (const k of g.units) if (k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.bid === b.id && k.slotB === b.id && k.slotT < u.slotT) i++;
-    u.slot = i; return i;
+    if (u.slotB !== b.id || u.slot == null) {
+      const used = new Set(); for (const k of g.units) if (k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.bid === b.id && k.slotB === b.id && k.slot != null) used.add(k.slot);
+      let i = 0; while (used.has(i)) i++;
+      u.slotB = b.id; u.slotT = g.t + u.id * 1e-6; u.slot = i;
+    }
+    return u.slot;
   }
   // map position of a standing spot
   function slotPoint(g, u, b) {
