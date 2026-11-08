@@ -137,6 +137,7 @@ function buildPanel() {
       extra = '<div class="queue" id="p-q">' + b.queue.map((q, i) => '<button class="qi" data-a="cancel" data-i="' + i + '" title="Cancel"><img alt="" src="' + unitIcon(q.kind, 0) + '"><i id="p-qb' + i + '"></i></button>').join('') + '</div>';
       for (const k of G.lockedTrain(b.kind, 0)) cmds += lockBtn(k, UD[k], unitIcon(k, 0));
       if (b.kind === 'towncentre' && !G.M) cmds += ageBtn();
+      if (b.kind === 'barracks' && typeof fireArrowBtn === 'function') cmds += fireArrowBtn();
       if (b.kind === 'towncentre') cmds += G.bell && G.bell[0] ? cmdBtn('allclear', 'allclear', resIcon('check'), 'All clear', null, 'All clear: everyone comes out and goes back to work') : cmdBtn('bell', 'bell', resIcon('bell'), 'Bell', null, 'Ring the town bell: every villager runs into the nearest Town Centre or tower');
       if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), btnName('raft', 0), UD.raft.cost, civName('raft', 0) + ': push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
       pdyn.push(() => { const pa = $('p-age'), ag = G.aging && G.aging[0]; if (pa && ag) pa.textContent = Math.floor((1 - ag.left / ag.tot) * 100) + '%'; });
@@ -205,6 +206,7 @@ $('panel').addEventListener('click', (e) => {
     if (b._demoT && performance.now() - b._demoT < 3000) { b._demoT = 0; if (G.demolish(b)) { select([]); panelKey = ''; } }
     else { b._demoT = performance.now(); const e = $('p-demo'); if (e) e.textContent = 'Tap again'; setTimeout(() => { const e2 = $('p-demo'); if (e2 && sel[0] === b) e2.textContent = 'Demolish'; }, 3000); }
   }
+  else if (a === 'firearrow') { const err = G.startFireArrows(0); toast(err || 'The fletchers set to work on fire arrows.'); panelKey = ''; }
   else if (a === 'ageup') { const err = G.startAge(0); toast(err || 'Your court sets to work. The Town Centre keeps training villagers.'); panelKey = ''; }
   else if (a === 'agecancel') { G.cancelAge(0); panelKey = ''; }
   else if (a === 'locked') toast(el.title + '.');

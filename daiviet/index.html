@@ -5855,6 +5855,7 @@ function iconSprite(name) {
     else if (name === 'menu') { r(3, 4, 10, 2, CREAM); r(3, 7, 10, 2, CREAM); r(3, 10, 10, 2, CREAM); }
     else if (name === 'demolish') { r(3, 3, 10, 2, '#e05a40'); r(6, 1, 4, 2, '#e05a40'); r(4, 5, 8, 10, '#c83a30'); r(6, 7, 1, 6, '#8a1f18'); r(9, 7, 1, 6, '#8a1f18'); }
     else if (name === 'back') { r(4, 7, 10, 2, CREAM); for (let i = 0; i < 5; i++) { r(2 + i, 7 - i, 2, 2, CREAM); r(2 + i, 7 + i, 2, 2, CREAM); } }
+    else if (name === 'firearrow') { for (let i = 0; i < 8; i++) r(3 + i, 12 - i, 2, 2, '#b07a3a'); r(2, 12, 3, 2, CREAM); r(3, 13, 2, 2, CREAM); r(10, 3, 3, 3, STEEL); r(12, 1, 2, 3, '#e8582a'); r(13, 2, 2, 3, '#f2a33a'); r(11, 1, 1, 2, '#ffe08a'); }
     else if (name === 'x') { for (let i = 0; i < 9; i++) { r(3 + i, 3 + i, 2, 2, CREAM); r(11 - i, 3 + i, 2, 2, CREAM); } }
     else if (name === 'stop') { r(4, 4, 8, 8, '#d9473b'); r(4, 4, 8, 1, '#ff8a7a'); }
     else if (name === 'amove') { r(7, 1, 2, 9, STEEL); r(4, 9, 8, 2, '#d9473b'); r(7, 11, 2, 3, WOOD_D); r(2, 13, 12, 1, '#d9473b'); }
@@ -7070,6 +7071,7 @@ function buildPanel() {
       extra = '<div class="queue" id="p-q">' + b.queue.map((q, i) => '<button class="qi" data-a="cancel" data-i="' + i + '" title="Cancel"><img alt="" src="' + unitIcon(q.kind, 0) + '"><i id="p-qb' + i + '"></i></button>').join('') + '</div>';
       for (const k of G.lockedTrain(b.kind, 0)) cmds += lockBtn(k, UD[k], unitIcon(k, 0));
       if (b.kind === 'towncentre' && !G.M) cmds += ageBtn();
+      if (b.kind === 'barracks' && typeof fireArrowBtn === 'function') cmds += fireArrowBtn();
       if (b.kind === 'towncentre') cmds += G.bell && G.bell[0] ? cmdBtn('allclear', 'allclear', resIcon('check'), 'All clear', null, 'All clear: everyone comes out and goes back to work') : cmdBtn('bell', 'bell', resIcon('bell'), 'Bell', null, 'Ring the town bell: every villager runs into the nearest Town Centre or tower');
       if (b.kind === 'port') cmds += cmdBtn('raft', 'raft', unitIcon('raft', 0), btnName('raft', 0), UD.raft.cost, civName('raft', 0) + ': push a burning raft at the nearest enemy ship (' + RAFT.cd + ' s between rafts)');
       pdyn.push(() => { const pa = $('p-age'), ag = G.aging && G.aging[0]; if (pa && ag) pa.textContent = Math.floor((1 - ag.left / ag.tot) * 100) + '%'; });
@@ -7139,6 +7141,7 @@ $('panel').addEventListener('click', (e) => {
     if (b._demoT && performance.now() - b._demoT < 3000) { b._demoT = 0; if (G.demolish(b)) { select([]); panelKey = ''; } }
     else { b._demoT = performance.now(); const e = $('p-demo'); if (e) e.textContent = 'Tap again'; setTimeout(() => { const e2 = $('p-demo'); if (e2 && sel[0] === b) e2.textContent = 'Demolish'; }, 3000); }
   }
+  else if (a === 'firearrow') { const err = G.startFireArrows(0); toast(err || 'The fletchers set to work on fire arrows.'); panelKey = ''; }
   else if (a === 'ageup') { const err = G.startAge(0); toast(err || 'Your court sets to work. The Town Centre keeps training villagers.'); panelKey = ''; }
   else if (a === 'agecancel') { G.cancelAge(0); panelKey = ''; }
   else if (a === 'locked') toast(el.title + '.');
@@ -7331,7 +7334,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.45 \u00b7 8 Nov 2026';
+const BUILD = '0.9.46 \u00b7 8 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -12436,6 +12439,73 @@ Game.prototype.nearestDrop = function (u, type) {
   const _fpPanel = updatePanel;
   updatePanel = function () { const r = _fpPanel.apply(this, arguments); for (const c of document.querySelectorAll('#panel .cmd .ct')) c.classList.toggle('noct', !c.textContent.trim()); return r; };
 })();
+/* ##### CHAPTER EXTRA 7 · Fire Arrows research #####
+   File: src/js/extras/07-fire-arrows.js
+   What it does: Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once. Archers then
+     do extra damage to buildings and set them alight more often. Torches on melee hits stay automatic.
+   Things you can tweak:
+     - FIRE_ARROWS.cost / time / age: price, research seconds and the age it opens in.
+     - FIRE_ARROWS.bld: extra damage per arrow on a building; FIRE_ARROWS.chance: chance an arrow lights it (20% before).
+     - FIRE_ARROWS.aiGold: gold the computer keeps spare before it researches.
+   ############################################################################ */
+const FIRE_ARROWS = { cost: { wood: 50, gold: 150 }, time: 40, age: 2, bld: 4, chance: 0.35, aiGold: 100, local: ['Panah Api', 'Panah Api', 'Sorn Fai'] };
+// research state per team, kept on the game so saves carry it: fireArr[t] true once done, fireRes[t] = seconds left
+Game.prototype.fireState = function () { if (!this.fireArr) { this.fireArr = [false, false]; this.fireRes = [null, null]; } return this; };
+Game.prototype.startFireArrows = function (team) {
+  this.fireState(); const F = FIRE_ARROWS;
+  if (this.fireArr[team]) return 'Your archers already shoot fire arrows.';
+  if (this.fireRes[team] != null) return 'Already being researched.';
+  if (this.teamAge(team) < F.age) return 'Fire Arrows come with the ' + AGE_TABLE[F.age].name + '.';
+  if (!this.buildings.some(b => b.team === team && b.kind === 'barracks' && b.done && b.hp > 0)) return 'Needs a Barracks.';
+  if (!this.canAfford(team, F.cost)) return 'Fire Arrows cost ' + costWords(F.cost) + '.';
+  this.pay(team, F.cost); this.fireRes[team] = F.time; return null;
+};
+// count the research down beside the age research
+const _faAgeTick = Game.prototype.ageTick;
+Game.prototype.ageTick = function (dt) {
+  _faAgeTick.call(this, dt); this.fireState();
+  for (let t = 0; t < 2; t++) {
+    if (this.fireRes[t] == null) continue;
+    if (!this.buildings.some(b => b.team === t && b.kind === 'barracks' && b.hp > 0)) { this.refund(t, FIRE_ARROWS.cost); this.fireRes[t] = null; if (t === 0) this.msg('The Barracks is lost: Fire Arrows research stopped, cost returned.'); continue; }
+    this.fireRes[t] -= dt;
+    if (this.fireRes[t] <= 0) { this.fireRes[t] = null; this.fireArr[t] = true; if (t === 0) this.msg('Fire Arrows ready: your archers now burn buildings.'); }
+  }
+};
+// archers with fire arrows light buildings more often (foot soldiers' torches unchanged)
+const _faFireOn = Game.prototype.fireOn;
+Game.prototype.fireOn = function (u, t) {
+  this.fireState();
+  if (u.ranged && u.cls === 'archer' && !UD[u.kind].gun && this.fireArr[u.team] && t.team !== 2 && t.team !== u.team && !BD[t.kind].neutral) { if (this.rng() < FIRE_ARROWS.chance) this.ignite(t, u.team); return; }
+  return _faFireOn.call(this, u, t);
+};
+// and every arrow does extra damage to a building
+const _faDamage = Game.prototype.damage;
+Game.prototype.damage = function (att, tgt, w) {
+  const r = _faDamage.apply(this, arguments);
+  if (tgt && tgt.isBld && tgt.hp > 0 && att && att.isUnit && att.cls === 'archer' && att.ranged && !UD[att.kind].gun && this.fireArr && this.fireArr[att.team]) {
+    tgt.hp -= FIRE_ARROWS.bld; tgt.lastHit = this.t;
+    if (tgt.hp <= 0) this.onKilled(tgt, att);
+  }
+  return r;
+};
+// the computer researches it once it has a Barracks in Age 2 and gold to spare
+const _faAi = Game.prototype.aiTick;
+Game.prototype.aiTick = function (dt) {
+  const r = _faAi.apply(this, arguments); this.fireState();
+  if (this.t - (this.faLast || 0) >= 5 && (this.faLast = this.t) && !this.fireArr[1] && this.fireRes[1] == null && this.teamAge(1) >= FIRE_ARROWS.age && this.res[1].gold >= FIRE_ARROWS.cost.gold + FIRE_ARROWS.aiGold) this.startFireArrows(1);
+  return r;
+};
+// the panel rebuilds when the research starts or ends, or the age changes
+const _faKey = structKey;
+structKey = function () { const g = G && G.fireArr ? G : null; return _faKey() + '|fa' + (g ? (g.fireArr[0] ? 2 : g.fireRes[0] != null ? 1 : 0) : 0) + (G ? G.teamAge(0) : 0); };
+// the Barracks button: research, progress, or done
+function fireArrowBtn() {
+  G.fireState(); const F = FIRE_ARROWS, nm = F.local[CI(0)] + '<small class="en">(Fire Arrows)</small>';
+  if (G.fireArr[0]) return '';
+  if (G.teamAge(0) < F.age) return '<button class="cmd no lock" data-a="locked" title="Fire Arrows come with the ' + AGE_TABLE[F.age].name + '"><img alt="" src="' + resIcon('firearrow') + '"><span class="nm">' + nm + '</span><span class="ct">' + AGE_TABLE[F.age].name.replace('Age of ', '').replace(' Age', '') + '</span></button>';
+  if (G.fireRes[0] != null) { pdyn.push(() => { const e = $('p-fa'); if (e && G.fireRes[0] != null) e.textContent = Math.floor((1 - G.fireRes[0] / F.time) * 100) + '%'; }); return '<button class="cmd on" data-a="locked" title="Researching Fire Arrows"><img alt="" src="' + resIcon('firearrow') + '"><span class="nm">' + nm + '</span><span class="ct" id="p-fa">0%</span></button>'; }
+  return cmdBtn('firearrow', 'firearrow', resIcon('firearrow'), nm, F.cost, 'Research Fire Arrows (' + F.time + ' s): archers do +' + F.bld + ' damage to buildings and set them alight more often.');
+}
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;
