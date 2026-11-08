@@ -170,6 +170,36 @@ function paintGround(x0, x1, y0, y1) {
     }
   }
 }
+// where the current objectives are, for the gold rings on the map and the minimap
+function objPlaces() {
+  const M = G.M, out = []; if (!M || G.over) return out;
+  if (M.phase === 1) { out.push({ x: LANDINGS.n.x, y: LANDINGS.n.y + 1.5, r: 3, name: 'Land here' }); out.push({ x: LANDINGS.s.x, y: LANDINGS.s.y - 1.5, r: 3, name: 'Land here' }); }
+  if (M.phase === 2) { const tc = G.byId.get(M.tc); if (tc && !tc.done) out.push({ x: tc.x, y: tc.y, r: 2.6, up: 1, name: 'Sala Klang' }); }
+  if (M.phase >= 3 && M.phase < 5) for (const id in M.towns) {
+    const T0 = M.towns[id]; if (T0.st === 'joined') continue;
+    out.push({ x: T0.x, y: T0.y + 0.5, r: 4.2, up: 1, name: TOWNS[id].name });
+    if (T0.st === 'wed') { const b = G.byId.get(T0.bride); if (b && b.hp > 0) out.push({ x: b.x, y: b.y, r: 1.4, name: 'The bride' }); }
+  }
+  if (M.phase === 5) {
+    const p = M.palace && G.byId.get(M.palace);
+    if (p && M.crown < CROWN) out.push({ x: p.x, y: p.y, r: 3.4, up: 1.5, name: 'Crown U Thong here' });
+  }
+  if (M.camp && !M.campDown && M.phase >= 3) out.push({ x: M.camp.x, y: M.camp.y + 1, r: 4.5, opt: true, name: 'Rival stockade (optional)' });
+  return out;
+}
+// the same places on the minimap, pulsing, and lit up so they are never lost in the fog
+const _a1DrawMini = drawMini;
+drawMini = function () {
+  _a1DrawMini.apply(this, arguments);
+  if (typeof G === 'undefined' || !G || !G.M) return;
+  const S = mctx.canvas.width / W, pulse = 0.5 + 0.5 * Math.sin(nowS * 4);
+  for (const o of objPlaces()) {
+    const x = o.x * S, y = o.y * S;
+    mctx.strokeStyle = o.opt ? 'rgba(255,120,100,0.9)' : 'rgba(255,214,90,' + (0.6 + 0.4 * pulse).toFixed(2) + ')'; mctx.lineWidth = 2;
+    mctx.beginPath(); mctx.arc(x, y, 5 + pulse * 3, 0, 6.2832); mctx.stroke();
+    mctx.fillStyle = o.opt ? '#ff7a64' : '#ffd65a'; mctx.fillRect(x - 2, y - 2, 4, 4);
+  }
+};
 // on top: rain, where to go next, where raids come from
 function paintMission() {
   const M = G.M; if (!M) return;
@@ -181,9 +211,19 @@ function paintMission() {
     ctx.fillRect(x - 4, y - 12, 8, 12);
   };
   const gold = 'rgba(242,201,76,' + (0.55 + 0.4 * pulse).toFixed(2) + ')';
-  if (M.phase === 1) arrow(ISLE.x, ISLE.y, gold);
-  if (M.phase >= 3 && M.phase < 5) for (const id in M.towns) { const T0 = M.towns[id]; if (T0.st !== 'joined') arrow(T0.x, T0.y - 1, gold); }
-  if (M.phase === 5 && M.palace) { const p = G.byId.get(M.palace); if (p && M.crown < CROWN) arrow(p.x, p.y - 1.5, gold); }
+  // each objective place: a glowing gold ring on the ground, its name, and the arrow over it
+  for (const o of objPlaces()) {
+    const x = o.x * TILE, y = o.y * TILE, rx = o.r * TILE, ry = o.r * TILE * 0.55;
+    ctx.fillStyle = o.opt ? 'rgba(224,82,74,' + (0.08 + 0.06 * pulse).toFixed(2) + ')' : 'rgba(255,214,90,' + (0.10 + 0.08 * pulse).toFixed(2) + ')';
+    ell(x, y, rx, ry); ctx.fill();
+    ctx.setLineDash([10, 7]); ctx.lineDashOffset = -nowS * 14; ctx.lineWidth = 3;
+    ctx.strokeStyle = o.opt ? 'rgba(224,82,74,0.75)' : gold; ell(x, y, rx, ry); ctx.stroke(); ctx.setLineDash([]);
+    if (!o.opt) arrow(o.x, o.y - (o.up || 0), gold);
+    ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'center';
+    const ty = y - (o.up || 0) * TILE - 62 - pulse * 8;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(16,20,14,0.85)'; ctx.strokeText(o.name, x, ty); ctx.fillStyle = o.opt ? '#ffb4a8' : '#ffe7a0'; ctx.fillText(o.name, x, ty);
+    ctx.textAlign = 'left';
+  }
   // raid warning arrows at the map edge, from 20 s out
   if ((M.phase === 3 || M.phase === 4) && M.next - M.t <= 20) {
     const R = RIVAL_RAIDS[Math.min(M.raid, RIVAL_RAIDS.length - 1)];

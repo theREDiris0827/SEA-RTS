@@ -109,7 +109,7 @@ const BRIEF = {
   acaraki: 'Slowly heals everyone nearby', chang: 'War elephant, huge and armoured', boat: 'Fishes at sea', trade: 'Sails to a trading post for gold',
   fireship: 'Burns enemy ships it rams', light: 'Fast raider, hunts fire and trade ships', galley: 'Boards enemy ships, carries 5 soldiers',
   raft: 'Burning raft pushed at enemy ships', frigate: 'Cannon ship, breaks harbours', flagship: 'One only, cannon and archers',
-  towncentre: 'Trains villagers, takes every resource', house: 'Room for 5 more people', rafthouse: 'House on the water, a woman fishes from it',
+  towncentre: 'Trains villagers, takes every resource', house: 'Room for 10 more people', rafthouse: 'House on the water, a woman fishes from it',
   store: 'Stores wood and gold', granary: 'Stores food, build near farms',
   farm: 'Endless food', sawah: 'Rice terraces, more endless food', barracks: 'Trains troops', port: 'Builds ships, takes fish', tower: 'Shoots arrows at enemies',
   rumahtabib: 'Trains healers', patirthan: 'Heals units nearby, trains healers', wat: 'Trains healers, monks tend the wounded', palace: 'One only, trains the elite unit',
@@ -124,7 +124,7 @@ function fullName(kind, team) { const e = enName(kind, team); return civName(kin
 
 const BD = {
   towncentre: { name: 'Town Centre', size: 3, hp: 1200, pop: 8, drop: ['food', 'wood', 'gold'], train: ['villager'], atk: { dmg: 5, range: 7, rate: 2 }, sight: 10, cost: {}, time: 0, garrison: 15 },
-  house: { name: 'House', size: 2, hp: 300, pop: 5, cost: { wood: 30 }, time: 14, sight: 4 },
+  house: { name: 'House', size: 2, hp: 300, pop: 10, cost: { wood: 30 }, time: 14, sight: 4 },
   // one drop-off for wood and gold (the old Timber Mill and Gold Mine became Storehouses)
   store: { name: 'Storehouse', size: 2, hp: 400, cost: { wood: 100 }, time: 18, drop: ['wood', 'gold'], sight: 4 },
   farm: { name: 'Farm', size: 2, hp: 180, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3, civ: [0, 3] },
@@ -138,8 +138,8 @@ const BD = {
   patirthan: { name: 'Bathing Pool', size: 3, hp: 900, cost: { wood: 150, gold: 50 }, time: 40, train: ['acaraki'], needs: 'barracks', civ: 1, aura: { rng: 3, amt: 1, max: 10 }, sight: 5 },
   // Ayutthaya: the Wat trains the Mo and its monks tend the wounded nearby
   wat: { name: 'Temple', size: 3, hp: 700, cost: { wood: 120, gold: 40 }, time: 30, train: ['mo'], needs: 'barracks', civ: 3, aura: { rng: 2.5, amt: 1, max: 6 }, sight: 5 },
-  // Ruean Phae: an Ayutthaya house built on the water's edge floats on a raft; a woman fishes from its deck
-  rafthouse: { name: 'Raft House', size: 2, hp: 220, pop: 5, drop: ['food'], cost: { wood: 30 }, time: 12, sight: 4, civ: 3 },
+  // Ruean Phae: an Ayutthaya house built out on the water floats on a raft; a woman fishes from its deck
+  rafthouse: { name: 'Raft House', size: 2, hp: 220, pop: 10, drop: ['food'], cost: { wood: 30 }, time: 12, sight: 4, civ: 3 },
   palace: { name: 'Palace', size: 4, hp: 2400, cost: { wood: 400, gold: 200 }, time: 60, train: ['pahlawan', 'bhaya', 'chang'], one: true, sight: 9 },
   tradepost: { name: 'Trading Post', size: 3, hp: 700, cost: { wood: 150, gold: 50 }, time: 30, site: true, sight: 7, civ: [0, 1, 3] },
   // walls are one tile each, laid in lines; gates let your own side through and stop everyone else

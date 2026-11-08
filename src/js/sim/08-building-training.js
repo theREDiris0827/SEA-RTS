@@ -58,7 +58,9 @@
     }
     return land >= 2 && open >= 4;
   }
-  /* water tiles around a footprint: an Ayutthaya house with 3 or more becomes a raft house */
+  // an Ayutthaya house set down on the water floats as a raft house; one built on land always stays a house (Iylia, 2026-11-08)
+  houseKind(team, tx, ty) { return CV(team) === AYU_CIV && this.isWater(tx, ty) ? 'rafthouse' : 'house'; }
+  // how many open water tiles ring a footprint
   waterSide(tx, ty, size) {
     let water = 0;
     for (let y = ty - 1; y <= ty + size; y++) for (let x = tx - 1; x <= tx + size; x++) {
@@ -108,7 +110,7 @@
   }
   /* returns {ok, b, why} */
   placeBuilding(team, kind, tx, ty, builderIds) {
-    if (kind === 'house' && CV(team) === AYU_CIV && this.waterSide(tx, ty, 2)) kind = 'rafthouse';
+    if (kind === 'house') kind = this.houseKind(team, tx, ty);
     const d = BD[kind];
     if (!d || !d.cost) return { ok: false, why: 'Cannot build that.' };
     if (!this.canAfford(team, d.cost)) return { ok: false, why: 'Not enough resources.' };

@@ -351,13 +351,14 @@ function paintPlacement() {
   if (mode.tx == null) return;
   if (mode.line) { paintLinePlacement(d); return; }
   const tx = mode.tx, ty = mode.ty;
-  const dh = d.fh || d.size;
+  const dh = d.fh || d.size, raftHere = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
   for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-    const ok = G.freeTile(x, y) && G.explored[y * W + x];
+    const ok = (G.freeTile(x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
     ctx.fillStyle = ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   const valid = G.canPlace(mode.bkind, tx, ty, 0); mode.valid = valid;
-  const spr = buildingSprite(mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
+  const raft = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
+  const spr = buildingSprite(raft ? 'rafthouse' : mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
   ctx.globalAlpha = valid ? 0.72 : 0.4;
   ctx.drawImage(spr, px + (w - spr.width) / 2, d.walk ? py : py + dh * TILE - spr.height + 2); ctx.globalAlpha = 1;
   ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, dh * TILE);

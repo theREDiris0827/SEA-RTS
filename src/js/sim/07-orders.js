@@ -85,7 +85,7 @@
       u.x = p.x; u.y = p.y; u.aboard = null; u.path = null; u.order = { t: 'idle', hx: u.x, hy: u.y };
       this.units.push(u); this.byId.set(u.id, u);
       const o = u.back; u.back = null;
-      if (o && o.id && this.byId.get(o.id)) { const t = this.byId.get(o.id); if (o.t === 'gather') this.orderGather(u, t); else if (o.t === 'build' || o.t === 'repair') { u.order = Object.assign({}, o); } else if (o.t === 'fishhouse') u.order = Object.assign({}, o); }
+      if (o && o.id && this.byId.get(o.id)) { const t = this.byId.get(o.id); if (o.t === 'gather') this.orderGather(u, t); else if (o.t === 'build' || o.t === 'repair') { u.order = Object.assign({}, o); } else if (o.t === 'fishhouse') u.order = Object.assign({}, o, { deck: 0 }); }
     }
     b.cargo = [];
     return n;

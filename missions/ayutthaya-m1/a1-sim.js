@@ -15,7 +15,11 @@ CIVMAP = [AYU_CIV, AYU_CIV];
 // a 96 x 72 map (build.py widens the main game's 64 x 48). Like the real Ayutthaya, the island is the land
 // the rivers wrap: the Lopburi round the north, the Chao Phraya down the west and south, the Pa Sak on the east.
 // Its shore is an irregular, lobed outline and every river meanders, so nothing reads as a drawn circle.
-const ISLE = { x: 48, y: 38, rx: 18.5, ry: 11.5 };
+// v0.9.44 (Iylia, 2026-11-08: "still a bit small"): about twice the land of the old 18.5 x 11.5 island
+const ISLE = { x: 48, y: 38, rx: 25, ry: 16.5 };
+// island features were laid out on the old island: IS() stretches a point out from the centre to the new size
+const IS_K = { x: 25 / 18.5, y: 16.5 / 11.5 };
+function IS(x, y) { return [ISLE.x + (x - ISLE.x) * IS_K.x, ISLE.y + (y - ISLE.y) * IS_K.y]; }
 const FLOODP = { x: 21, y: 59, rx: 18, ry: 9 };
 // the island's radius at angle a: an east-west oval pushed in and out by a few slow waves
 function isleR(a) {
@@ -36,10 +40,10 @@ MAPDEF.river = {
   ponds: [[13, 57, 2.6, 1.7], [79, 29, 2.2, 1.4], [33, 9, 1.6, 1.2], [62, 64, 1.8, 1.2]],
   cliffs: [[86, 64, 4.5, 3], [8, 66, 4, 2.6], [64, 5, 3, 2]],
   // khlongs: small canals and streams across the island, shallow, with plank crossings; boats can't enter them
-  khlongs: [[[[39, 26.5], [40, 31], [42, 35], [43, 37.5]], 1.2, [0.5]],              // north khlong down into the Bueng
-    [[[42.5, 39.5], [40, 42.5], [37.5, 46], [36.5, 49]], 1.1, []],                       // and on to the south-west channel
-    [[[69, 39], [64, 38.8], [60, 40.5]], 1.0, []]],                                      // a stream in from the east to a pond
-  isPonds: [[44, 38.5, 3.2, 1.9], [58.5, 41.5, 2.0, 1.4], [54, 31.5, 1.5, 1.0]],      // Bueng Phra Ram and two small ponds
+  khlongs: [[[[39, 23], [40, 31], [42, 35], [43, 37.5]].map(p => IS(...p)), 1.2, [0.5]],   // north khlong down into the Bueng
+    [[[42.5, 39.5], [40, 42.5], [37.5, 46], [36.5, 52]].map(p => IS(...p)), 1.1, []],              // and on to the south-west channel
+    [[[72, 39], [64, 38.8], [60, 40.5]].map(p => IS(...p)), 1.0, []]],                             // a stream in from the east to a pond
+  isPonds: [[44, 38.5, 3.6, 2.2], [58.5, 41.5, 2.3, 1.6], [54, 31.5, 1.8, 1.2]].map(([x, y, rx, ry]) => IS(x, y).concat([rx, ry])),   // Bueng Phra Ram and two small ponds
   gold: [], deer: [], villages: []
 };
 // a river's course: the given points with smooth bends added between them (the same bends every game)
@@ -111,7 +115,7 @@ function floodMask(g) {
   return m;
 }
 // bamboo bridges from the island to the west bank and the east bank, laid once the city is founded
-const BRIDGES = [{ y: 38, dx: -1 }, { y: 35, dx: 1 }];
+const BRIDGES = [{ y: 38, dx: -1 }, { y: 34, dx: 1 }];
 Game.prototype.layBridges = function () {
   const terr = this.terrain, isWet = (j) => terr[j] === T.SHALLOW || terr[j] === T.DEEP;
   for (const B of BRIDGES) {
@@ -231,34 +235,38 @@ Game.prototype.populate = function () {
   for (const p of Object.values(RIVERIN).concat(Object.values(LANDINGS), [TOWNS.lavo.land])) toWater(p);
   const keepClear = (x, y) => !onIsle(x, y) && !g.flood[y * W + x] && Math.hypot(x - OLD.x, y - OLD.y) > 5;
   // roads the towns and raiders use stay clear of trees
-  g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 25, 39);
-  g.reserveRoute(ENTRY.se.x | 0, ENTRY.se.y | 0, 72, 36);
-  g.reserveRoute(ENTRY.w.x | 0, ENTRY.w.y | 0, 25, 39);
-  g.reserveRoute(ENTRY.n.x | 0, ENTRY.n.y | 0, 70, 30);
+  g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 18, 38);   // to the west bridgehead
+  g.reserveRoute(ENTRY.se.x | 0, ENTRY.se.y | 0, 78, 35);             // to the east bridgehead
+  g.reserveRoute(ENTRY.w.x | 0, ENTRY.w.y | 0, 18, 38);
+  g.reserveRoute(ENTRY.n.x | 0, ENTRY.n.y | 0, 78, 33);
   g.reserveRoute(OLD.x, OLD.y + 2, 20, 26);
   for (const T0 of Object.values(TOWNS)) for (let y = T0.ty - 2; y <= T0.ty + 6; y++) for (let x = T0.tx - 3; x <= T0.tx + 7; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
   for (let y = RIVAL.ty - 2; y <= RIVAL.ty + 6; y++) for (let x = RIVAL.tx - 3; x <= RIVAL.tx + 8; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
   // the island: room for a whole city, with groves, berries and a little gold; more wood on the banks
-  place('berry', 40, 43, 1.8, 6, onIsle); place('berry', 57, 33, 1.6, 5, onIsle);
-  place('tree', 61, 43, 2.6, 14, onIsle); place('tree', 35, 33, 2.4, 12, onIsle); place('tree', 50, 48, 2.0, 8, onIsle); place('tree', 54, 28, 1.8, 6, onIsle); place('tree', 42, 31, 2.0, 9, onIsle); place('tree', 62, 35, 1.8, 7, onIsle); place('berry', 47, 45, 1.4, 4, onIsle);
-  { const c = g.nearestFree(58, 39, 0, 4); if (c) place('gold', c.x, c.y, 1.4, 4, onIsle); }
+  const isl = (kind, x, y, r, n) => { const [cx, cy] = IS(x, y); place(kind, cx, cy, r, n, onIsle); };
+  isl('berry', 40, 43, 1.8, 6); isl('berry', 57, 33, 1.6, 5);
+  isl('tree', 61, 43, 3.0, 18); isl('tree', 35, 33, 2.8, 16); isl('tree', 50, 48, 2.2, 10); isl('tree', 54, 28, 2.0, 8); isl('tree', 42, 31, 2.2, 10); isl('tree', 62, 35, 2.0, 9); isl('berry', 47, 45, 1.4, 4);
+  isl('tree', 33, 42, 2.0, 8); isl('tree', 65, 30, 1.8, 6);
+  { const [gx, gy] = IS(58, 39), c = g.nearestFree(Math.round(gx), Math.round(gy), 0, 4); if (c) place('gold', c.x, c.y, 1.4, 4, onIsle); }
   // forests on the banks, gold in the hills
-  for (const [cx, cy, r, n] of [[31, 9, 5, 40], [5, 21, 4.5, 32], [17, 30, 4, 24], [64, 14, 5, 36], [73, 33, 4.5, 28], [42, 15, 3.5, 18],
+  for (const [cx, cy, r, n] of [[31, 9, 5, 40], [5, 21, 4.5, 32], [17, 30, 4, 24], [64, 14, 5, 36], [81, 30, 4, 24], [42, 15, 3.5, 18],
     [64, 61, 4.5, 28], [33, 66, 3.5, 14], [88, 27, 4.5, 24], [88, 56, 4, 18], [10, 47, 3, 12], [55, 66, 3, 12]]) place('tree', cx, cy, r, n, keepClear);
   for (let i = 0; i < 160; i++) {
     const x = 2 + Math.floor(rng() * (W - 4)), y = 2 + Math.floor(rng() * (H - 4));
     if (g.freeTile(x, y) && !g.reserve[y * W + x] && keepClear(x, y) && hash2(x, y, 31) < 0.45) g.addNode('tree', x, y);
   }
-  for (const [x, y] of [[15, 24], [74, 39], [54, 11], [70, 66]]) { const c = g.nearestFree(x, y, 0, 5); if (c) place('gold', c.x, c.y, 1.6, 5); }
+  for (const [x, y] of [[15, 24], [80, 39], [54, 11], [70, 66]]) { const c = g.nearestFree(x, y, 0, 5); if (c) place('gold', c.x, c.y, 1.6, 5, (X, Y) => !g.flood[Y * W + X]); }
   place('berry', 17, 15, 1.6, 5, keepClear); place('berry', 20, 42, 1.6, 5, keepClear);
-  for (const [gx, gy] of [[17, 44], [72, 24], [36, 60], [86, 36]]) {
-    const c = g.nearestFree(gx, gy, 0, 6); if (!c) continue;
-    for (let i = 0; i < 3; i++) { const p = g.nearestFree(c.x + i, c.y + (i % 2), 0, 4); if (!p) continue; const d = g.addUnit('deer', 2, p.x + 0.5, p.y + 0.5); d.order = { t: 'wander', next: 2 + rng() * 5 }; }
+  // deer graze the dry banks, never the flood plain (it goes under in the rains)
+  const dryNear = (x, y, r) => { for (let k = 0; k <= r; k++) for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) { const X = x + dx, Y = y + dy; if (g.inb(X, Y) && g.freeTile(X, Y) && !g.flood[Y * W + X] && !onIsle(X, Y)) return { x: X, y: Y }; } return null; };
+  for (const [gx, gy] of [[17, 44], [72, 22], [40, 64], [86, 36]]) {
+    const c = dryNear(gx, gy, 6); if (!c) continue;
+    for (let i = 0; i < 3; i++) { const p = dryNear(c.x + i, c.y + (i % 2), 4); if (!p) continue; const d = g.addUnit('deer', 2, p.x + 0.5, p.y + 0.5); d.order = { t: 'wander', next: 2 + rng() * 5 }; }
   }
   // fish in the rivers round the island
   for (let i = 0, n = 0; i < 4000 && n < 24; i++) {
     const x = 2 + Math.floor(rng() * (W - 4)), y = 2 + Math.floor(rng() * (H - 4));
-    if (!g.isWater(x, y) || g.block[y * W + x] || Math.hypot(x - ISLE.x, y - ISLE.y) > 28) continue;
+    if (!g.isWater(x, y) || g.block[y * W + x] || Math.hypot(x - ISLE.x, y - ISLE.y) > 34) continue;
     if (g.nodes.some(o => o.kind === 'fish' && Math.abs(o.tx - x) + Math.abs(o.ty - y) < 4)) continue;
     g.addNode('fish', x, y); n++;
   }
@@ -284,6 +292,7 @@ Game.prototype.populate = function () {
   g.res[1] = { food: 0, wood: 0, gold: 0 };
   g.age = [1, 2]; g.maxAge = 2; g.navTier = [0, 0];   // the enemy keeps the Kingdom Age look; their own colours go on top
   M.isle = g.regionAt(ISLE.x + 0.5, ISLE.y + 0.5);
+  for (const L of Object.values(LANDINGS)) scout(g, L.x, L.y, 4);
 };
 function buildTown(g, id) {
   const T0 = TOWNS[id], ids = [];
@@ -654,9 +663,12 @@ function launchRaid(g, R, idx, cut) {
   M.cols.push({ wave: idx, ids, left: 0, done: false, final: !!R.final });
   return from;
 }
+// scouts have been there: the place shows through the fog (the objective rings sit on it)
+function scout(g, x, y, r) { for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) if (g.inb(xx, yy) && Math.hypot(xx + 0.5 - x, yy + 0.5 - y) <= r) g.explored[yy * W + xx] = 1; }
 function setPhase(g, n) {
   const M = g.M; if (M.phase >= n) return;
   M.phase = n; M.phaseAt[n] = M.t;
+  if (n === 3) { for (const id in M.towns) scout(g, M.towns[id].x, M.towns[id].y + 1, 6); if (M.camp) scout(g, M.camp.x, M.camp.y + 1, 5.5); }
   if (n === 2) {
     M.cardQ.push('island');
     // the settlers stake out the Sala Klang in the middle of the island

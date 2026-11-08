@@ -62,7 +62,7 @@ Object.assign(CIV_NAMES, {
 /* ---------- buildings ---------- */
 Object.assign(BD, {
   // Ayutthaya
-  raft: { name: 'Ruean Phae (Raft house)', size: 2, hp: 220, pop: 5, drop: ['food'], cost: { wood: 25 }, time: 12, shore: true, sight: 4 },
+  raft: { name: 'Ruean Phae (Raft house)', size: 2, hp: 220, pop: 10, drop: ['food'], cost: { wood: 25 }, time: 12, shore: true, sight: 4 },
   rong: { name: 'Rong (Storehouse)', size: 2, hp: 380, drop: ['wood', 'gold'], cost: { wood: 100 }, time: 18, sight: 4 },
   wat: { name: 'Wat (Temple)', size: 3, hp: 700, cost: { wood: 120, gold: 40 }, time: 28, train: ['mo'], aura: { rng: 3, amt: 1, max: 8 }, sight: 5 },
   phaniat: { name: 'Phaniat (Elephant kraal)', size: 3, hp: 900, cost: { wood: 180, gold: 60 }, time: 35, train: ['chang'], needs: 'barracks', sight: 6 },

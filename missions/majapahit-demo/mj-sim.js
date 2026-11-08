@@ -95,7 +95,7 @@ Object.assign(BD, {
   bendahari: { name: 'Treasurer\'s house', size: 2, hp: 600, cost: null, time: 0, sight: 4, keep: true }
 });
 Object.assign(BD.granary, { drop: ['food', 'wood', 'gold'], cost: { wood: 60 }, time: 16 });
-Object.assign(BD.house, { cost: { wood: 30 }, pop: 5 });
+Object.assign(BD.house, { cost: { wood: 30 }, pop: 10 });   // every house gives 10 (Iylia, 2026-11-08)
 Object.assign(BD.port, { train: ['boat', 'light'], cost: { wood: 110 }, time: 25 });
 Object.assign(BD.barracks, { train: ['keris', 'tombak', 'archer'], cost: { wood: 140 } });
 Object.assign(BD.patirthan, { cost: { wood: 120, gold: 30 }, time: 30 });

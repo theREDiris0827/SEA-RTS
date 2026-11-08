@@ -193,10 +193,12 @@
   // push units apart so they don't stack
   separate() {
     const us = this.units;
+    // a woman fishing from her raft house's deck is out of everyone's way
+    const deck = (v) => v.order.t === 'fishhouse' && v.order.deck;
     for (const u of us) {
-      if (u.hp <= 0) continue;
+      if (u.hp <= 0 || deck(u)) continue;
       this.unitsNear(u.x, u.y, 0.6, (o) => {
-        if (o === u || o.id < u.id || o.layer !== u.layer) return;
+        if (o === u || o.id < u.id || o.layer !== u.layer || deck(o)) return;
         const dx = o.x - u.x, dy = o.y - u.y, d2 = dx * dx + dy * dy;
         if (d2 > 0.3 * 0.3 * 4 || d2 < 1e-6) { if (d2 < 1e-6) { o.x += 0.02; } return; }
         const d = Math.sqrt(d2), push = (0.6 - d) * 0.18, nx = dx / d, ny = dy / d;

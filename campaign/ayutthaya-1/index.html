@@ -656,7 +656,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
         <li><b>Scroll:</b> drag the map. <b>Zoom:</b> pinch (or the +/- buttons, or mouse wheel). <b>Select:</b> tap a unit or building; hold, then drag a box for a group. Double-tap a unit to pick all of its kind on screen.</li>
         <li><b>Command:</b> with units selected, tap the ground to move, a resource to gather, an enemy to attack. Mouse: right-click.</li>
         <li><b>Barges:</b> select a barge and tap <b>Load</b> to take the nearest people aboard (or select people and tap the barge). Then tap a shore to land them. A barge carries 6.</li>
-        <li><b>Households:</b> a house built touching the water floats as a raft house; tap it with a villager to send her fishing. A house beside a worked paddy field is a household too. Each household pays 15 food a minute.</li>
+        <li><b>Households:</b> a house set down on the water floats as a raft house (on land it stays a house); tap it with a villager to send her fishing. A house beside a worked paddy field is a household too. Each household pays 15 food a minute.</li>
         <li><b>Towns:</b> select Lavo's or Suphanburi's town hall. Lavo wants 3 gift boats sent up the Lopburi river; Suphanburi a wedding procession across the fields. Or take a town by force: break its hall. Force is faster, but fewer troops join and your people work 10% slower.</li>
         <li><b>The rains:</b> for 3 minutes the flood plain goes under water. Paddy fields there stop and men wading are slowed. Raft houses keep fishing. Out of the rains, fields on the plain are richer.</li>
         <li><b>Ages:</b> select the Sala Klang to advance to the Kingdom Age. It opens the Wang (palace), the Wat, towers and walls, and puts your men in the royal purple.</li>
@@ -857,7 +857,7 @@ const BRIEF = {
   acaraki: 'Slowly heals everyone nearby', chang: 'War elephant, huge and armoured', boat: 'Fishes at sea', trade: 'Sails to a trading post for gold',
   fireship: 'Burns enemy ships it rams', light: 'Fast raider, hunts fire and trade ships', galley: 'Boards enemy ships, carries 5 soldiers',
   raft: 'Burning raft pushed at enemy ships', frigate: 'Cannon ship, breaks harbours', flagship: 'One only, cannon and archers',
-  towncentre: 'Trains villagers, takes every resource', house: 'Room for 5 more people', rafthouse: 'House on the water, a woman fishes from it',
+  towncentre: 'Trains villagers, takes every resource', house: 'Room for 10 more people', rafthouse: 'House on the water, a woman fishes from it',
   store: 'Stores wood and gold', granary: 'Stores food, build near farms',
   farm: 'Endless food', sawah: 'Rice terraces, more endless food', barracks: 'Trains troops', port: 'Builds ships, takes fish', tower: 'Shoots arrows at enemies',
   rumahtabib: 'Trains healers', patirthan: 'Heals units nearby, trains healers', wat: 'Trains healers, monks tend the wounded', palace: 'One only, trains the elite unit',
@@ -872,7 +872,7 @@ function fullName(kind, team) { const e = enName(kind, team); return civName(kin
 
 const BD = {
   towncentre: { name: 'Town Centre', size: 3, hp: 1200, pop: 8, drop: ['food', 'wood', 'gold'], train: ['villager'], atk: { dmg: 5, range: 7, rate: 2 }, sight: 10, cost: {}, time: 0, garrison: 15 },
-  house: { name: 'House', size: 2, hp: 300, pop: 5, cost: { wood: 30 }, time: 14, sight: 4 },
+  house: { name: 'House', size: 2, hp: 300, pop: 10, cost: { wood: 30 }, time: 14, sight: 4 },
   // one drop-off for wood and gold (the old Timber Mill and Gold Mine became Storehouses)
   store: { name: 'Storehouse', size: 2, hp: 400, cost: { wood: 100 }, time: 18, drop: ['wood', 'gold'], sight: 4 },
   farm: { name: 'Farm', size: 2, hp: 180, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3, civ: [0, 3] },
@@ -886,8 +886,8 @@ const BD = {
   patirthan: { name: 'Bathing Pool', size: 3, hp: 900, cost: { wood: 150, gold: 50 }, time: 40, train: ['acaraki'], needs: 'barracks', civ: 1, aura: { rng: 3, amt: 1, max: 10 }, sight: 5 },
   // Ayutthaya: the Wat trains the Mo and its monks tend the wounded nearby
   wat: { name: 'Temple', size: 3, hp: 700, cost: { wood: 120, gold: 40 }, time: 30, train: ['mo'], needs: 'barracks', civ: 3, aura: { rng: 2.5, amt: 1, max: 6 }, sight: 5 },
-  // Ruean Phae: an Ayutthaya house built on the water's edge floats on a raft; a woman fishes from its deck
-  rafthouse: { name: 'Raft House', size: 2, hp: 220, pop: 5, drop: ['food'], cost: { wood: 30 }, time: 12, sight: 4, civ: 3 },
+  // Ruean Phae: an Ayutthaya house built out on the water floats on a raft; a woman fishes from its deck
+  rafthouse: { name: 'Raft House', size: 2, hp: 220, pop: 10, drop: ['food'], cost: { wood: 30 }, time: 12, sight: 4, civ: 3 },
   palace: { name: 'Palace', size: 4, hp: 2400, cost: { wood: 400, gold: 200 }, time: 60, train: ['pahlawan', 'bhaya', 'chang'], one: true, sight: 9 },
   tradepost: { name: 'Trading Post', size: 3, hp: 700, cost: { wood: 150, gold: 50 }, time: 30, site: true, sight: 7, civ: [0, 1, 3] },
   // walls are one tile each, laid in lines; gates let your own side through and stop everyone else
@@ -1975,7 +1975,7 @@ class Game {
       u.x = p.x; u.y = p.y; u.aboard = null; u.path = null; u.order = { t: 'idle', hx: u.x, hy: u.y };
       this.units.push(u); this.byId.set(u.id, u);
       const o = u.back; u.back = null;
-      if (o && o.id && this.byId.get(o.id)) { const t = this.byId.get(o.id); if (o.t === 'gather') this.orderGather(u, t); else if (o.t === 'build' || o.t === 'repair') { u.order = Object.assign({}, o); } else if (o.t === 'fishhouse') u.order = Object.assign({}, o); }
+      if (o && o.id && this.byId.get(o.id)) { const t = this.byId.get(o.id); if (o.t === 'gather') this.orderGather(u, t); else if (o.t === 'build' || o.t === 'repair') { u.order = Object.assign({}, o); } else if (o.t === 'fishhouse') u.order = Object.assign({}, o, { deck: 0 }); }
     }
     b.cargo = [];
     return n;
@@ -2288,7 +2288,9 @@ class Game {
     }
     return land >= 2 && open >= 4;
   }
-  /* water tiles around a footprint: an Ayutthaya house with 3 or more becomes a raft house */
+  // an Ayutthaya house set down on the water floats as a raft house; one built on land always stays a house (Iylia, 2026-11-08)
+  houseKind(team, tx, ty) { return CV(team) === AYU_CIV && this.isWater(tx, ty) ? 'rafthouse' : 'house'; }
+  // how many open water tiles ring a footprint
   waterSide(tx, ty, size) {
     let water = 0;
     for (let y = ty - 1; y <= ty + size; y++) for (let x = tx - 1; x <= tx + size; x++) {
@@ -2338,7 +2340,7 @@ class Game {
   }
   /* returns {ok, b, why} */
   placeBuilding(team, kind, tx, ty, builderIds) {
-    if (kind === 'house' && CV(team) === AYU_CIV && this.waterSide(tx, ty, 2)) kind = 'rafthouse';
+    if (kind === 'house') kind = this.houseKind(team, tx, ty);
     const d = BD[kind];
     if (!d || !d.cost) return { ok: false, why: 'Cannot build that.' };
     if (!this.canAfford(team, d.cost)) return { ok: false, why: 'Not enough resources.' };
@@ -2472,8 +2474,9 @@ class Game {
   doFishHouse(u, dt) {
     const b = this.byId.get(u.order.id);
     if (!b || b.hp <= 0 || !b.done) { this.idleOrder(u); return; }
-    if (rectDist(u.x, u.y, b.rect) <= 0.95) {
-      u.path = null; u.working = true;
+    // once she is on the deck she stays there (o.deck), even if someone brushes past on the bank
+    if (rectDist(u.x, u.y, b.rect) <= (u.order.deck ? 1.5 : 0.95)) {
+      u.path = null; u.working = true; u.order.deck = 1;
       const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
       u.gt = (u.gt || 0) + dt * FISH_RATE;
       if (u.gt >= 10) { u.gt -= 10; this.res[u.team].food += 10; if (u.team === 0) this.floaters.push({ x: b.x, y: b.y - 1.2, text: '+10 food', type: 'food', t: 1.2 }); }
@@ -3107,10 +3110,12 @@ class Game {
   // push units apart so they don't stack
   separate() {
     const us = this.units;
+    // a woman fishing from her raft house's deck is out of everyone's way
+    const deck = (v) => v.order.t === 'fishhouse' && v.order.deck;
     for (const u of us) {
-      if (u.hp <= 0) continue;
+      if (u.hp <= 0 || deck(u)) continue;
       this.unitsNear(u.x, u.y, 0.6, (o) => {
-        if (o === u || o.id < u.id || o.layer !== u.layer) return;
+        if (o === u || o.id < u.id || o.layer !== u.layer || deck(o)) return;
         const dx = o.x - u.x, dy = o.y - u.y, d2 = dx * dx + dy * dy;
         if (d2 > 0.3 * 0.3 * 4 || d2 < 1e-6) { if (d2 < 1e-6) { o.x += 0.02; } return; }
         const d = Math.sqrt(d2), push = (0.6 - d) * 0.18, nx = dx / d, ny = dy / d;
@@ -6422,13 +6427,14 @@ function paintPlacement() {
   if (mode.tx == null) return;
   if (mode.line) { paintLinePlacement(d); return; }
   const tx = mode.tx, ty = mode.ty;
-  const dh = d.fh || d.size;
+  const dh = d.fh || d.size, raftHere = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
   for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-    const ok = G.freeTile(x, y) && G.explored[y * W + x];
+    const ok = (G.freeTile(x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
     ctx.fillStyle = ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   const valid = G.canPlace(mode.bkind, tx, ty, 0); mode.valid = valid;
-  const spr = buildingSprite(mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
+  const raft = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
+  const spr = buildingSprite(raft ? 'rafthouse' : mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
   ctx.globalAlpha = valid ? 0.72 : 0.4;
   ctx.drawImage(spr, px + (w - spr.width) / 2, d.walk ? py : py + dh * TILE - spr.height + 2); ctx.globalAlpha = 1;
   ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, dh * TILE);
@@ -7305,7 +7311,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.43 \u00b7 7 Nov 2026';
+const BUILD = '0.9.44 \u00b7 8 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -7403,14 +7409,14 @@ const ENCY_UNITS = {
 };
 const ENCY_BLDS = {
   towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
-  house: '+5 population.', farm: 'Food for one or two farmers; never runs out.',
+  house: '+10 population.', farm: 'Food for one or two farmers; never runs out.',
   sawah: 'Majapahit rice terraces in place of farms: cheaper, more food and 20% faster to work, but they take more room.', store: 'Gudang: drop-off for wood and gold.',
   granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
   tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
   patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
   palace: 'One only. Trains the civ\u2019s unique unit.',
   wat: 'Ayutthaya\u2019s temple: trains the Mo, and its monks tend wounded soldiers nearby.',
-  rafthouse: 'Ruean Phae: an Ayutthaya house built on the water\u2019s edge floats on a raft. A woman fishes from its deck.',
+  rafthouse: 'Ruean Phae: an Ayutthaya house built out on the water floats on a raft. A woman fishes from its deck.',
   palisade: 'Sharpened logs, laid in a line. Cheap and quick, but it burns fast.',
   wall: 'Melaka builds timber Kubu, Majapahit red brick that burns at half rate. Needs a Barracks.',
   gate: 'Set into a wall. Opens for your own people; enemies have to break it down.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
@@ -7914,7 +7920,11 @@ CIVMAP = [AYU_CIV, AYU_CIV];
 // a 96 x 72 map (build.py widens the main game's 64 x 48). Like the real Ayutthaya, the island is the land
 // the rivers wrap: the Lopburi round the north, the Chao Phraya down the west and south, the Pa Sak on the east.
 // Its shore is an irregular, lobed outline and every river meanders, so nothing reads as a drawn circle.
-const ISLE = { x: 48, y: 38, rx: 18.5, ry: 11.5 };
+// v0.9.44 (Iylia, 2026-11-08: "still a bit small"): about twice the land of the old 18.5 x 11.5 island
+const ISLE = { x: 48, y: 38, rx: 25, ry: 16.5 };
+// island features were laid out on the old island: IS() stretches a point out from the centre to the new size
+const IS_K = { x: 25 / 18.5, y: 16.5 / 11.5 };
+function IS(x, y) { return [ISLE.x + (x - ISLE.x) * IS_K.x, ISLE.y + (y - ISLE.y) * IS_K.y]; }
 const FLOODP = { x: 21, y: 59, rx: 18, ry: 9 };
 // the island's radius at angle a: an east-west oval pushed in and out by a few slow waves
 function isleR(a) {
@@ -7935,10 +7945,10 @@ MAPDEF.river = {
   ponds: [[13, 57, 2.6, 1.7], [79, 29, 2.2, 1.4], [33, 9, 1.6, 1.2], [62, 64, 1.8, 1.2]],
   cliffs: [[86, 64, 4.5, 3], [8, 66, 4, 2.6], [64, 5, 3, 2]],
   // khlongs: small canals and streams across the island, shallow, with plank crossings; boats can't enter them
-  khlongs: [[[[39, 26.5], [40, 31], [42, 35], [43, 37.5]], 1.2, [0.5]],              // north khlong down into the Bueng
-    [[[42.5, 39.5], [40, 42.5], [37.5, 46], [36.5, 49]], 1.1, []],                       // and on to the south-west channel
-    [[[69, 39], [64, 38.8], [60, 40.5]], 1.0, []]],                                      // a stream in from the east to a pond
-  isPonds: [[44, 38.5, 3.2, 1.9], [58.5, 41.5, 2.0, 1.4], [54, 31.5, 1.5, 1.0]],      // Bueng Phra Ram and two small ponds
+  khlongs: [[[[39, 23], [40, 31], [42, 35], [43, 37.5]].map(p => IS(...p)), 1.2, [0.5]],   // north khlong down into the Bueng
+    [[[42.5, 39.5], [40, 42.5], [37.5, 46], [36.5, 52]].map(p => IS(...p)), 1.1, []],              // and on to the south-west channel
+    [[[72, 39], [64, 38.8], [60, 40.5]].map(p => IS(...p)), 1.0, []]],                             // a stream in from the east to a pond
+  isPonds: [[44, 38.5, 3.6, 2.2], [58.5, 41.5, 2.3, 1.6], [54, 31.5, 1.8, 1.2]].map(([x, y, rx, ry]) => IS(x, y).concat([rx, ry])),   // Bueng Phra Ram and two small ponds
   gold: [], deer: [], villages: []
 };
 // a river's course: the given points with smooth bends added between them (the same bends every game)
@@ -8010,7 +8020,7 @@ function floodMask(g) {
   return m;
 }
 // bamboo bridges from the island to the west bank and the east bank, laid once the city is founded
-const BRIDGES = [{ y: 38, dx: -1 }, { y: 35, dx: 1 }];
+const BRIDGES = [{ y: 38, dx: -1 }, { y: 34, dx: 1 }];
 Game.prototype.layBridges = function () {
   const terr = this.terrain, isWet = (j) => terr[j] === T.SHALLOW || terr[j] === T.DEEP;
   for (const B of BRIDGES) {
@@ -8130,34 +8140,38 @@ Game.prototype.populate = function () {
   for (const p of Object.values(RIVERIN).concat(Object.values(LANDINGS), [TOWNS.lavo.land])) toWater(p);
   const keepClear = (x, y) => !onIsle(x, y) && !g.flood[y * W + x] && Math.hypot(x - OLD.x, y - OLD.y) > 5;
   // roads the towns and raiders use stay clear of trees
-  g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 25, 39);
-  g.reserveRoute(ENTRY.se.x | 0, ENTRY.se.y | 0, 72, 36);
-  g.reserveRoute(ENTRY.w.x | 0, ENTRY.w.y | 0, 25, 39);
-  g.reserveRoute(ENTRY.n.x | 0, ENTRY.n.y | 0, 70, 30);
+  g.reserveRoute(TOWNS.suphan.tx + 1, TOWNS.suphan.ty + 4, 18, 38);   // to the west bridgehead
+  g.reserveRoute(ENTRY.se.x | 0, ENTRY.se.y | 0, 78, 35);             // to the east bridgehead
+  g.reserveRoute(ENTRY.w.x | 0, ENTRY.w.y | 0, 18, 38);
+  g.reserveRoute(ENTRY.n.x | 0, ENTRY.n.y | 0, 78, 33);
   g.reserveRoute(OLD.x, OLD.y + 2, 20, 26);
   for (const T0 of Object.values(TOWNS)) for (let y = T0.ty - 2; y <= T0.ty + 6; y++) for (let x = T0.tx - 3; x <= T0.tx + 7; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
   for (let y = RIVAL.ty - 2; y <= RIVAL.ty + 6; y++) for (let x = RIVAL.tx - 3; x <= RIVAL.tx + 8; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
   // the island: room for a whole city, with groves, berries and a little gold; more wood on the banks
-  place('berry', 40, 43, 1.8, 6, onIsle); place('berry', 57, 33, 1.6, 5, onIsle);
-  place('tree', 61, 43, 2.6, 14, onIsle); place('tree', 35, 33, 2.4, 12, onIsle); place('tree', 50, 48, 2.0, 8, onIsle); place('tree', 54, 28, 1.8, 6, onIsle); place('tree', 42, 31, 2.0, 9, onIsle); place('tree', 62, 35, 1.8, 7, onIsle); place('berry', 47, 45, 1.4, 4, onIsle);
-  { const c = g.nearestFree(58, 39, 0, 4); if (c) place('gold', c.x, c.y, 1.4, 4, onIsle); }
+  const isl = (kind, x, y, r, n) => { const [cx, cy] = IS(x, y); place(kind, cx, cy, r, n, onIsle); };
+  isl('berry', 40, 43, 1.8, 6); isl('berry', 57, 33, 1.6, 5);
+  isl('tree', 61, 43, 3.0, 18); isl('tree', 35, 33, 2.8, 16); isl('tree', 50, 48, 2.2, 10); isl('tree', 54, 28, 2.0, 8); isl('tree', 42, 31, 2.2, 10); isl('tree', 62, 35, 2.0, 9); isl('berry', 47, 45, 1.4, 4);
+  isl('tree', 33, 42, 2.0, 8); isl('tree', 65, 30, 1.8, 6);
+  { const [gx, gy] = IS(58, 39), c = g.nearestFree(Math.round(gx), Math.round(gy), 0, 4); if (c) place('gold', c.x, c.y, 1.4, 4, onIsle); }
   // forests on the banks, gold in the hills
-  for (const [cx, cy, r, n] of [[31, 9, 5, 40], [5, 21, 4.5, 32], [17, 30, 4, 24], [64, 14, 5, 36], [73, 33, 4.5, 28], [42, 15, 3.5, 18],
+  for (const [cx, cy, r, n] of [[31, 9, 5, 40], [5, 21, 4.5, 32], [17, 30, 4, 24], [64, 14, 5, 36], [81, 30, 4, 24], [42, 15, 3.5, 18],
     [64, 61, 4.5, 28], [33, 66, 3.5, 14], [88, 27, 4.5, 24], [88, 56, 4, 18], [10, 47, 3, 12], [55, 66, 3, 12]]) place('tree', cx, cy, r, n, keepClear);
   for (let i = 0; i < 160; i++) {
     const x = 2 + Math.floor(rng() * (W - 4)), y = 2 + Math.floor(rng() * (H - 4));
     if (g.freeTile(x, y) && !g.reserve[y * W + x] && keepClear(x, y) && hash2(x, y, 31) < 0.45) g.addNode('tree', x, y);
   }
-  for (const [x, y] of [[15, 24], [74, 39], [54, 11], [70, 66]]) { const c = g.nearestFree(x, y, 0, 5); if (c) place('gold', c.x, c.y, 1.6, 5); }
+  for (const [x, y] of [[15, 24], [80, 39], [54, 11], [70, 66]]) { const c = g.nearestFree(x, y, 0, 5); if (c) place('gold', c.x, c.y, 1.6, 5, (X, Y) => !g.flood[Y * W + X]); }
   place('berry', 17, 15, 1.6, 5, keepClear); place('berry', 20, 42, 1.6, 5, keepClear);
-  for (const [gx, gy] of [[17, 44], [72, 24], [36, 60], [86, 36]]) {
-    const c = g.nearestFree(gx, gy, 0, 6); if (!c) continue;
-    for (let i = 0; i < 3; i++) { const p = g.nearestFree(c.x + i, c.y + (i % 2), 0, 4); if (!p) continue; const d = g.addUnit('deer', 2, p.x + 0.5, p.y + 0.5); d.order = { t: 'wander', next: 2 + rng() * 5 }; }
+  // deer graze the dry banks, never the flood plain (it goes under in the rains)
+  const dryNear = (x, y, r) => { for (let k = 0; k <= r; k++) for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) { const X = x + dx, Y = y + dy; if (g.inb(X, Y) && g.freeTile(X, Y) && !g.flood[Y * W + X] && !onIsle(X, Y)) return { x: X, y: Y }; } return null; };
+  for (const [gx, gy] of [[17, 44], [72, 22], [40, 64], [86, 36]]) {
+    const c = dryNear(gx, gy, 6); if (!c) continue;
+    for (let i = 0; i < 3; i++) { const p = dryNear(c.x + i, c.y + (i % 2), 4); if (!p) continue; const d = g.addUnit('deer', 2, p.x + 0.5, p.y + 0.5); d.order = { t: 'wander', next: 2 + rng() * 5 }; }
   }
   // fish in the rivers round the island
   for (let i = 0, n = 0; i < 4000 && n < 24; i++) {
     const x = 2 + Math.floor(rng() * (W - 4)), y = 2 + Math.floor(rng() * (H - 4));
-    if (!g.isWater(x, y) || g.block[y * W + x] || Math.hypot(x - ISLE.x, y - ISLE.y) > 28) continue;
+    if (!g.isWater(x, y) || g.block[y * W + x] || Math.hypot(x - ISLE.x, y - ISLE.y) > 34) continue;
     if (g.nodes.some(o => o.kind === 'fish' && Math.abs(o.tx - x) + Math.abs(o.ty - y) < 4)) continue;
     g.addNode('fish', x, y); n++;
   }
@@ -8183,6 +8197,7 @@ Game.prototype.populate = function () {
   g.res[1] = { food: 0, wood: 0, gold: 0 };
   g.age = [1, 2]; g.maxAge = 2; g.navTier = [0, 0];   // the enemy keeps the Kingdom Age look; their own colours go on top
   M.isle = g.regionAt(ISLE.x + 0.5, ISLE.y + 0.5);
+  for (const L of Object.values(LANDINGS)) scout(g, L.x, L.y, 4);
 };
 function buildTown(g, id) {
   const T0 = TOWNS[id], ids = [];
@@ -8553,9 +8568,20 @@ function launchRaid(g, R, idx, cut) {
   M.cols.push({ wave: idx, ids, left: 0, done: false, final: !!R.final });
   return from;
 }
+// the towns you are winning over stay in plain view (lit, not greyed by the fog) until they join
+const _a1Fog = Game.prototype.updateFog;
+Game.prototype.updateFog = function () {
+  _a1Fog.apply(this, arguments);
+  const M = this.M; if (!M || M.phase < 3 || M.phase >= 5) return;
+  for (const id in M.towns) { const T0 = M.towns[id]; if (T0.st === 'joined') continue;
+    for (let y = Math.floor(T0.y - 5); y <= T0.y + 6; y++) for (let x = Math.floor(T0.x - 6); x <= T0.x + 6; x++) if (this.inb(x, y) && Math.hypot(x + 0.5 - T0.x, (y + 0.5 - T0.y - 1) * 1.2) <= 6) { this.visible[y * W + x] = 1; this.explored[y * W + x] = 1; } }
+};
+// scouts have been there: the place shows through the fog (the objective rings sit on it)
+function scout(g, x, y, r) { for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) if (g.inb(xx, yy) && Math.hypot(xx + 0.5 - x, yy + 0.5 - y) <= r) g.explored[yy * W + xx] = 1; }
 function setPhase(g, n) {
   const M = g.M; if (M.phase >= n) return;
   M.phase = n; M.phaseAt[n] = M.t;
+  if (n === 3) { for (const id in M.towns) scout(g, M.towns[id].x, M.towns[id].y + 1, 6); if (M.camp) scout(g, M.camp.x, M.camp.y + 1, 5.5); }
   if (n === 2) {
     M.cardQ.push('island');
     // the settlers stake out the Sala Klang in the middle of the island
@@ -8892,6 +8918,36 @@ function paintGround(x0, x1, y0, y1) {
     }
   }
 }
+// where the current objectives are, for the gold rings on the map and the minimap
+function objPlaces() {
+  const M = G.M, out = []; if (!M || G.over) return out;
+  if (M.phase === 1) { out.push({ x: LANDINGS.n.x, y: LANDINGS.n.y + 1.5, r: 3, name: 'Land here' }); out.push({ x: LANDINGS.s.x, y: LANDINGS.s.y - 1.5, r: 3, name: 'Land here' }); }
+  if (M.phase === 2) { const tc = G.byId.get(M.tc); if (tc && !tc.done) out.push({ x: tc.x, y: tc.y, r: 2.6, up: 1, name: 'Sala Klang' }); }
+  if (M.phase >= 3 && M.phase < 5) for (const id in M.towns) {
+    const T0 = M.towns[id]; if (T0.st === 'joined') continue;
+    out.push({ x: T0.x, y: T0.y + 0.5, r: 4.2, up: 1, name: TOWNS[id].name });
+    if (T0.st === 'wed') { const b = G.byId.get(T0.bride); if (b && b.hp > 0) out.push({ x: b.x, y: b.y, r: 1.4, name: 'The bride' }); }
+  }
+  if (M.phase === 5) {
+    const p = M.palace && G.byId.get(M.palace);
+    if (p && M.crown < CROWN) out.push({ x: p.x, y: p.y, r: 3.4, up: 1.5, name: 'Crown U Thong here' });
+  }
+  if (M.camp && !M.campDown && M.phase >= 3) out.push({ x: M.camp.x, y: M.camp.y + 1, r: 4.5, opt: true, name: 'Rival stockade (optional)' });
+  return out;
+}
+// the same places on the minimap, pulsing, and lit up so they are never lost in the fog
+const _a1DrawMini = drawMini;
+drawMini = function () {
+  _a1DrawMini.apply(this, arguments);
+  if (typeof G === 'undefined' || !G || !G.M) return;
+  const S = mctx.canvas.width / W, pulse = 0.5 + 0.5 * Math.sin(nowS * 4);
+  for (const o of objPlaces()) {
+    const x = o.x * S, y = o.y * S;
+    mctx.strokeStyle = o.opt ? 'rgba(255,120,100,0.9)' : 'rgba(255,214,90,' + (0.6 + 0.4 * pulse).toFixed(2) + ')'; mctx.lineWidth = 2;
+    mctx.beginPath(); mctx.arc(x, y, 5 + pulse * 3, 0, 6.2832); mctx.stroke();
+    mctx.fillStyle = o.opt ? '#ff7a64' : '#ffd65a'; mctx.fillRect(x - 2, y - 2, 4, 4);
+  }
+};
 // on top: rain, where to go next, where raids come from
 function paintMission() {
   const M = G.M; if (!M) return;
@@ -8903,9 +8959,19 @@ function paintMission() {
     ctx.fillRect(x - 4, y - 12, 8, 12);
   };
   const gold = 'rgba(242,201,76,' + (0.55 + 0.4 * pulse).toFixed(2) + ')';
-  if (M.phase === 1) arrow(ISLE.x, ISLE.y, gold);
-  if (M.phase >= 3 && M.phase < 5) for (const id in M.towns) { const T0 = M.towns[id]; if (T0.st !== 'joined') arrow(T0.x, T0.y - 1, gold); }
-  if (M.phase === 5 && M.palace) { const p = G.byId.get(M.palace); if (p && M.crown < CROWN) arrow(p.x, p.y - 1.5, gold); }
+  // each objective place: a glowing gold ring on the ground, its name, and the arrow over it
+  for (const o of objPlaces()) {
+    const x = o.x * TILE, y = o.y * TILE, rx = o.r * TILE, ry = o.r * TILE * 0.55;
+    ctx.fillStyle = o.opt ? 'rgba(224,82,74,' + (0.08 + 0.06 * pulse).toFixed(2) + ')' : 'rgba(255,214,90,' + (0.10 + 0.08 * pulse).toFixed(2) + ')';
+    ell(x, y, rx, ry); ctx.fill();
+    ctx.setLineDash([10, 7]); ctx.lineDashOffset = -nowS * 14; ctx.lineWidth = 3;
+    ctx.strokeStyle = o.opt ? 'rgba(224,82,74,0.75)' : gold; ell(x, y, rx, ry); ctx.stroke(); ctx.setLineDash([]);
+    if (!o.opt) arrow(o.x, o.y - (o.up || 0), gold);
+    ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'center';
+    const ty = y - (o.up || 0) * TILE - 62 - pulse * 8;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(16,20,14,0.85)'; ctx.strokeText(o.name, x, ty); ctx.fillStyle = o.opt ? '#ffb4a8' : '#ffe7a0'; ctx.fillText(o.name, x, ty);
+    ctx.textAlign = 'left';
+  }
   // raid warning arrows at the map edge, from 20 s out
   if ((M.phase === 3 || M.phase === 4) && M.next - M.t <= 20) {
     const R = RIVAL_RAIDS[Math.min(M.raid, RIVAL_RAIDS.length - 1)];
@@ -9254,7 +9320,7 @@ function storyFor(id) {
     tag: 'Phase 2 · Founding the city', title: 'Where three rivers meet',
     body: [P('The barges ground on the island\'s mud. The water runs past on every side: the Chao Phraya, the Lopburi from the north-east, the Pa Sak from the east. A city here would be hard to reach by land and easy to reach by boat.'),
       goal('Objective: build the Sala Klang, then make two households: a raft house with a woman fishing from it, and a house beside a worked paddy field.'),
-      tip('A house built touching the water floats as a raft house. Tap it with a villager to send her fishing. Every household pays 15 food a minute.')],
+      tip('A house set down on the water floats as a raft house; on land it stays a house. Tap the raft house with a villager to send her fishing. Every household pays 15 food a minute.')],
     btn: 'Build'
   };
   if (id === 'houses') return {
@@ -9352,7 +9418,7 @@ function hintText() {
   if (M.phase === 2) {
     const tc = G.byId.get(M.tc);
     if (tc && !tc.done) return 'Villagers on the island: build the Sala Klang (' + Math.floor(tc.progress * 100) + '%).';
-    if (!M.hhFish) return 'Build a house touching the water: it becomes a raft house. Then send a villager to fish from it.';
+    if (!M.hhFish) return 'Build a house out on the water: it floats as a raft house. Then send a villager to fish from it.';
     if (!M.hhPaddy) return 'Build a Na (paddy field) beside a house and put a villager to work in it.';
   }
   if (M.active) { const left = M.cols.reduce((a, c) => a + (c.done ? 0 : c.left), 0); return 'Raiders: ' + left + ' left. Break them!'; }
@@ -9384,7 +9450,7 @@ function objList() {
   if (M.phase >= 2) {
     const tc = G.byId.get(M.tc);
     items.push({ t: 'Build the Sala Klang' + (tc && !tc.done ? ' (' + Math.floor(tc.progress * 100) + '%)' : ''), ok: !!(tc && tc.done), how: 'Select villagers on the island and tap the building site to help build it.' });
-    items.push({ t: 'A fishing household (raft house)', ok: M.hhFish, how: 'Build a Ruean (House) touching the water: it becomes a raft house. Then tap it with a villager to fish.' });
+    items.push({ t: 'A fishing household (raft house)', ok: M.hhFish, how: 'Place a Ruean (House) on the water (by a shore, a khlong or a pond): it floats as a raft house. Then tap it with a villager to fish.' });
     items.push({ t: 'A paddy household (house by a worked field)', ok: M.hhPaddy, how: 'Build a Na (Field) right next to a house, then put a villager to work in it.' });
   }
   if (M.phase >= 3) {

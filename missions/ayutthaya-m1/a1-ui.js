@@ -115,7 +115,7 @@ function storyFor(id) {
     tag: 'Phase 2 · Founding the city', title: 'Where three rivers meet',
     body: [P('The barges ground on the island\'s mud. The water runs past on every side: the Chao Phraya, the Lopburi from the north-east, the Pa Sak from the east. A city here would be hard to reach by land and easy to reach by boat.'),
       goal('Objective: build the Sala Klang, then make two households: a raft house with a woman fishing from it, and a house beside a worked paddy field.'),
-      tip('A house built touching the water floats as a raft house. Tap it with a villager to send her fishing. Every household pays 15 food a minute.')],
+      tip('A house set down on the water floats as a raft house; on land it stays a house. Tap the raft house with a villager to send her fishing. Every household pays 15 food a minute.')],
     btn: 'Build'
   };
   if (id === 'houses') return {
@@ -213,7 +213,7 @@ function hintText() {
   if (M.phase === 2) {
     const tc = G.byId.get(M.tc);
     if (tc && !tc.done) return 'Villagers on the island: build the Sala Klang (' + Math.floor(tc.progress * 100) + '%).';
-    if (!M.hhFish) return 'Build a house touching the water: it becomes a raft house. Then send a villager to fish from it.';
+    if (!M.hhFish) return 'Build a house out on the water: it floats as a raft house. Then send a villager to fish from it.';
     if (!M.hhPaddy) return 'Build a Na (paddy field) beside a house and put a villager to work in it.';
   }
   if (M.active) { const left = M.cols.reduce((a, c) => a + (c.done ? 0 : c.left), 0); return 'Raiders: ' + left + ' left. Break them!'; }
@@ -245,7 +245,7 @@ function objList() {
   if (M.phase >= 2) {
     const tc = G.byId.get(M.tc);
     items.push({ t: 'Build the Sala Klang' + (tc && !tc.done ? ' (' + Math.floor(tc.progress * 100) + '%)' : ''), ok: !!(tc && tc.done), how: 'Select villagers on the island and tap the building site to help build it.' });
-    items.push({ t: 'A fishing household (raft house)', ok: M.hhFish, how: 'Build a Ruean (House) touching the water: it becomes a raft house. Then tap it with a villager to fish.' });
+    items.push({ t: 'A fishing household (raft house)', ok: M.hhFish, how: 'Place a Ruean (House) on the water (by a shore, a khlong or a pond): it floats as a raft house. Then tap it with a villager to fish.' });
     items.push({ t: 'A paddy household (house by a worked field)', ok: M.hhPaddy, how: 'Build a Na (Field) right next to a house, then put a villager to work in it.' });
   }
   if (M.phase >= 3) {

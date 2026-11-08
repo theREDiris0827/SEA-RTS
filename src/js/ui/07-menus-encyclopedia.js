@@ -24,7 +24,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.43 \u00b7 7 Nov 2026';
+const BUILD = '0.9.44 \u00b7 8 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -122,14 +122,14 @@ const ENCY_UNITS = {
 };
 const ENCY_BLDS = {
   towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
-  house: '+5 population.', farm: 'Food for one or two farmers; never runs out.',
+  house: '+10 population.', farm: 'Food for one or two farmers; never runs out.',
   sawah: 'Majapahit rice terraces in place of farms: cheaper, more food and 20% faster to work, but they take more room.', store: 'Gudang: drop-off for wood and gold.',
   granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
   tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
   patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
   palace: 'One only. Trains the civ\u2019s unique unit.',
   wat: 'Ayutthaya\u2019s temple: trains the Mo, and its monks tend wounded soldiers nearby.',
-  rafthouse: 'Ruean Phae: an Ayutthaya house built on the water\u2019s edge floats on a raft. A woman fishes from its deck.',
+  rafthouse: 'Ruean Phae: an Ayutthaya house built out on the water floats on a raft. A woman fishes from its deck.',
   palisade: 'Sharpened logs, laid in a line. Cheap and quick, but it burns fast.',
   wall: 'Melaka builds timber Kubu, Majapahit red brick that burns at half rate. Needs a Barracks.',
   gate: 'Set into a wall. Opens for your own people; enemies have to break it down.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'

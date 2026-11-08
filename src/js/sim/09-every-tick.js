@@ -29,8 +29,9 @@
   doFishHouse(u, dt) {
     const b = this.byId.get(u.order.id);
     if (!b || b.hp <= 0 || !b.done) { this.idleOrder(u); return; }
-    if (rectDist(u.x, u.y, b.rect) <= 0.95) {
-      u.path = null; u.working = true;
+    // once she is on the deck she stays there (o.deck), even if someone brushes past on the bank
+    if (rectDist(u.x, u.y, b.rect) <= (u.order.deck ? 1.5 : 0.95)) {
+      u.path = null; u.working = true; u.order.deck = 1;
       const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
       u.gt = (u.gt || 0) + dt * FISH_RATE;
       if (u.gt >= 10) { u.gt -= 10; this.res[u.team].food += 10; if (u.team === 0) this.floaters.push({ x: b.x, y: b.y - 1.2, text: '+10 food', type: 'food', t: 1.2 }); }
