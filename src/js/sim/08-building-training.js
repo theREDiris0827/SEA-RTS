@@ -16,7 +16,7 @@
     if (this.underPortArt(tx, ty, d.size, dh, kind)) return false;
     if (!d.site) for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) if (this.siteMask[y * W + x]) return false;
     for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-      if (!this.freeTile(x, y) && !(d.gate && this.wallPieceAt(x, y, team, true))) return false;
+      if (!this.freeTile(x, y) && !(d.gate && this.wallPieceAt(x, y, team, true)) && !(this.wetOk && this.wetOk(kind, x, y))) return false;
       if (team === 0 && !this.explored[y * W + x]) return false;
     }
     if (d.shore) {

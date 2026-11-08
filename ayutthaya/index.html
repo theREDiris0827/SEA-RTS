@@ -1161,14 +1161,15 @@ class Game {
   computeRegions() {
     const rg = this.region = new Int16Array(W * H); let n = 0;
     for (let i = 0; i < W * H; i++) {
-      if (rg[i] || this.terrain[i] > T.SAND && this.terrain[i] !== T.CLIFF) continue;
+      const LANDMAX = (typeof wadeOn === 'function' && wadeOn()) ? T.SHALLOW : T.SAND;
+      if (rg[i] || this.terrain[i] > LANDMAX && this.terrain[i] !== T.CLIFF) continue;
       if (this.terrain[i] === T.CLIFF) continue;
       rg[i] = ++n; const q = [i];
       for (let k = 0; k < q.length; k++) {
         const c = q[k], cx = c % W, cy = (c / W) | 0;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const x = cx + dx, y = cy + dy, j = y * W + x;
-          if (!this.inb(x, y) || rg[j] || this.terrain[j] > T.SAND) continue;
+          if (!this.inb(x, y) || rg[j] || (this.terrain[j] > LANDMAX && this.terrain[j] !== T.CLIFF) || this.terrain[j] === T.CLIFF) continue;
           rg[j] = n; q.push(j);
         }
       }
@@ -1649,7 +1650,7 @@ class Game {
     const i = y * W + x; if (this.block[i]) return false;
     if (this.gate[i] && this.gate[i] - 1 !== this.wt) return false;
     const t = this.terrain[i];
-    return layer === 1 ? (t === T.SHALLOW || t === T.DEEP) : t <= T.SAND;
+    return layer === 1 ? (t === T.SHALLOW || t === T.DEEP) : (t <= T.SAND || (t === T.SHALLOW && (typeof wadeOn === 'function' && wadeOn())));
   }
   // the closest empty tile
   nearestFree(px, py, layer, maxR) {
@@ -1830,6 +1831,8 @@ class Game {
   stepMove(u, dt) {
     if (!u.path || u.pi >= u.path.length) { u.moving = false; return true; }
     let rem = u.spd * dt;
+    // wading through shallow water is slower
+    if (u.layer !== 1 && this.terrain[Math.floor(u.y) * W + Math.floor(u.x)] === T.SHALLOW && (typeof wadeOn === 'function' && wadeOn())) rem *= 0.55;
     while (rem > 0 && u.pi < u.path.length) {
       const p = u.path[u.pi], dx = p[0] - u.x, dy = p[1] - u.y, d = Math.hypot(dx, dy);
       if (d > 1e-4) { u.hx = dx / d; u.hy = dy / d; }
@@ -2248,7 +2251,7 @@ class Game {
     if (this.underPortArt(tx, ty, d.size, dh, kind)) return false;
     if (!d.site) for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) if (this.siteMask[y * W + x]) return false;
     for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-      if (!this.freeTile(x, y) && !(d.gate && this.wallPieceAt(x, y, team, true))) return false;
+      if (!this.freeTile(x, y) && !(d.gate && this.wallPieceAt(x, y, team, true)) && !(this.wetOk && this.wetOk(kind, x, y))) return false;
       if (team === 0 && !this.explored[y * W + x]) return false;
     }
     if (d.shore) {
@@ -2488,19 +2491,30 @@ class Game {
     if (this.stepMove(u, dt)) u.path = null;
   }
   /* Ayutthaya households: each house with a worked paddy beside it (or a raft house with a woman fishing) */
+  // Ayutthaya households: each land house is paired with one paddy beside it (Game.housePairs); a house is a
+  // household while its paddy is worked, and a raft house while its woman fishes from the deck
   households(team) {
-    const out = [], worked = new Set(), fishing = new Set(), usedF = new Set();
+    const out = [], worked = new Set(), fishing = new Set();
     for (const u of this.units) if (u.team === team && u.hp > 0) { if (u.order.t === 'gather' && u.order.type === 'food') worked.add(u.order.id); if (u.order.t === 'fishhouse') fishing.add(u.order.id); }
-    const farms = this.buildings.filter(b => b.team === team && b.done && b.hp > 0 && FIELD[b.kind] && worked.has(b.id));
+    for (const h of this.buildings) if (h.team === team && h.kind === 'rafthouse' && h.done && h.hp > 0 && fishing.has(h.id)) out.push(h);
+    for (const [fid, h] of this.housePairs(team)) if (worked.has(fid)) out.push(h);
+    return out.slice(0, HOUSEHOLD.max);
+  }
+  // one paddy per house: pair each finished land house with the nearest unused paddy touching it (farm id -> house)
+  housePairs(team) {
+    const pairs = new Map(), used = new Set();
+    const farms = this.buildings.filter(b => b.team === team && b.done && b.hp > 0 && FIELD[b.kind]);
     for (const h of this.buildings) {
-      if (out.length >= HOUSEHOLD.max) break;
-      if (h.team !== team || !h.done || h.hp <= 0) continue;
-      if (h.kind === 'rafthouse') { if (fishing.has(h.id)) out.push(h); continue; }
-      if (h.kind !== 'house') continue;
-      const f = farms.find(f => !usedF.has(f.id) && Math.max(Math.abs(f.x - h.x), Math.abs(f.y - h.y)) <= (f.size + h.size) / 2 + 1.01);
-      if (f) { usedF.add(f.id); out.push(h); }
+      if (h.team !== team || h.kind !== 'house' || !h.done || h.hp <= 0) continue;
+      let best = null, bd = 1e9;
+      for (const f of farms) {
+        if (used.has(f.id)) continue;
+        const d = Math.max(Math.abs(f.x - h.x), Math.abs(f.y - h.y));
+        if (d <= (f.size + h.size) / 2 + 1.01 && d < bd) { bd = d; best = f; }
+      }
+      if (best) { used.add(best.id); pairs.set(best.id, h); }
     }
-    return out;
+    return pairs;
   }
   // Ayutthaya households pay food
   householdTick() {
@@ -5839,6 +5853,8 @@ function iconSprite(name) {
     else if (name === 'plus') { r(7, 3, 2, 10, CREAM); r(3, 7, 10, 2, CREAM); }
     else if (name === 'minus') { r(3, 7, 10, 2, CREAM); }
     else if (name === 'menu') { r(3, 4, 10, 2, CREAM); r(3, 7, 10, 2, CREAM); r(3, 10, 10, 2, CREAM); }
+    else if (name === 'demolish') { r(3, 3, 10, 2, '#e05a40'); r(6, 1, 4, 2, '#e05a40'); r(4, 5, 8, 10, '#c83a30'); r(6, 7, 1, 6, '#8a1f18'); r(9, 7, 1, 6, '#8a1f18'); }
+    else if (name === 'back') { r(4, 7, 10, 2, CREAM); for (let i = 0; i < 5; i++) { r(2 + i, 7 - i, 2, 2, CREAM); r(2 + i, 7 + i, 2, 2, CREAM); } }
     else if (name === 'x') { for (let i = 0; i < 9; i++) { r(3 + i, 3 + i, 2, 2, CREAM); r(11 - i, 3 + i, 2, 2, CREAM); } }
     else if (name === 'stop') { r(4, 4, 8, 8, '#d9473b'); r(4, 4, 8, 1, '#ff8a7a'); }
     else if (name === 'amove') { r(7, 1, 2, 9, STEEL); r(4, 9, 8, 2, '#d9473b'); r(7, 11, 2, 3, WOOD_D); r(2, 13, 12, 1, '#d9473b'); }
@@ -6431,7 +6447,7 @@ function paintPlacement() {
   const tx = mode.tx, ty = mode.ty;
   const dh = d.fh || d.size, raftHere = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
   for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-    const ok = (G.freeTile(x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
+    const ok = (G.freeTile(x, y) || G.wetOk(mode.bkind, x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
     ctx.fillStyle = ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   const valid = G.canPlace(mode.bkind, tx, ty, 0); mode.valid = valid;
@@ -6464,7 +6480,7 @@ function paintLinePlacement(d) {
   const cost = Object.keys(d.cost).map(k => d.cost[k] * n + ' ' + k).join(', ');
   const label = n ? n + ' \u00d7 ' + civName(mode.bkind, 0).split(' (')[0] + ': ' + cost + (afford < n ? ' (can afford ' + afford + ')' : '') : 'Nothing to build here';
   ctx.font = 'bold ' + Math.round(13 / view.zoom) + 'px sans-serif'; const tw = ctx.measureText(label).width, lx = mode.tx * TILE + 16 - tw / 2, ly = mode.ty * TILE - 30, fh = 13 / view.zoom;
-  ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(lx - 6, ly - fh, tw + 12, fh * 1.45); ctx.fillStyle = afford < n ? '#ffb0a0' : '#fbe3a5'; ctx.fillText(label, lx, ly);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(lx - 6, ly - fh, tw + 12, fh * 1.45); ctx.fillStyle = afford < n ? '#ffb0a0' : '#fbe3a5'; ctx.fillText(label, lx, ly);
 }
 /* touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests */
 function placeButtons() {
@@ -6973,7 +6989,7 @@ function baseBldNote(b) {
   if (b.kind === 'village') return b.post ? 'A trading post stands on its landing.' : 'Build a Trade Post on the landing beside it.';
   if (b.kind === 'tradepost') return own ? ((CV(0) === 1 ? 'The village pays you tribute: about 33 gold a minute. ' : '') + 'Tap it with a ' + civName('trade', 0) + ' to start a trade route. Trade gold so far: ' + G.tradeGold + '.') : 'This village pays tribute to ' + CIV_TITLE[CV(b.team)] + '.';
   if (b.kind === 'rafthouse' && own) return 'A woman fishing from the deck brings in food and makes a household. Tap it with a villager to send her.';
-  if (b.kind === 'house' && own && CV(0) === AYU_CIV) return 'A villager farming a paddy beside it makes a household: +15 food every minute (up to 6).';
+  if (b.kind === 'house' && own && CV(0) === AYU_CIV) return 'Build a paddy beside it: its farmer drops rice here, and while the paddy is worked the house pays +15 food a minute (up to 6). Wild fruit and kerbau still go to a granary.';
   if (b.kind === 'granary' && own) return 'Villagers drop food here.';
   if (b.kind === 'store' && own) return 'Villagers drop wood and gold here.';
   if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
@@ -7038,7 +7054,7 @@ function buildPanel() {
     if (!hasVil) {
       cmds += ayUnitCmds(us);
     cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
-      cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+      cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
     }
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
@@ -7060,19 +7076,19 @@ function buildPanel() {
     }
     if (own && b.cargo && b.cargo.length && !(b.kind === 'towncentre' && G.bell && G.bell[0])) cmds += cmdBtn('release', 'release', resIcon('check'), 'Release', null, 'Let everyone inside come out');
     if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
-    if (own && G.canDemolish(b)) cmds += '<button class="cmd demo" data-a="demolish" title="Demolish: tap twice. Nothing comes back."><img alt="" src="' + resIcon('x') + '"><span class="nm" id="p-demo">Demolish</span><span class="ct">&nbsp;</span></button>';
+    if (own && G.canDemolish(b)) cmds += '<button class="cmd demo" data-a="demolish" title="Demolish: tap twice. Nothing comes back."><img alt="" src="' + resIcon('demolish') + '"><span class="nm" id="p-demo">Demolish</span><span class="ct">&nbsp;</span></button>';
     cmds += ayBldCmds(b);
-    if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isNode) {
     const n = single;
     info = '<div class="p-head"><img alt="" src="' + nodeIcon(n) + '"><div><div class="p-name">' + (NODE_NAME[n.kind] || 'Resource') + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="p-line">Send villagers here to gather ' + (n.kind === 'fish' ? '(needs a fishing boat).' : '.') + '</div>';
     pdyn.push(() => { $('p-s1').textContent = Math.max(0, n.amt) + ' ' + n.type + ' left'; });
-    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isUnit) {
     const u = single;
     info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? 'Khmer ' : '') + pName(u.kind, u.team, G.unitName(u)) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
     pdyn.push(() => { $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = Math.ceil(u.hp) + '/' + u.maxHp + ' HP'; });
-    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   }
   P.innerHTML = '<div class="p-info">' + info + extra + '</div>' + (tabs ? '<div class="p-bld">' + tabs + '<div class="p-cmds bld">' + cmds + '</div>' + extra2 + '</div>' : '<div class="p-cmds">' + cmds + '</div>');
 }
@@ -7314,7 +7330,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.44 \u00b7 8 Nov 2026';
+const BUILD = '0.9.45 \u00b7 8 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -13200,6 +13216,54 @@ body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
   if (document.readyState === 'complete') setTimeout(boot, 200); else window.addEventListener('load', () => setTimeout(boot, 200));
 })();
 
+/* ##### CHAPTER EXTRA 6 · Base footprints, wading, wet ports, house drop-off #####
+   File: src/js/extras/06-footprint-wading.js
+   What it does: buildings stand on their base only (the roof hangs over the tiles behind), land units wade
+     through shallow water in Skirmish, a Port's deck may sit on shallow water, Ayutthaya paddy farmers drop
+     rice at their paired house, and the panel button tidy-ups (centred icons, red Demolish, one-row queue).
+   Things you can tweak:
+     - FOOT: how many tile rows each building really stands on.
+     - WADE / PORTWET: switch wading and ports-on-shallows off. Missions keep their own water rules (no wading).
+     - HOUSEDROP: Ayutthaya farmers drop rice at their house.
+   ############################################################################ */
+// buildings take only their base: fh = rows the building stands on (Iylia, 2026-11-08)
+const FOOT = { towncentre: 2, house: 1, store: 1, granary: 1, tower: 1, barracks: 2, rumahtabib: 2, patirthan: 2, wat: 2, tradepost: 2, palace: 3 };
+for (const k in FOOT) if (BD[k] && !BD[k].fh) BD[k].fh = FOOT[k];
+var WADE = true, PORTWET = true, HOUSEDROP = true;
+// wading is for Skirmish; campaign missions and battles (they have setupObj) keep their own water rules
+function wadeOn() { return WADE && typeof setupObj !== 'function'; }
+// a Port's deck may stand on free shallow water (never deep)
+Game.prototype.wetOk = function (kind, x, y) {
+  const d = BD[kind]; if (!PORTWET || !d || !d.shore || !this.inb(x, y)) return false;
+  const i = y * W + x; return this.terrain[i] === T.SHALLOW && !this.block[i] && !this.occ[i];
+};
+// Ayutthaya: a farmer on a paddy paired with a house drops the rice at that house if it is the nearer drop-off
+const _hdDrop = Game.prototype.nearestDrop;
+Game.prototype.nearestDrop = function (u, type) {
+  const best = _hdDrop.call(this, u, type), o = u.order;
+  if (!HOUSEDROP || type !== 'food' || u.layer === 1 || CV(u.team) !== AYU_CIV || !o || o.t !== 'gather') return best;
+  const h = this.housePairs(u.team).get(o.id);
+  if (!h) return best;
+  return !best || rectDist(u.x, u.y, h.rect) < rectDist(u.x, u.y, best.rect) ? h : best;
+};
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `
+  body.cmp .cmd.demo .nm { display: block; color: #ff8a7a; }
+  #panel .cmd { justify-content: center; }
+  #panel .cmd .ct.noct { display: none; }
+  #panel .cmd.demo { container-type: inline-size; overflow: hidden; }
+  @container (max-width: 62px) { .cmd.demo .nm, .cmd.demo .en { display: none !important; } }
+  body.cmp .p-info:has(.queue) { grid-column: 1 / -1; max-width: none; }
+  .queue { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; gap: 4px; }
+  body.cmp .qi { width: 34px; height: 34px; flex: none; } body.cmp .qi img { width: 26px; height: 26px; }
+  #panel .cmd img { display: block; margin: 0 auto; }
+  .cmd.demo { border-color: #6e1510; box-shadow: inset 0 0 0 1px #c83a30, 0 3px 0 rgba(0, 0, 0, .45); }`;
+  document.head.appendChild(css);
+  // mark empty price lines so the icon can centre
+  const _fpPanel = updatePanel;
+  updatePanel = function () { const r = _fpPanel.apply(this, arguments); for (const c of document.querySelectorAll('#panel .cmd .ct')) c.classList.toggle('noct', !c.textContent.trim()); return r; };
+})();
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;

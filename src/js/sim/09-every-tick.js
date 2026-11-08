@@ -41,19 +41,30 @@
     if (this.stepMove(u, dt)) u.path = null;
   }
   /* Ayutthaya households: each house with a worked paddy beside it (or a raft house with a woman fishing) */
+  // Ayutthaya households: each land house is paired with one paddy beside it (Game.housePairs); a house is a
+  // household while its paddy is worked, and a raft house while its woman fishes from the deck
   households(team) {
-    const out = [], worked = new Set(), fishing = new Set(), usedF = new Set();
+    const out = [], worked = new Set(), fishing = new Set();
     for (const u of this.units) if (u.team === team && u.hp > 0) { if (u.order.t === 'gather' && u.order.type === 'food') worked.add(u.order.id); if (u.order.t === 'fishhouse') fishing.add(u.order.id); }
-    const farms = this.buildings.filter(b => b.team === team && b.done && b.hp > 0 && FIELD[b.kind] && worked.has(b.id));
+    for (const h of this.buildings) if (h.team === team && h.kind === 'rafthouse' && h.done && h.hp > 0 && fishing.has(h.id)) out.push(h);
+    for (const [fid, h] of this.housePairs(team)) if (worked.has(fid)) out.push(h);
+    return out.slice(0, HOUSEHOLD.max);
+  }
+  // one paddy per house: pair each finished land house with the nearest unused paddy touching it (farm id -> house)
+  housePairs(team) {
+    const pairs = new Map(), used = new Set();
+    const farms = this.buildings.filter(b => b.team === team && b.done && b.hp > 0 && FIELD[b.kind]);
     for (const h of this.buildings) {
-      if (out.length >= HOUSEHOLD.max) break;
-      if (h.team !== team || !h.done || h.hp <= 0) continue;
-      if (h.kind === 'rafthouse') { if (fishing.has(h.id)) out.push(h); continue; }
-      if (h.kind !== 'house') continue;
-      const f = farms.find(f => !usedF.has(f.id) && Math.max(Math.abs(f.x - h.x), Math.abs(f.y - h.y)) <= (f.size + h.size) / 2 + 1.01);
-      if (f) { usedF.add(f.id); out.push(h); }
+      if (h.team !== team || h.kind !== 'house' || !h.done || h.hp <= 0) continue;
+      let best = null, bd = 1e9;
+      for (const f of farms) {
+        if (used.has(f.id)) continue;
+        const d = Math.max(Math.abs(f.x - h.x), Math.abs(f.y - h.y));
+        if (d <= (f.size + h.size) / 2 + 1.01 && d < bd) { bd = d; best = f; }
+      }
+      if (best) { used.add(best.id); pairs.set(best.id, h); }
     }
-    return out;
+    return pairs;
   }
   // Ayutthaya households pay food
   householdTick() {

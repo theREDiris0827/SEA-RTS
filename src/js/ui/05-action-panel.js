@@ -58,7 +58,7 @@ function bldNote(b) {
   if (b.kind === 'village') return b.post ? 'A trading post stands on its landing.' : 'Build a Trade Post on the landing beside it.';
   if (b.kind === 'tradepost') return own ? ((CV(0) === 1 ? 'The village pays you tribute: about 33 gold a minute. ' : '') + 'Tap it with a ' + civName('trade', 0) + ' to start a trade route. Trade gold so far: ' + G.tradeGold + '.') : 'This village pays tribute to ' + CIV_TITLE[CV(b.team)] + '.';
   if (b.kind === 'rafthouse' && own) return 'A woman fishing from the deck brings in food and makes a household. Tap it with a villager to send her.';
-  if (b.kind === 'house' && own && CV(0) === AYU_CIV) return 'A villager farming a paddy beside it makes a household: +15 food every minute (up to 6).';
+  if (b.kind === 'house' && own && CV(0) === AYU_CIV) return 'Build a paddy beside it: its farmer drops rice here, and while the paddy is worked the house pays +15 food a minute (up to 6). Wild fruit and kerbau still go to a granary.';
   if (b.kind === 'granary' && own) return 'Villagers drop food here.';
   if (b.kind === 'store' && own) return 'Villagers drop wood and gold here.';
   if (b.kind === 'tower' && own) return 'Shoots arrows at enemies in range.';
@@ -122,7 +122,7 @@ function buildPanel() {
     if (us.some(u => UD[u.kind].troops)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
     if (!hasVil) {
       cmds += '<button class="cmd" data-a="stop" title="Stop (S)"><img alt="" src="' + resIcon('stop') + '"><span class="nm">Stop</span><span class="ct">&nbsp;</span></button>';
-      cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+      cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
     }
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
@@ -144,18 +144,18 @@ function buildPanel() {
     }
     if (own && b.cargo && b.cargo.length && !(b.kind === 'towncentre' && G.bell && G.bell[0])) cmds += cmdBtn('release', 'release', resIcon('check'), 'Release', null, 'Let everyone inside come out');
     if (own && b.done && d.gate) cmds += cmdBtn('gatelock', 'gatelock', bldIcon(b.kind, 0), b.locked ? 'Open' : 'Close', null, b.locked ? 'Open the gate: your own people can pass again' : 'Close the gate: no one passes, not even your own people');
-    if (own && G.canDemolish(b)) cmds += '<button class="cmd demo" data-a="demolish" title="Demolish: tap twice. Nothing comes back."><img alt="" src="' + resIcon('x') + '"><span class="nm" id="p-demo">Demolish</span><span class="ct">&nbsp;</span></button>';
-    if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    if (own && G.canDemolish(b)) cmds += '<button class="cmd demo" data-a="demolish" title="Demolish: tap twice. Nothing comes back."><img alt="" src="' + resIcon('demolish') + '"><span class="nm" id="p-demo">Demolish</span><span class="ct">&nbsp;</span></button>';
+    if (own) cmds += '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isNode) {
     const n = single;
     info = '<div class="p-head"><img alt="" src="' + nodeIcon(n) + '"><div><div class="p-name">' + (NODE_NAME[n.kind] || 'Resource') + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="p-line">Send villagers here to gather ' + (n.kind === 'fish' ? '(needs a fishing boat).' : '.') + '</div>';
     pdyn.push(() => { $('p-s1').textContent = Math.max(0, n.amt) + ' ' + n.type + ' left'; });
-    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   } else if (single && single.isUnit) {
     const u = single;
     info = '<div class="p-head"><img alt="" src="' + unitIcon(u.kind, u.team === 2 ? 0 : u.team) + '"><div><div class="p-name">' + (u.team === 1 ? CIV_TITLE[CV(1)] + ' ' : '') + pName(u.kind, u.team, G.unitName(u)) + '</div><div class="p-sub" id="p-s1"></div></div></div><div class="bar foe"><i id="p-hp"></i></div>';
     pdyn.push(() => { $('p-hp').style.width = Math.max(0, u.hp / u.maxHp * 100) + '%'; $('p-s1').textContent = Math.ceil(u.hp) + '/' + u.maxHp + ' HP'; });
-    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('x') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
+    cmds = '<button class="cmd" data-a="desel" title="Deselect"><img alt="" src="' + resIcon('back') + '"><span class="nm">Back</span><span class="ct">&nbsp;</span></button>';
   }
   P.innerHTML = '<div class="p-info">' + info + extra + '</div>' + (tabs ? '<div class="p-bld">' + tabs + '<div class="p-cmds bld">' + cmds + '</div>' + extra2 + '</div>' : '<div class="p-cmds">' + cmds + '</div>');
 }

@@ -165,7 +165,7 @@
     const i = y * W + x; if (this.block[i]) return false;
     if (this.gate[i] && this.gate[i] - 1 !== this.wt) return false;
     const t = this.terrain[i];
-    return layer === 1 ? (t === T.SHALLOW || t === T.DEEP) : t <= T.SAND;
+    return layer === 1 ? (t === T.SHALLOW || t === T.DEEP) : (t <= T.SAND || (t === T.SHALLOW && (typeof wadeOn === 'function' && wadeOn())));
   }
   // the closest empty tile
   nearestFree(px, py, layer, maxR) {

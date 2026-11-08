@@ -60,6 +60,7 @@ JS_PARTS = [
     ('/* ##### CHAPTER EXTRA 3 · Smarter AI #####', 'js/extras/03-ai-plus.js'),
     ('/* ##### CHAPTER EXTRA 4 · Groups, facing and taps #####', 'js/extras/04-groups-facing-taps.js'),
     ('/* ##### CHAPTER EXTRA 5 · Compact screen #####', 'js/extras/05-compact-hud.js'),
+    ('/* ##### CHAPTER EXTRA 6 · Base footprints, wading, wet ports, house drop-off #####', 'js/extras/06-footprint-wading.js'),
 ]
 
 

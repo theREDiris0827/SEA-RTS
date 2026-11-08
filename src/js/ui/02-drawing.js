@@ -353,7 +353,7 @@ function paintPlacement() {
   const tx = mode.tx, ty = mode.ty;
   const dh = d.fh || d.size, raftHere = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
   for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-    const ok = (G.freeTile(x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
+    const ok = (G.freeTile(x, y) || G.wetOk(mode.bkind, x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
     ctx.fillStyle = ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   const valid = G.canPlace(mode.bkind, tx, ty, 0); mode.valid = valid;
@@ -386,7 +386,7 @@ function paintLinePlacement(d) {
   const cost = Object.keys(d.cost).map(k => d.cost[k] * n + ' ' + k).join(', ');
   const label = n ? n + ' \u00d7 ' + civName(mode.bkind, 0).split(' (')[0] + ': ' + cost + (afford < n ? ' (can afford ' + afford + ')' : '') : 'Nothing to build here';
   ctx.font = 'bold ' + Math.round(13 / view.zoom) + 'px sans-serif'; const tw = ctx.measureText(label).width, lx = mode.tx * TILE + 16 - tw / 2, ly = mode.ty * TILE - 30, fh = 13 / view.zoom;
-  ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(lx - 6, ly - fh, tw + 12, fh * 1.45); ctx.fillStyle = afford < n ? '#ffb0a0' : '#fbe3a5'; ctx.fillText(label, lx, ly);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(lx - 6, ly - fh, tw + 12, fh * 1.45); ctx.fillStyle = afford < n ? '#ffb0a0' : '#fbe3a5'; ctx.fillText(label, lx, ly);
 }
 /* touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests */
 function placeButtons() {

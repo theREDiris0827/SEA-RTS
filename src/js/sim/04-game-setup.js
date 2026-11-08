@@ -123,14 +123,15 @@
   computeRegions() {
     const rg = this.region = new Int16Array(W * H); let n = 0;
     for (let i = 0; i < W * H; i++) {
-      if (rg[i] || this.terrain[i] > T.SAND && this.terrain[i] !== T.CLIFF) continue;
+      const LANDMAX = (typeof wadeOn === 'function' && wadeOn()) ? T.SHALLOW : T.SAND;
+      if (rg[i] || this.terrain[i] > LANDMAX && this.terrain[i] !== T.CLIFF) continue;
       if (this.terrain[i] === T.CLIFF) continue;
       rg[i] = ++n; const q = [i];
       for (let k = 0; k < q.length; k++) {
         const c = q[k], cx = c % W, cy = (c / W) | 0;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const x = cx + dx, y = cy + dy, j = y * W + x;
-          if (!this.inb(x, y) || rg[j] || this.terrain[j] > T.SAND) continue;
+          if (!this.inb(x, y) || rg[j] || (this.terrain[j] > LANDMAX && this.terrain[j] !== T.CLIFF) || this.terrain[j] === T.CLIFF) continue;
           rg[j] = n; q.push(j);
         }
       }

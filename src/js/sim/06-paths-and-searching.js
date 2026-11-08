@@ -118,6 +118,8 @@
   stepMove(u, dt) {
     if (!u.path || u.pi >= u.path.length) { u.moving = false; return true; }
     let rem = u.spd * dt;
+    // wading through shallow water is slower
+    if (u.layer !== 1 && this.terrain[Math.floor(u.y) * W + Math.floor(u.x)] === T.SHALLOW && (typeof wadeOn === 'function' && wadeOn())) rem *= 0.55;
     while (rem > 0 && u.pi < u.path.length) {
       const p = u.path[u.pi], dx = p[0] - u.x, dy = p[1] - u.y, d = Math.hypot(dx, dy);
       if (d > 1e-4) { u.hx = dx / d; u.hy = dy / d; }

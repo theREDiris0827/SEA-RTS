@@ -15,6 +15,8 @@ function iconSprite(name) {
     else if (name === 'plus') { r(7, 3, 2, 10, CREAM); r(3, 7, 10, 2, CREAM); }
     else if (name === 'minus') { r(3, 7, 10, 2, CREAM); }
     else if (name === 'menu') { r(3, 4, 10, 2, CREAM); r(3, 7, 10, 2, CREAM); r(3, 10, 10, 2, CREAM); }
+    else if (name === 'demolish') { r(3, 3, 10, 2, '#e05a40'); r(6, 1, 4, 2, '#e05a40'); r(4, 5, 8, 10, '#c83a30'); r(6, 7, 1, 6, '#8a1f18'); r(9, 7, 1, 6, '#8a1f18'); }
+    else if (name === 'back') { r(4, 7, 10, 2, CREAM); for (let i = 0; i < 5; i++) { r(2 + i, 7 - i, 2, 2, CREAM); r(2 + i, 7 + i, 2, 2, CREAM); } }
     else if (name === 'x') { for (let i = 0; i < 9; i++) { r(3 + i, 3 + i, 2, 2, CREAM); r(11 - i, 3 + i, 2, 2, CREAM); } }
     else if (name === 'stop') { r(4, 4, 8, 8, '#d9473b'); r(4, 4, 8, 1, '#ff8a7a'); }
     else if (name === 'amove') { r(7, 1, 2, 9, STEEL); r(4, 9, 8, 2, '#d9473b'); r(7, 11, 2, 3, WOOD_D); r(2, 13, 12, 1, '#d9473b'); }

@@ -663,6 +663,14 @@ function launchRaid(g, R, idx, cut) {
   M.cols.push({ wave: idx, ids, left: 0, done: false, final: !!R.final });
   return from;
 }
+// the towns you are winning over stay in plain view (lit, not greyed by the fog) until they join
+const _a1Fog = Game.prototype.updateFog;
+Game.prototype.updateFog = function () {
+  _a1Fog.apply(this, arguments);
+  const M = this.M; if (!M || M.phase < 3 || M.phase >= 5) return;
+  for (const id in M.towns) { const T0 = M.towns[id]; if (T0.st === 'joined') continue;
+    for (let y = Math.floor(T0.y - 5); y <= T0.y + 6; y++) for (let x = Math.floor(T0.x - 6); x <= T0.x + 6; x++) if (this.inb(x, y) && Math.hypot(x + 0.5 - T0.x, (y + 0.5 - T0.y - 1) * 1.2) <= 6) { this.visible[y * W + x] = 1; this.explored[y * W + x] = 1; } }
+};
 // scouts have been there: the place shows through the fog (the objective rings sit on it)
 function scout(g, x, y, r) { for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) if (g.inb(xx, yy) && Math.hypot(xx + 0.5 - x, yy + 0.5 - y) <= r) g.explored[yy * W + xx] = 1; }
 function setPhase(g, n) {
