@@ -861,7 +861,7 @@ const BRIEF = {
   acaraki: 'Slowly heals everyone nearby', chang: 'War elephant, huge and armoured', boat: 'Fishes at sea', trade: 'Sails to a trading post for gold',
   fireship: 'Burns enemy ships it rams', light: 'Fast raider, hunts fire and trade ships', galley: 'Boards enemy ships, carries 5 soldiers',
   raft: 'Burning raft pushed at enemy ships', frigate: 'Cannon ship, breaks harbours', flagship: 'One only, cannon and archers',
-  towncentre: 'Trains villagers, takes every resource', house: 'Room for 5 more people', rafthouse: 'House on the water, a woman fishes from it',
+  towncentre: 'Trains villagers, takes every resource', house: 'Room for 10 more people', rafthouse: 'House on the water, a woman fishes from it',
   store: 'Stores wood and gold', granary: 'Stores food, build near farms',
   farm: 'Endless food', sawah: 'Rice terraces, more endless food', barracks: 'Trains troops', port: 'Builds ships, takes fish', tower: 'Shoots arrows at enemies',
   rumahtabib: 'Trains healers', patirthan: 'Heals units nearby, trains healers', wat: 'Trains healers, monks tend the wounded', palace: 'One only, trains the elite unit',
@@ -876,7 +876,7 @@ function fullName(kind, team) { const e = enName(kind, team); return civName(kin
 
 const BD = {
   towncentre: { name: 'Town Centre', size: 3, hp: 1200, pop: 8, drop: ['food', 'wood', 'gold'], train: ['villager'], atk: { dmg: 5, range: 7, rate: 2 }, sight: 10, cost: {}, time: 0, garrison: 15 },
-  house: { name: 'House', size: 2, hp: 300, pop: 5, cost: { wood: 30 }, time: 14, sight: 4 },
+  house: { name: 'House', size: 2, hp: 300, pop: 10, cost: { wood: 30 }, time: 14, sight: 4 },
   // one drop-off for wood and gold (the old Timber Mill and Gold Mine became Storehouses)
   store: { name: 'Storehouse', size: 2, hp: 400, cost: { wood: 100 }, time: 18, drop: ['wood', 'gold'], sight: 4 },
   farm: { name: 'Farm', size: 2, hp: 180, cost: { wood: 60 }, time: 10, walk: true, food: 400, sight: 3, civ: [0, 3] },
@@ -890,8 +890,8 @@ const BD = {
   patirthan: { name: 'Bathing Pool', size: 3, hp: 900, cost: { wood: 150, gold: 50 }, time: 40, train: ['acaraki'], needs: 'barracks', civ: 1, aura: { rng: 3, amt: 1, max: 10 }, sight: 5 },
   // Ayutthaya: the Wat trains the Mo and its monks tend the wounded nearby
   wat: { name: 'Temple', size: 3, hp: 700, cost: { wood: 120, gold: 40 }, time: 30, train: ['mo'], needs: 'barracks', civ: 3, aura: { rng: 2.5, amt: 1, max: 6 }, sight: 5 },
-  // Ruean Phae: an Ayutthaya house built on the water's edge floats on a raft; a woman fishes from its deck
-  rafthouse: { name: 'Raft House', size: 2, hp: 220, pop: 5, drop: ['food'], cost: { wood: 30 }, time: 12, sight: 4, civ: 3 },
+  // Ruean Phae: an Ayutthaya house built out on the water floats on a raft; a woman fishes from its deck
+  rafthouse: { name: 'Raft House', size: 2, hp: 220, pop: 10, drop: ['food'], cost: { wood: 30 }, time: 12, sight: 4, civ: 3 },
   palace: { name: 'Palace', size: 4, hp: 2400, cost: { wood: 400, gold: 200 }, time: 60, train: ['pahlawan', 'bhaya', 'chang'], one: true, sight: 9 },
   tradepost: { name: 'Trading Post', size: 3, hp: 700, cost: { wood: 150, gold: 50 }, time: 30, site: true, sight: 7, civ: [0, 1, 3] },
   // walls are one tile each, laid in lines; gates let your own side through and stop everyone else
@@ -1979,7 +1979,7 @@ class Game {
       u.x = p.x; u.y = p.y; u.aboard = null; u.path = null; u.order = { t: 'idle', hx: u.x, hy: u.y };
       this.units.push(u); this.byId.set(u.id, u);
       const o = u.back; u.back = null;
-      if (o && o.id && this.byId.get(o.id)) { const t = this.byId.get(o.id); if (o.t === 'gather') this.orderGather(u, t); else if (o.t === 'build' || o.t === 'repair') { u.order = Object.assign({}, o); } else if (o.t === 'fishhouse') u.order = Object.assign({}, o); }
+      if (o && o.id && this.byId.get(o.id)) { const t = this.byId.get(o.id); if (o.t === 'gather') this.orderGather(u, t); else if (o.t === 'build' || o.t === 'repair') { u.order = Object.assign({}, o); } else if (o.t === 'fishhouse') u.order = Object.assign({}, o, { deck: 0 }); }
     }
     b.cargo = [];
     return n;
@@ -2292,7 +2292,9 @@ class Game {
     }
     return land >= 2 && open >= 4;
   }
-  /* water tiles around a footprint: an Ayutthaya house with 3 or more becomes a raft house */
+  // an Ayutthaya house set down on the water floats as a raft house; one built on land always stays a house (Iylia, 2026-11-08)
+  houseKind(team, tx, ty) { return CV(team) === AYU_CIV && this.isWater(tx, ty) ? 'rafthouse' : 'house'; }
+  // how many open water tiles ring a footprint
   waterSide(tx, ty, size) {
     let water = 0;
     for (let y = ty - 1; y <= ty + size; y++) for (let x = tx - 1; x <= tx + size; x++) {
@@ -2342,7 +2344,7 @@ class Game {
   }
   /* returns {ok, b, why} */
   placeBuilding(team, kind, tx, ty, builderIds) {
-    if (kind === 'house' && CV(team) === AYU_CIV && this.waterSide(tx, ty, 2)) kind = 'rafthouse';
+    if (kind === 'house') kind = this.houseKind(team, tx, ty);
     const d = BD[kind];
     if (!d || !d.cost) return { ok: false, why: 'Cannot build that.' };
     if (!this.canAfford(team, d.cost)) return { ok: false, why: 'Not enough resources.' };
@@ -2476,8 +2478,9 @@ class Game {
   doFishHouse(u, dt) {
     const b = this.byId.get(u.order.id);
     if (!b || b.hp <= 0 || !b.done) { this.idleOrder(u); return; }
-    if (rectDist(u.x, u.y, b.rect) <= 0.95) {
-      u.path = null; u.working = true;
+    // once she is on the deck she stays there (o.deck), even if someone brushes past on the bank
+    if (rectDist(u.x, u.y, b.rect) <= (u.order.deck ? 1.5 : 0.95)) {
+      u.path = null; u.working = true; u.order.deck = 1;
       const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
       u.gt = (u.gt || 0) + dt * FISH_RATE;
       if (u.gt >= 10) { u.gt -= 10; this.res[u.team].food += 10; if (u.team === 0) this.floaters.push({ x: b.x, y: b.y - 1.2, text: '+10 food', type: 'food', t: 1.2 }); }
@@ -3111,10 +3114,12 @@ class Game {
   // push units apart so they don't stack
   separate() {
     const us = this.units;
+    // a woman fishing from her raft house's deck is out of everyone's way
+    const deck = (v) => v.order.t === 'fishhouse' && v.order.deck;
     for (const u of us) {
-      if (u.hp <= 0) continue;
+      if (u.hp <= 0 || deck(u)) continue;
       this.unitsNear(u.x, u.y, 0.6, (o) => {
-        if (o === u || o.id < u.id || o.layer !== u.layer) return;
+        if (o === u || o.id < u.id || o.layer !== u.layer || deck(o)) return;
         const dx = o.x - u.x, dy = o.y - u.y, d2 = dx * dx + dy * dy;
         if (d2 > 0.3 * 0.3 * 4 || d2 < 1e-6) { if (d2 < 1e-6) { o.x += 0.02; } return; }
         const d = Math.sqrt(d2), push = (0.6 - d) * 0.18, nx = dx / d, ny = dy / d;
@@ -6426,13 +6431,14 @@ function paintPlacement() {
   if (mode.tx == null) return;
   if (mode.line) { paintLinePlacement(d); return; }
   const tx = mode.tx, ty = mode.ty;
-  const dh = d.fh || d.size;
+  const dh = d.fh || d.size, raftHere = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
   for (let y = ty; y < ty + dh; y++) for (let x = tx; x < tx + d.size; x++) {
-    const ok = G.freeTile(x, y) && G.explored[y * W + x];
+    const ok = (G.freeTile(x, y) || (raftHere && G.isWater(x, y) && !G.block[y * W + x])) && G.explored[y * W + x];
     ctx.fillStyle = ok ? 'rgba(90,255,150,0.38)' : 'rgba(255,80,70,0.45)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   const valid = G.canPlace(mode.bkind, tx, ty, 0); mode.valid = valid;
-  const spr = buildingSprite(mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
+  const raft = mode.bkind === 'house' && G.houseKind(0, tx, ty) === 'rafthouse';
+  const spr = buildingSprite(raft ? 'rafthouse' : mode.bkind, 0, 2), w = d.size * TILE, px = tx * TILE, py = ty * TILE;
   ctx.globalAlpha = valid ? 0.72 : 0.4;
   ctx.drawImage(spr, px + (w - spr.width) / 2, d.walk ? py : py + dh * TILE - spr.height + 2); ctx.globalAlpha = 1;
   ctx.strokeStyle = valid ? '#7dffa8' : '#ff7a6b'; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, dh * TILE);
@@ -7310,7 +7316,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.43 \u00b7 7 Nov 2026';
+const BUILD = '0.9.44 \u00b7 8 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -7408,14 +7414,14 @@ const ENCY_UNITS = {
 };
 const ENCY_BLDS = {
   towncentre: 'Trains villagers and takes every resource. Lose it and you lose the game.',
-  house: '+5 population.', farm: 'Food for one or two farmers; never runs out.',
+  house: '+10 population.', farm: 'Food for one or two farmers; never runs out.',
   sawah: 'Majapahit rice terraces in place of farms: cheaper, more food and 20% faster to work, but they take more room.', store: 'Gudang: drop-off for wood and gold.',
   granary: 'Drop-off for food, near farms.', barracks: 'Trains swords, spears and archers.', port: 'Builds ships and takes fish.',
   tower: 'Shoots arrows at anything hostile in range.', rumahtabib: 'Melaka\u2019s physician\u2019s house: trains the Tabib.',
   patirthan: 'Majapahit\u2019s sacred pool: heals units standing near it and trains the Acaraki.',
   palace: 'One only. Trains the civ\u2019s unique unit.',
   wat: 'Ayutthaya\u2019s temple: trains the Mo, and its monks tend wounded soldiers nearby.',
-  rafthouse: 'Ruean Phae: an Ayutthaya house built on the water\u2019s edge floats on a raft. A woman fishes from its deck.',
+  rafthouse: 'Ruean Phae: an Ayutthaya house built out on the water floats on a raft. A woman fishes from its deck.',
   palisade: 'Sharpened logs, laid in a line. Cheap and quick, but it burns fast.',
   wall: 'Melaka builds timber Kubu, Majapahit red brick that burns at half rate. Needs a Barracks.',
   gate: 'Set into a wall. Opens for your own people; enemies have to break it down.', tradepost: 'Built on an Orang Laut landing; trade ships sail to it for gold.'
