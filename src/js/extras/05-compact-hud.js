@@ -12,8 +12,8 @@
    - group tabs only show once a group has been made */
 (function () {
   const css = `
-body.cmp #strip { display: none; }
-body.cmp #clock { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none;
+body.cmp:not(.cmp-m) #strip { display: none; }
+body.cmp:not(.cmp-m) #clock { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none;
   font-size: 12px; padding: 1px 8px; background: rgba(11, 22, 18, .6); border: 1px solid var(--edge-dark); color: var(--muted); }
 #hintpop { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); z-index: 3; max-width: min(78%, 420px);
   background: rgba(11, 22, 18, .9); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge);
@@ -73,6 +73,8 @@ body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
   function boot() {
     document.body.classList.add('cmp');
     const mid = document.getElementById('mid'), clock = document.getElementById('clock'), hint = document.getElementById('hint');
+    // campaign missions and battles keep their strip: the objectives open from it (and some show meters there)
+    if (typeof setupObj === 'function') { document.body.classList.add('cmp-m'); return compactRest(mid); }
     if (mid && clock) mid.appendChild(clock);
     // tips: show when the advice changes (numbers ignored), fade after 5 s, tap to close
     const pop = document.createElement('div'); pop.id = 'hintpop'; if (mid) mid.appendChild(pop);
@@ -85,7 +87,10 @@ body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
       if (!t) { pop.classList.remove('on'); return; }
       pop.classList.add('on'); clearTimeout(hideT); hideT = setTimeout(() => pop.classList.remove('on'), 5000);
     }, 250);
-    // minimap fold button
+    compactRest(mid);
+  }
+  // the parts every page gets: the minimap fold button and group tabs that appear once a group exists
+  function compactRest(mid) {
     const mini = document.getElementById('mini');
     if (mid && mini) {
       const b = document.createElement('button'); b.id = 'minitog'; b.setAttribute('aria-label', 'Show or hide the minimap');

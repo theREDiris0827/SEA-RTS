@@ -42,7 +42,7 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 2 · Animals and kerbau](#extra-2--animals-and-kerbau) | `src/js/extras/02-animals-kerbau.js` | 8349 to 8833 |
 | [EXTRA 3 · Smarter AI](#extra-3--smarter-ai) | `src/js/extras/03-ai-plus.js` | 8834 to 8881 |
 | [EXTRA 4 · Groups, facing and taps](#extra-4--groups-facing-and-taps) | `src/js/extras/04-groups-facing-taps.js` | 8882 to 9116 |
-| [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9117 to 9222 |
+| [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9117 to 9227 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1015,7 +1015,7 @@ group tabs 1-4 and Make group, the Face button, soldiers facing their move direc
 
 ## EXTRA 5 · Compact screen
 
-`src/js/extras/05-compact-hud.js` · lines 9117 to 9222
+`src/js/extras/05-compact-hud.js` · lines 9117 to 9227
 
 a bigger play area: no hint strip (small clock, tips pop up then fade), slim one-row panel, icon-only command buttons, smaller foldable minimap.
 
@@ -1029,3 +1029,4 @@ a bigger play area: no hint strip (small clock, tips pop up then fade), slim one
 |---|---|---|
 | `nameOf` | 9175 |  |
 | `boot` | 9189 |  |
+| `compactRest` | 9209 | the parts every page gets: the minimap fold button and group tabs that appear once a group exists |

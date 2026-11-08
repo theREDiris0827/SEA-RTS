@@ -557,6 +557,9 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
         <div class="m-seg two" id="m-sound"><button class="px" data-m="set" data-k="sound" data-v="on">On</button><button class="px" data-m="set" data-k="sound" data-v="off">Off</button></div>
         <div class="m-lbl">Music</div>
         <div class="m-seg two" id="m-music"><button class="px" data-m="set" data-k="music" data-v="on">On</button><button class="px" data-m="set" data-k="music" data-v="off">Off</button></div>
+        <div class="m-lbl">Orders on touch</div>
+        <div class="m-seg two" id="m-tap"><button class="px" data-m="set" data-k="tapmode" data-v="single">One tap</button><button class="px" data-m="set" data-k="tapmode" data-v="double">Double tap</button></div>
+        <p class="m-note">One tap: tap the ground or an enemy to give the order; a quick two-finger tap deselects. Double tap: one tap selects, a double tap gives the order.</p>
         <div class="m-lbl">Version</div>
         <p class="m-note" id="m-vernote"></p>
         <button class="px m-learn" data-m="update"><b>Check for updates</b></button>
@@ -643,6 +646,15 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 
 <script>
 'use strict';
+/* ##### CHAPTER SIM 1 · Basics #####
+   File: src/js/sim/01-core.js
+   What it does: Map size, tile types, saving helpers and random numbers. Everything in the SIM chapters is the
+   game rules only: no drawing, so it can run in tests.
+   Things you can tweak:
+     - W, H: map size in tiles (96 x 72). Missions change it in their own build.
+     - MAXPOP: population cap (100).
+     - STEP: the game ticks 30 times a second. Leave it.
+   ############################################################################ */
 /* ===== sim.js ===== */
 /* ==========================================================================
    SEA RTS — simulation core. No DOM in here, so it can be tested in Node.
@@ -664,6 +676,7 @@ function snapEnc(k, v) {
   if (ArrayBuffer.isView(v)) return { $ta: v.constructor.name, d: Array.from(v) };
   return v;
 }
+// turn saved data back into Sets, Maps and arrays
 function snapDec(k, v) {
   if (v && typeof v === 'object' && !Array.isArray(v)) {
     if (v.$set) return new Set(v.$set);
@@ -672,6 +685,7 @@ function snapDec(k, v) {
   }
   return v;
 }
+// the seeded random number maker (same seed = same map)
 function mulberry32(a) {
   const f = function () {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -682,22 +696,40 @@ function mulberry32(a) {
   f.get = () => a; f.set = (v) => { a = v; };   // so a saved game resumes the same random sequence
   return f;
 }
+// a fixed pseudo-random number for a tile
 function hash2(x, y, s) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
+// smooth noise for map shapes
 function vnoise(x, y, s) {
   const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
   const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
   const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
+// layered noise for natural-looking coasts and woods
 function fbm(x, y, s) {
   return vnoise(x, y, s) * 0.6 + vnoise(x * 2.1, y * 2.1, s + 7) * 0.3 + vnoise(x * 4.3, y * 4.3, s + 13) * 0.1;
 }
 
+/* ##### CHAPTER SIM 2 · Units, civs and buildings #####
+   File: src/js/sim/02-units-buildings.js
+   What it does: The big tables. UD lists every unit, BD every building. Each civ's names and bonuses live here
+   too.
+   Things you can tweak:
+     - UD.<unit>: hp, spd (tiles/s), atk, rng (range in tiles), rate (seconds between hits), ma/pa
+       (melee/pierce armour), sight, cost, time (seconds to train), bonus (extra damage vs a class).
+     - BD.<building>: hp, size (tiles), cost, time, pop (housing), train (what it makes), atk (towers).
+     - TEAMMOD: per-civ multipliers (Majapahit: hp 0.92, speed 1.12, cost 0.85, armour -1).
+     - NAVMOD: Majapahit ship multipliers. MEL_LEVY: Melaka land soldiers' price (0.9 = 10% off).
+     - BURN / BURNMAT: how fast fire hurts and burns per civ's building material.
+     - CIV_NAMES / BRIEF: the local names and the short help text on buttons.
+     - TRADE, HOUSEHOLD, FISH_RATE, TRIBUTE, WALL_MAX, RAFT: trade gold, Ayutthaya household food, Majapahit
+       tribute, longest wall drag, fire raft cooldown.
+   ############################################################################ */
 /* ---------- data ---------- */
 const UD = {
   villager: { name: 'Villager', hp: 25, spd: 2.1, atk: 3, rng: 0.85, rate: 1.5, ma: 0, pa: 0, sight: 5, cost: { food: 50 }, time: 8, cls: 'vil', carry: 10 },
@@ -733,11 +765,14 @@ const UD = {
 /* which civ each side plays: team 0 is always you and team 1 the AI, but either can be Melaka (civ 0)
    or Majapahit (civ 1). Set by the Game; read by stats, names and art through CV(team). */
 let CIVMAP = [0, 1];
+// which civ a team plays (0 Melaka, 1 Majapahit, 3 Ayutthaya)
 function CV(team) { return team === 0 || team === 1 ? CIVMAP[team] : team; }
 /* civ ids: 0 Melaka, 1 Majapahit, 3 Ayutthaya (2 stays the neutral team). CI(team) is the column in the
    [Melaka, Majapahit, Ayutthaya] name and stat tables; a unit or building's `civ` is one id or a list */
 const AYU_CIV = 3;
+// which column of a [Melaka, Majapahit, Ayutthaya] table to read
 function CI(team) { const c = CV(team); return c === 1 ? 1 : c === AYU_CIV ? 2 : 0; }
+// can this civ use this unit or building?
 function civOk(d, team) { return d.civ == null || (Array.isArray(d.civ) ? d.civ.includes(CV(team)) : d.civ === CV(team)); }
 const CIV_TITLE = ['Melaka', 'Majapahit', 'Neutral', 'Ayutthaya'];
 const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutthaya'];
@@ -775,9 +810,13 @@ const CIV_NAMES = {
   palace: [['Istana'], ['Kraton'], ['Wang']], tradepost: [['Pangkalan'], ['Bandar'], ['Tha', 'Tha']]
 };
 const CIV_ROLE = { tradepost: [null, 'Tribute Post'], trade: ['Armed Trade Ship', 'Trade Ship', 'Trade Junk'] };
+// the civ's name entry for a unit or building
 function civEntry(kind, team) { const n = CIV_NAMES[kind]; return n && n[CI(team)]; }
+// the English role name ("Spearman")
 function civRole(kind, team) { const r = CIV_ROLE[kind]; return (r && r[CI(team)]) || (UD[kind] || BD[kind]).name; }
+// the local name ("Tombak Warrior")
 function civName(kind, team) { const e = civEntry(kind, team); return e ? e[0] : civRole(kind, team); }
+// the short button label
 function shortName(kind, team) { const e = civEntry(kind, team); return e ? e[1] || e[0] : civRole(kind, team); }
 /* what each unit and building is for, in a few words: shown beside its English name in the panel */
 const BRIEF = {
@@ -795,7 +834,9 @@ const BRIEF = {
 };
 // the English name, when the local name differs from it
 function enName(kind, team) { const r = civRole(kind, team); return r !== civName(kind, team) && r !== shortName(kind, team) ? r : ''; }
+// button text: local name with (English) under it
 function btnName(kind, team) { const e = enName(kind, team); return shortName(kind, team) + (e ? '<small class="en">(' + e + ')</small>' : ''); }
+// "Local name (English)"
 function fullName(kind, team) { const e = enName(kind, team); return civName(kind, team) + (e ? ' (' + e + ')' : ''); }
 
 const BD = {
@@ -833,6 +874,21 @@ const TRIBUTE = 0.55;   // gold per second from each Majapahit Bandar
 const BARM = { ma: 2, pa: 6 };
 const WALL_MAX = 24;
 const RAFT = { cd: 45, r: 12 };
+/* ##### CHAPTER SIM 3 · Ages, resources, AI difficulty, maps #####
+   File: src/js/sim/03-ages-resources-ai-maps.js
+   What it does: The four ages, gunpowder rules, how much each tree/bush/gold holds, AI difficulty, and the
+   skirmish map layouts.
+   Things you can tweak:
+     - AGE_TABLE: cost, research time, Town Centre hp and needed buildings per age. AGE_START_BONUS: resources
+       for Start in.
+     - ARCHER_LINE: what each civ's archer becomes in each age.
+     - GUN: gun armour-pierce and the stand-still bonus. SKIRM_PSN / SUMPIT_PSN: poison damage.
+     - NK: resource amounts and gather speed (tree 200 wood, berry 250, gold 1000, fish 400).
+     - FARM_RATE, FARM_ENDLESS: farm speed, and whether farms run out.
+     - DIFF: AI per difficulty. wave0 = quiet start (s), gap = least time between attacks, base/grow = attack
+       size, vil = AI villagers.
+     - MAPDEF: each skirmish map's starts, gold, deer and village spots.
+   ############################################################################ */
 /* ---------- ages (lore/ages.md, Iylia 2026-10-25) ----------
    Every civ climbs Village > Kingdom > Commerce > Golden at its Town Centre. A unit or building's `age` is the
    first age it can be made in and `maxAge` the last: the archer line turns to guns (Majapahit's into armoured
@@ -871,8 +927,11 @@ Object.assign(BRIEF, {
 });
 // the archer line by age, per civ column [Melaka, Majapahit, Ayutthaya]
 const ARCHER_LINE = [['archer', 'archer', 'gunner', 'musket'], ['archer', 'archer', 'kerearcher', 'musket'], ['archer', 'archer', 'gunner', 'musket']];
+// which archer-line unit a civ gets in an age
 function lineKind(team, age) { return ARCHER_LINE[CI(team)][Math.min(AGE_MAX, Math.max(1, age)) - 1]; }
+// is this unit allowed in this age?
 function ageFits(d, age) { return ((d && d.age) || 1) <= age && !(d && d.maxAge && age > d.maxAge); }
+// cost as words ("50 food, 20 gold")
 function costWords(c) { return Object.keys(c).map(k => c[k] + ' ' + k).join(', '); }
 // light ranged units never get guns: from the Age of Commerce their darts, javelins and bolts are poisoned
 // gunpowder rules from the Lam Son Stand: shots ignore 3 armour; a gunner standing still 1.5 s hits 35% harder
@@ -923,7 +982,9 @@ const MAPDEF = {
   }
 })();
 
+// a rectangle from tile corners
 function rectOfTiles(tx, ty, w, h) { return { ax: tx, ay: ty, bx: tx + w, by: ty + h }; }
+// distance from a point to a rectangle
 function rectDist(px, py, r) {
   const dx = Math.max(r.ax - px, 0, px - r.bx), dy = Math.max(r.ay - py, 0, py - r.by);
   return Math.sqrt(dx * dx + dy * dy);
@@ -943,6 +1004,14 @@ class Game {
     if (sa > 1) for (let t = 0; t < 2; t++) { for (let n = 2; n <= sa; n++) this.applyAge(t, n, true); for (const k in AGE_START_BONUS) this.res[t][k] += AGE_START_BONUS[k] * (sa - 1); }
   }
 
+  /* ##### CHAPTER SIM 4 · Starting a game #####
+     File: src/js/sim/04-game-setup.js
+     What it does: The Game class begins here. Makes the map (genMap, rivers, islands), thins trees (openWoods),
+     places villages, bases and resources (populate), and saves/loads (snapshot).
+     Things you can tweak:
+       - populate(): what each side starts with and where resources go.
+       - openWoods(): how many trees get cleared. Missions turn it off.
+     ############################################################################ */
   /* ======================= setup ======================= */
   init() {
     this.t = 0; this.tickN = 0; this.nextId = 1; this.over = null;
@@ -1032,6 +1101,7 @@ class Game {
     }
     this.nodes = this.nodes.filter(n => n.hp > 0);
   }
+  // keep a road clear of trees
   reserveRoute(ax, ay, bx, by) {
     const dummy = { x: ax + 0.5, y: ay + 0.5, layer: 0 };
     const g = this.nearestFree(bx, by, 0, 8);
@@ -1053,6 +1123,7 @@ class Game {
     }
   }
 
+  // is this tile inside the map?
   inb(x, y) { return x >= 0 && y >= 0 && x < W && y < H; }
   /* land masses: every land tile gets the number of the island (or river bank) it sits on */
   computeRegions() {
@@ -1071,6 +1142,7 @@ class Game {
       }
     }
   }
+  // which island or river bank a point is on
   regionAt(x, y) { const tx = Math.floor(x), ty = Math.floor(y); return this.region && this.inb(tx, ty) ? this.region[ty * W + tx] : 0; }
   /* a dry tile on the shore near (x, y), at least 5 tiles out: where a base's port road goes */
   coastNear(x, y) {
@@ -1113,6 +1185,7 @@ class Game {
     return g;
   }
 
+  // make the land, water and cliffs for a skirmish map
   genMap() {
     const s = this.seed, terr = this.terrain, rng = this.rng, M = MAPDEF[this.map], STARTS = this.starts;
     const bx = 21 * MSX, by = 33 * MSY;
@@ -1212,6 +1285,7 @@ class Game {
       terr[y * W + x] = dep > 2.5 ? T.DEEP : dep > 0 ? T.SHALLOW : fbm(x * 0.12, y * 0.12, s + 3) > 0.7 ? T.DIRT : T.GRASS;
     }
   }
+  // can you walk from A to B?
   landConnected(ax, ay, bx, by) {
     const seen = new Uint8Array(W * H), q = [ay * W + ax]; seen[q[0]] = 1;
     for (let i = 0; i < q.length; i++) {
@@ -1226,10 +1300,14 @@ class Game {
     return false;
   }
 
+  // is the tile land?
   isLand(x, y) { return this.inb(x, y) && this.terrain[y * W + x] <= T.SAND; }
+  // is the tile water?
   isWater(x, y) { if (!this.inb(x, y)) return false; const t = this.terrain[y * W + x]; return t === T.SHALLOW || t === T.DEEP; }
+  // is the tile empty land?
   freeTile(x, y) { return this.isLand(x, y) && !this.block[y * W + x] && !this.occ[y * W + x]; }
 
+  // put a tree, bush, gold or fish on the map
   addNode(kind, x, y, amt) {
     const d = NK[kind];
     const n = { id: this.nextId++, isNode: true, kind, type: d.type, x: x + 0.5, y: y + 0.5, tx: x, ty: y, amt: amt || d.amt, max: amt || d.amt, hp: 1, v: Math.floor(hash2(x, y, 77) * 4) };
@@ -1238,12 +1316,14 @@ class Game {
     this.nodes.push(n); this.byId.set(n.id, n);
     return n;
   }
+  // remove a used-up resource
   removeNode(n) {
     n.hp = 0;
     if (n.kind !== 'carcass') { this.block[n.ty * W + n.tx] = 0; this.occ[n.ty * W + n.tx] = 0; }
     this.byId.delete(n.id);
   }
 
+  // place bases, villagers, resources and villages at the start
   populate() {
     const rng = this.rng, self = this;
     const place = (kind, cx, cy, spread, count, test, ignoreRoad) => {
@@ -1336,6 +1416,7 @@ class Game {
     for (const p of [[19, 31], [23, 31], [21, 32]].map(q => [Math.round(q[0] * MSX), Math.round(q[1] * MSY)])) if (this.isWater(p[0], p[1]) && !this.block[p[1] * W + p[0]]) this.addNode('fish', p[0], p[1]);
   }
 
+  // place a neutral Orang Laut village with its landing
   addVillage(gx, gy) {
     const land3 = (tx, ty) => { for (let y = ty; y < ty + 3; y++) for (let x = tx; x < tx + 3; x++) if (!this.freeTile(x, y) || this.siteMask[y * W + x]) return false; return true; };
     const shore = (tx, ty) => {
@@ -1369,6 +1450,14 @@ class Game {
   /* the free village landing whose corner is at (tx, ty), if any */
   siteAt(tx, ty) { return this.villages.find(v => v.hp > 0 && !v.post && v.site.tx === tx && v.site.ty === ty) || null; }
 
+  /* ##### CHAPTER SIM 5 · Units, costs and ages #####
+     File: src/js/sim/05-entities-ages.js
+     What it does: Adding units and buildings, working out prices (costOf), what a building can train, and
+     climbing the ages.
+     Things you can tweak:
+       - costOf(): where civ discounts are applied.
+       - applyAge(): what happens when an age finishes.
+     ############################################################################ */
   /* ======================= entities ======================= */
   addUnit(kind, team, x, y) {
     const d = UD[kind], m0 = TEAMMOD[CV(team)] || TEAMMOD[0], nv = d.layer && CV(team) === 1 ? NAVMOD : null;
@@ -1388,7 +1477,9 @@ class Game {
     if (this.age) this.armForAge(u, this.teamAge(team));
     return u;
   }
+  // a unit's civ name
   unitName(u) { return civName(u.kind, u.team); }
+  // price of a unit or building after civ discounts (MEL_LEVY, TEAMMOD)
   costOf(kind, team) {
     const base = UD[kind] ? UD[kind].cost : BD[kind].cost, o = {};
     const m = UD[kind] && CV(team) === 1 ? TEAMMOD[1].cost * (UD[kind].layer ? NAVMOD.cost : 1)
@@ -1403,29 +1494,36 @@ class Game {
     const t = BD[kind].train, age = this.teamAge(team), top = this.maxAge || AGE_MAX;
     return t ? t.filter(k => civOk(UD[k], team) && (UD[k].age || 1) > age && UD[k].age <= top && !(UD[k].maxAge && UD[k].maxAge < (UD[k].age || 1))) : [];
   }
+  // how many of a kind a team has
   countOf(team, kind) {
     let n = 0;
     for (const u of this.units) if (u.team === team && u.hp > 0 && u.kind === kind) n++;
     for (const b of this.buildings) if (b.team === team && b.hp > 0) { if (b.kind === kind) n++; for (const q of b.queue) if (q.kind === kind) n++; }
     return n;
   }
+  // enough resources?
   canAfford(team, cost) { const r = this.res[team]; for (const k in cost) if (r[k] < cost[k]) return false; return true; }
+  // take the cost
   pay(team, cost) { const r = this.res[team]; for (const k in cost) r[k] -= cost[k]; }
+  // give the cost back
   refund(team, cost) { const r = this.res[team]; for (const k in cost) r[k] += cost[k]; }
 
   /* ======================= ages ======================= */
   teamAge(team) { return this.age ? this.age[team] || 1 : AGE_MAX; }
+  // what the next age still needs, as text
   ageText(team, n) {
     const N = AGE_TABLE[n] && AGE_TABLE[n].need; if (!N) return '';
     if (N.all) return (CV(team) === AYU_CIV ? N.ayu : N.all).map(k => civName(k, team)).join(' and ');
     return N.n + ' of: ' + N.any.filter(k => civOk(BD[k], team)).map(k => civName(k, team)).join(', ');
   }
+  // are the next age's needed buildings built?
   ageNeedMet(team, n) {
     const A = AGE_TABLE[n]; if (!A || !A.need) return true;
     const have = (k) => this.buildings.some(b => b.team === team && b.kind === k && b.done && b.hp > 0);
     if (A.need.all) return (CV(team) === AYU_CIV ? A.need.ayu : A.need.all).every(have);
     return A.need.any.filter(have).length >= A.need.n;
   }
+  // begin researching the next age
   startAge(team) {
     const n = this.teamAge(team) + 1, A = AGE_TABLE[n];
     if (!A || n > (this.maxAge || AGE_MAX)) return 'You have reached the last age.';
@@ -1436,17 +1534,20 @@ class Game {
     if (team === 0) this.msg('Your court begins the work of the ' + A.name + '.');
     return null;
   }
+  // stop an age-up and refund it
   cancelAge(team) {
     const a = this.aging && this.aging[team == null ? 0 : team]; if (!a) return;
     this.refund(team || 0, AGE_TABLE[a.to].cost); this.aging[team || 0] = null;
     if (!team) this.msg('Advancing to the next age is called off.');
   }
+  // count down age research
   ageTick(dt) {
     for (let t = 0; t < 2; t++) {
       const a = this.aging[t]; if (!a) continue;
       a.left -= dt; if (a.left <= 0) { this.aging[t] = null; this.applyAge(t, a.to); }
     }
   }
+  // finish an age-up: Town Centre hp, unit looks, unlocks
   applyAge(team, n, quiet) {
     const A = AGE_TABLE[n]; this.age[team] = n;
     this.navTier[team] = n >= 3 ? 2 : n >= 2 ? 1 : 0;
@@ -1475,6 +1576,7 @@ class Game {
     } else if (c === 'skirm' && age >= 4 && !u.ageElite) { u.ageElite = true; u.atk += 1; u.pa += 1; u.maxHp += 6; u.hp += 6; }
   }
 
+  // add a building to the map
   addBuilding(kind, team, tx, ty, done) {
     const d = BD[kind], hp = d.civHp ? d.civHp[CI(team)] || d.civHp[0] : d.hp;
     const b = {
@@ -1491,6 +1593,7 @@ class Game {
     if (!d.walk && !d.gate) this.evict(b);
     return b;
   }
+  // push units off a new building's tiles
   evict(b) {
     for (const u of this.units) {
       const x = Math.floor(u.x), y = Math.floor(u.y);
@@ -1508,6 +1611,7 @@ class Game {
     for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) this.gate[y * W + x] = locked ? 255 : b.team + 1;
     if (locked) this.evict(b);
   }
+  // can a unit stand on this tile?
   walkable(x, y, layer) {
     if (x < 0 || y < 0 || x >= W || y >= H) return false;
     const i = y * W + x; if (this.block[i]) return false;
@@ -1515,6 +1619,7 @@ class Game {
     const t = this.terrain[i];
     return layer === 1 ? (t === T.SHALLOW || t === T.DEEP) : t <= T.SAND;
   }
+  // the closest empty tile
   nearestFree(px, py, layer, maxR) {
     const cx = Math.floor(px), cy = Math.floor(py);
     let best = null, bd = 1e9;
@@ -1531,6 +1636,7 @@ class Game {
     return { x: Math.max(0, Math.min(W - 1, cx)), y: Math.max(0, Math.min(H - 1, cy)) };
   }
 
+  // is another unit close to this spot?
   unitNear(x, y, r, layer, skip) {
     for (const o of this.units) if (o !== skip && o.hp > 0 && o.layer === layer && Math.hypot(o.x - x, o.y - y) < r) return o;
     return null;
@@ -1572,6 +1678,13 @@ class Game {
     return best;
   }
 
+  /* ##### CHAPTER SIM 6 · Finding the way #####
+     File: src/js/sim/06-paths-and-searching.js
+     What it does: A* pathfinding, straight-line checks, and quick searches like "nearest enemy" or "units near
+     here".
+     Things you can tweak:
+       - Mostly leave alone. nearestEnemy() decides what idle soldiers notice.
+     ############################################################################ */
   /* ======================= pathfinding ======================= */
   findPath(sx, sy, layer, goal, h) {
     const st = ++this.pStamp, seen = this.pSeen, closed = this.pClosed, G = this.pG, par = this.pPar;
@@ -1619,6 +1732,7 @@ class Game {
     tiles.reverse();
     return { path: this.smooth(sx, sy, tiles, layer), reached: found >= 0 };
   }
+  // straight line clear between two points?
   los(x0, y0, x1, y1, layer) {
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
     if (len < 0.01) return true;
@@ -1631,6 +1745,7 @@ class Game {
     }
     return true;
   }
+  // straighten a path so units don't zig-zag
   smooth(sx, sy, tiles, layer) {
     const pts = tiles.map(t => [t[0] + 0.5, t[1] + 0.5]);
     const out = []; let ax = sx + 0.5, ay = sy + 0.5, i = 0;
@@ -1659,6 +1774,7 @@ class Game {
     }
     return res;
   }
+  // find a path to a spot
   pathToPoint(u, gx, gy) {
     this.wt = u.team;
     const g = this.nearestFree(gx, gy, u.layer, 8);
@@ -1673,10 +1789,12 @@ class Game {
     }
     return res;
   }
+  // give a unit its new path
   setPath(u, res) {
     if (!res) { u.path = null; return false; }
     u.path = res.path; u.pi = 0; u.pr = res.reached; return true;
   }
+  // move a unit along its path for one tick
   stepMove(u, dt) {
     if (!u.path || u.pi >= u.path.length) { u.moving = false; return true; }
     let rem = u.spd * dt;
@@ -1704,6 +1822,7 @@ class Game {
       this.hash[cy * this.cw + cx].push(u);
     }
   }
+  // all units within a radius (fast grid lookup)
   unitsNear(x, y, r, fn) {
     const c0 = Math.max(0, Math.floor((x - r) / this.cell)), c1 = Math.min(this.cw - 1, Math.floor((x + r) / this.cell));
     const r0 = Math.max(0, Math.floor((y - r) / this.cell)), r1 = Math.min(this.ch - 1, Math.floor((y + r) / this.cell));
@@ -1712,7 +1831,9 @@ class Game {
       for (let i = 0; i < l.length; i++) fn(l[i]);
     }
   }
+  // is this spot out of the fog?
   isVisible(x, y) { const i = Math.floor(y) * W + Math.floor(x); return this.visible[i] === 1; }
+  // the closest enemy a unit can see
   nearestEnemy(u, r) {
     let best = null, bs = 1e9;
     const team = u.team, sea = u.layer === 1;
@@ -1737,14 +1858,24 @@ class Game {
     return best;
   }
 
+  /* ##### CHAPTER SIM 7 · Orders #####
+     File: src/js/sim/07-orders.js
+     What it does: What happens when you tap: gather, attack, board a ship, land, shelter in the Town Centre
+     (town bell), trade, move in formation.
+     Things you can tweak:
+       - BD.towncentre.garrison / BD.tower.garrison (chapter 2): how many villagers shelter.
+       - groupMove(): spacing of formations.
+     ############################################################################ */
   /* ======================= orders ======================= */
   idleOrder(u) { u.order = { t: 'idle', hx: u.x, hy: u.y }; u.path = null; u.moving = false; }
+  // what a target gives and how fast, if it can be gathered
   gatherInfo(o) {
     if (!o) return null;
     if (o.isNode) return { type: o.type, amt: o.amt, rate: NK[o.kind].rate, rect: o.rect };
     if (o.isBld && FIELD[o.kind] && o.done) return { type: 'food', amt: o.food, rate: FARM_RATE * (BD[o.kind].rate || 1), rect: o.rect };
     return null;
   }
+  // send a villager to gather
   orderGather(u, target) {
     const gi = this.gatherInfo(target); if (!gi) return false;
     if (target.kind === 'fish' ? u.cls !== 'boat' : u.cls === 'boat') return false;
@@ -1754,14 +1885,18 @@ class Game {
     u.order = { t: 'gather', id: target.id, type: gi.type, s: 'go' }; u.path = null; u.wait = 0;
     return true;
   }
+  // send a unit to attack
   orderAttack(u, target, extra) {
     if (u.isUnit && !u.atk && UD[u.kind].trader) { this.idleOrder(u); return; }
     u.order = Object.assign({ t: 'attack', id: target.id }, extra || {}); u.path = null; u.rp = 0;
   }
+  // send a unit onto a ship
   orderBoard(u, g) { u.order = { t: 'board', id: g.id }; u.path = null; u.wait = 0; u.rp = 0; }
   /* garrison: villagers shelter in a Town Centre (15) or tower (5); each one inside adds an arrow */
   roomIn(b) { const d = BD[b.kind]; return b.done && b.hp > 0 && d.garrison ? d.garrison - (b.cargo || []).length : 0; }
+  // send a villager to shelter in a building
   orderGarrison(u, b, back) { u.order = { t: 'garrison', id: b.id, back: back || null }; u.path = null; u.wait = 0; u.rp = 0; }
+  // walk to the shelter and go inside
   doGarrison(u, dt) {
     const b = this.byId.get(u.order.id);
     if (!b || b.team !== u.team || this.roomIn(b) <= 0) {
@@ -1779,6 +1914,7 @@ class Game {
     }
     if (this.stepMove(u, dt)) u.path = null;
   }
+  // nearest building with room to shelter
   shelterFor(u) {
     let best = null, bd = 1e9;
     for (const b of this.buildings) if (b.team === u.team && this.roomIn(b) > 0) { const d = Math.hypot(b.x - u.x, b.y - u.y); if (d < bd) { bd = d; best = b; } }
@@ -1800,6 +1936,7 @@ class Game {
     this.bell = this.bell || [false, false]; this.bell[team] = true;
     return n;
   }
+  // let sheltered villagers out
   ungarrison(b, all) {
     if (!b.cargo || !b.cargo.length) return 0;
     const n = b.cargo.length; this.wt = b.team;
@@ -1813,6 +1950,7 @@ class Game {
     b.cargo = [];
     return n;
   }
+  // end the town bell: everyone back to work
   allClear(team) {
     let n = 0;
     for (const b of this.buildings) if (b.team === team) n += this.ungarrison(b);
@@ -1820,6 +1958,7 @@ class Game {
     if (this.bell) this.bell[team] = false;
     return n;
   }
+  // send a loaded ship to a beach
   orderLand(g, x, y) { g.order = { t: 'land', x, y }; g.path = null; g.wait = 0; }
   /* the water tile next to a beach nearest (x, y), leaning towards (bx, by) */
   shoreTile(x, y, bx, by, ship) {
@@ -1916,9 +2055,13 @@ class Game {
     else { const dx = sp.x - b.x, dy = sp.y - b.y, l = Math.hypot(dx, dy) || 1; this.orderMove(u, sp.x + dx / l * 5, sp.y + dy / l * 5); }
     return null;
   }
+  // start a trade ship's route
   orderTrade(u, post) { u.order = { t: 'trade', post: post.id, s: 'out' }; u.path = null; u.wait = 0; }
+  // send a villager to build
   orderBuild(u, b) { u.order = { t: 'build', id: b.id }; u.path = null; u.wait = 0; }
+  // plain move
   orderMove(u, x, y) { u.order = { t: 'move', x, y }; u.path = null; u.wait = 0; }
+  // attack-move (fight anything on the way)
   orderAMove(u, x, y) { u.order = { t: 'amove', x, y }; u.path = null; u.wait = 0; }
 
   /* group order from the player (or the AI). ids -> units owned by `team` */
@@ -2004,11 +2147,19 @@ class Game {
     this.groupMove(us, wx, wy, opts);
   }
 
+  // move a group in formation
   groupMove(us, wx, wy, opts) {
-    if (us.length === 1) { const u = us[0]; if (opts.amove) this.orderAMove(u, wx, wy); else this.orderMove(u, wx, wy); return; }
+    if (us.length === 1) {
+      const u = us[0];
+      if (opts.out) { opts.out.push({ u, x: wx, y: wy }); return; }
+      const dx = opts.dir ? opts.dir[0] : wx - u.x; if (u.cls !== 'ship') u.endFace = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : u.face;
+      if (opts.amove) this.orderAMove(u, wx, wy); else this.orderMove(u, wx, wy); return;
+    }
     let cx = 0, cy = 0; for (const u of us) { cx += u.x; cy += u.y; } cx /= us.length; cy /= us.length;
     let fx = wx - cx, fy = wy - cy; const fl = Math.hypot(fx, fy);
-    if (fl < 0.5) { fx = 1; fy = 0; } else { fx /= fl; fy /= fl; }
+    if (opts.dir) { const dl = Math.hypot(opts.dir[0], opts.dir[1]) || 1; fx = opts.dir[0] / dl; fy = opts.dir[1] / dl; }
+    else if (fl < 0.5) { fx = 1; fy = 0; } else { fx /= fl; fy /= fl; }
+    const endFace = Math.abs(fx) > 0.05 ? (fx > 0 ? 1 : -1) : 0;
     const lx = -fy, ly = fx;
     // melee (and villagers) take the formation up front; ranged units always line up in rows behind them
     const sorted = us.slice().sort((a, b) => ORDER_CLS[a.cls] - ORDER_CLS[b.cls]);
@@ -2041,10 +2192,20 @@ class Game {
     for (let i = 0; i < n; i++) {
       const u = sorted[i], s = slots[i];
       const x = wx + lx * s.lat - fx * s.depth, y = wy + ly * s.lat - fy * s.depth;
+      if (opts.out) { opts.out.push({ u, x, y }); continue; }
+      if (u.cls !== 'ship') u.endFace = endFace || u.face;
       if (opts.amove) this.orderAMove(u, x, y); else this.orderMove(u, x, y);
     }
   }
 
+  /* ##### CHAPTER SIM 8 · Building and training #####
+     File: src/js/sim/08-building-training.js
+     What it does: Where a building may go, laying walls in lines, the build queue, population, and drop-off
+     points.
+     Things you can tweak:
+       - WALL_MAX (chapter 2) limits a wall drag.
+       - popCap(): MAXPOP from chapter 1.
+     ############################################################################ */
   /* ======================= building / training ======================= */
   canPlace(kind, tx, ty, team) {
     const d = BD[kind];
@@ -2165,6 +2326,7 @@ class Game {
     if (team === 0) this.stats.built++;
     return { ok: true, b };
   }
+  // add a unit to a building's training queue
   queueUnit(b, kind, team) {
     if (!b || b.hp <= 0 || !b.done || b.team !== (team == null ? 0 : team)) return 'Not available.';
     const can = this.trainable(b.kind, b.team);
@@ -2178,18 +2340,23 @@ class Game {
     this.pay(b.team, cost); b.queue.push({ kind, t: 0 });
     return null;
   }
+  // remove one from the queue and refund it
   cancelQueue(b, idx) {
     if (!b || idx < 0 || idx >= b.queue.length) return;
     const q = b.queue.splice(idx, 1)[0];
     this.refund(b.team, this.costOf(q.kind, b.team));
     if (idx === 0) b.qt = 0;
   }
+  // how many people a team has
   popOf(team) { let n = 0; for (const u of this.units) if (u.team === team && u.hp > 0 && u.kind !== 'raft') { n++; if (u.cargo) n += u.cargo.length; } for (const b of this.buildings) if (b.team === team && b.cargo) n += b.cargo.length; return n; }
+  // housing limit
   popCap(team) { let c = 0; for (const b of this.buildings) if (b.team === team && b.done && b.hp > 0) c += BD[b.kind].pop || 0; return Math.min(CV(team) === AYU_CIV ? 120 : MAXPOP, c); }
+  // buildings that take a resource
   dropOffs(team, type, layer) {
     return this.buildings.filter(b => b.team === team && b.done && b.hp > 0 && BD[b.kind].drop && BD[b.kind].drop.includes(type) &&
       (layer === 1 ? b.kind === 'port' : b.kind !== 'port'));
   }
+  // nearest drop-off for a resource
   nearestDrop(u, type) {
     let best = null, bd = 1e9;
     for (const b of this.dropOffs(u.team, type, u.layer)) { const d = rectDist(u.x, u.y, b.rect); if (d < bd) { bd = d; best = b; } }
@@ -2232,15 +2399,27 @@ class Game {
   }
   /* how many villagers (or boats) may work one resource at once */
   gatherCap(n) { return n.isBld ? 2 : n.kind === 'fish' ? 2 : 3; }
+  // how many villagers are on a resource
   claimsOf(n) { return this.claims.get(n.id) || 0; }
+  // recount villagers per resource
   countClaims() {
     this.claims.clear();
     for (const u of this.units) if (u.hp > 0 && u.order.t === 'gather') this.claims.set(u.order.id, (this.claims.get(u.order.id) || 0) + 1);
   }
+  // set where new units walk to
   setRally(b, x, y, target) {
     b.rally = target && (this.gatherInfo(target) || (target.kind === 'tradepost' && target.team === b.team)) ? { id: target.id } : { x, y };
   }
 
+  /* ##### CHAPTER SIM 9 · Every tick: buildings, soldiers, fire #####
+     File: src/js/sim/09-every-tick.js
+     What it does: Runs 30 times a second: buildings train and heal, soldiers pick fights by stance, healers
+     heal, ships shoot, buildings burn.
+     Things you can tweak:
+       - guardOrder(): how far Defensive soldiers chase (r: 11 tiles).
+       - fireOn(): who sets buildings alight and how often (archers 20% from Age 2).
+       - BURN (chapter 2) for fire strength.
+     ############################################################################ */
   /* ======================= per-tick update ======================= */
   update(dt) {
     if (this.over) return;
@@ -2288,6 +2467,7 @@ class Game {
     }
     return out;
   }
+  // Ayutthaya households pay food
   householdTick() {
     for (const team of [0, 1]) {
       if (CV(team) !== AYU_CIV) continue;
@@ -2297,6 +2477,7 @@ class Game {
     }
   }
 
+  // one tick for a building: build, train, shoot, heal
   updateBuilding(b, dt) {
     if (b.hp <= 0 || b.team === 2) return;
     b.hit = Math.max(0, b.hit - dt); if (b.raftCd > 0) b.raftCd -= dt;
@@ -2357,6 +2538,7 @@ class Game {
     }
   }
 
+  // a building is finished
   finishBuilding(b) {
     b.done = true; b.progress = 1; b.hp = b.maxHp;
     if (b.team === 0) this.msg(civName(b.kind, 0) + ' complete.');
@@ -2378,6 +2560,7 @@ class Game {
     }
   }
 
+  // one tick for a unit: cooldowns, then its current order
   updateUnit(u, dt) {
     u.cd = Math.max(0, u.cd - dt); if (u.cd2) u.cd2 = Math.max(0, u.cd2 - dt); u.atkT = Math.max(0, u.atkT - dt); u.hit = Math.max(0, u.hit - dt);
     u.wait = Math.max(0, u.wait - dt); u.rp = Math.max(0, u.rp - dt);
@@ -2421,6 +2604,7 @@ class Game {
     } else { u.stk = 0; u.sx = u.x; u.sy = u.y; }
   }
 
+  // what an idle unit does (look for enemies by stance)
   doIdle(u, dt) {
     // drift back to where we stopped if others have shoved us (keeps formations and archer rows intact)
     const o = u.order;
@@ -2461,6 +2645,7 @@ class Game {
     }
     return best;
   }
+  // attack-move step
   doAMove(u, dt) {
     const o = u.order;
     u.scan -= dt;
@@ -2476,6 +2661,7 @@ class Game {
     }
     if (this.stepMove(u, dt)) { if (u.path === null) u.wait = 0.3; else this.idleOrder(u); }
   }
+  // chase and hit a target
   doAttack(u, dt) {
     const o = u.order, t = this.byId.get(o.id);
     const done = () => {
@@ -2527,6 +2713,7 @@ class Game {
     }
     if (this.stepMove(u, dt) && u.path !== null) { u.path = null; u.wait = 0.35; }
   }
+  // animals wander
   doWander(u, dt) {
     const o = u.order;
     if (u.path) { if (this.stepMove(u, dt)) u.path = null; return; }
@@ -2538,6 +2725,7 @@ class Game {
       if (Math.hypot(g.x - u.x, g.y - u.y) < 9) this.setPath(u, this.pathToPoint(u, g.x + 0.5, g.y + 0.5));
     }
   }
+  // animals run from hunters
   doFlee(u, dt) {
     const o = u.order; o.t0 -= dt;
     if (o.t0 <= 0) { u.order = { t: 'wander', next: 1 }; u.path = null; return; }
@@ -2575,6 +2763,7 @@ class Game {
   }
   /* healing: allies on land, hurt, and out of combat for HEAL_CALM seconds */
   canHeal(o, team) { return o.isUnit && o.hp > 0 && o.team === team && o.layer !== 1 && o.cls !== 'animal' && o.hp < o.maxHp && this.t - (o.lastHit == null ? -99 : o.lastHit) >= HEAL_CALM; }
+  // heal one unit
   healOne(o, amt) { o.hp = Math.min(o.maxHp, o.hp + amt); this.fx.push({ k: 'heal', x: o.x, y: o.y - 0.5, t: 0.7, max: 0.7 }); }
   /* idle healer: heal what's in reach, or walk over to the worst-hurt ally it can see */
   healStep(u, dt) {
@@ -2600,6 +2789,7 @@ class Game {
     u.scan = 0.5;
     if (worst) { u.order = { t: 'heal', id: worst.id, hx: u.x, hy: u.y }; u.path = null; }
   }
+  // healer walks to and heals a target
   doHeal(u, dt) {
     const o = u.order, t = this.byId.get(o.id), H = UD[u.kind].heal;
     if (!t || !this.canHeal(t, u.team)) { this.idleOrder(u); return; }
@@ -2651,6 +2841,7 @@ class Game {
     t.burn.n = Math.min(BURN.max, t.burn.n + 1); t.burn.t = BURN.dur; t.burn.by = team;
     this.burning.add(t);
   }
+  // burning buildings and ships lose hp
   updateBurning(dt) {
     for (const t of this.burning) {
       const B = t.burn;
@@ -2691,6 +2882,15 @@ class Game {
     u.hp = 0; this.onKilled(u, null);
   }
 
+  /* ##### CHAPTER SIM 10 · Gathering, repairing, damage #####
+     File: src/js/sim/10-gather-repair-damage.js
+     What it does: Villagers gathering and carrying, repairing and demolishing, building, units pushing apart,
+     and the damage formula. Also fog of war and the win/lose check.
+     Things you can tweak:
+       - damage(): the damage formula (attack + bonus - armour).
+       - doRepair(): repair cost and speed.
+     ############################################################################ */
+  // villager gathers, carries the load to a drop-off, and goes back
   doGather(u, dt) {
     const o = u.order;
     let node = this.byId.get(o.id);
@@ -2841,6 +3041,7 @@ class Game {
   }
   /* knock down your own building: nothing comes back. The Town Centre can't be (losing it loses the game) */
   canDemolish(b) { return b && b.isBld && b.hp > 0 && b.team === 0 && b.kind !== 'towncentre'; }
+  // take down your own building
   demolish(b) {
     if (!this.canDemolish(b)) return false;
     for (let i = 0; i < 14; i++) this.fx.push({ k: 'smoke', x: b.x + (this.rng() - 0.5) * b.size, y: b.y + (this.rng() - 0.5) * b.size, vy: -0.6 - this.rng() * 0.8, t: 1.4 + this.rng(), max: 2.4 });
@@ -2849,6 +3050,7 @@ class Game {
     b.hp = 0; this.msg(civName(b.kind, 0) + ' demolished.');
     return true;
   }
+  // villager builds
   doBuild(u, dt) {
     const o = u.order, b = this.byId.get(o.id);
     if (!b || b.hp <= 0 || b.done) { this.idleOrder(u); return; }
@@ -2872,6 +3074,7 @@ class Game {
     if (this.stepMove(u, dt)) u.path = null;
   }
 
+  // push units apart so they don't stack
   separate() {
     const us = this.units;
     for (const u of us) {
@@ -2891,6 +3094,7 @@ class Game {
       });
     }
   }
+  // small push for one unit
   nudge(u, dx, dy) {
     const nx = u.x + dx, ny = u.y + dy; this.wt = u.team;
     if (this.walkable(Math.floor(nx), Math.floor(ny), u.layer)) { u.x = nx; u.y = ny; }
@@ -2902,6 +3106,7 @@ class Game {
     this.fx.push({ k: 'spark', sub: 'flash', x: mx, y: my, face: u.face, big, t: big ? 0.14 : 0.09, max: big ? 0.14 : 0.09 });
     for (let i = 0, n = big ? 6 : 3; i < n; i++) this.fx.push({ k: 'smoke', sub: 'gun', x: mx + u.face * (0.1 + i * 0.12) + (this.rng() - 0.5) * 0.2, y: my + (this.rng() - 0.5) * 0.15, vy: -0.25 - this.rng() * 0.3, vx: u.face * (0.2 + this.rng() * 0.3), big, t: (big ? 1.6 : 1.0) + this.rng() * 0.5, max: big ? 2.1 : 1.5 });
   }
+  // the damage formula: attack + bonus - armour
   damage(att, tgt, w) {
     let dmg = (w ? w.atk : att.atk) + ((att.bonus && att.bonus[tgt.cls]) || 0);
     if (w && w.kb && tgt.isUnit) dmg += w.kb[tgt.kind] || 0;
@@ -2940,6 +3145,7 @@ class Game {
       if (o !== tgt && o.hp > 0 && o.team !== att.team && o.team !== 2 && o.layer === tgt.layer && Math.hypot(o.x - tgt.x, o.y - tgt.y) <= AD.splash) this.damage({ atk: Math.round(att.atk * 0.5), team: att.team, x: att.x, y: att.y, isUnit: true, kind: '' }, o);
     });
   }
+  // something died: score, loot, messages
   onKilled(t, att) {
     if (t.isUnit) {
       if (t.team === 1 && att && att.team === 0) this.stats.kills++;
@@ -2963,8 +3169,10 @@ class Game {
       if (BD[t.kind].site) for (const v of this.villages) if (v.post === t.id) v.post = 0;
     }
   }
+  // show a short message
   msg(text) { this.msgs.push({ text, t: 3.2 }); if (this.msgs.length > 4) this.msgs.shift(); }
 
+  // remove the dead
   cleanup() {
     let dead = false;
     for (const u of this.units) if (u.hp <= 0 || u.aboard) { dead = true; this.byId.delete(u.id); }
@@ -2977,6 +3185,7 @@ class Game {
     if (bd) this.buildings = this.buildings.filter(b => b.hp > 0);
     if (this.nodes.some(n => n.hp <= 0)) this.nodes = this.nodes.filter(n => n.hp > 0);
   }
+  // age out effects
   updateFx(dt) {
     for (const f of this.fx) f.t -= dt;
     this.fx = this.fx.filter(f => f.t > 0);
@@ -2990,6 +3199,7 @@ class Game {
     this.alerts = this.alerts.filter(a => a.t > 0);
   }
 
+  // recompute what each side can see
   updateFog() {
     this.fogV = (this.fogV || 0) + 1;
     this.visible.fill(0);
@@ -3005,11 +3215,20 @@ class Game {
     for (const b of this.buildings) if (b.team === 0 && b.hp > 0) reveal(b.x, b.y, (BD[b.kind].sight || 4) + (b.done ? 0 : -1));
   }
 
+  // win or lose?
   checkEnd() {
     const has = (team) => this.buildings.some(b => b.team === team && b.kind === 'towncentre' && b.hp > 0);
     if (!has(1)) this.over = 'win'; else if (!has(0)) this.over = 'lose';
   }
 
+  /* ##### CHAPTER SIM 11 · What you tapped, and the enemy AI #####
+     File: src/js/sim/11-enemy-ai.js
+     What it does: pick() finds what is under your finger. aiTick() is the computer player: it gathers, builds,
+     trains, ages up, attacks and retreats.
+     Things you can tweak:
+       - DIFF (chapter 3) is the safest place to change the AI.
+       - aiRetreat(): when a beaten attack falls back.
+     ############################################################################ */
   /* ======================= picking ======================= */
   pick(wx, wy, opts) {
     opts = opts || {};
@@ -3242,6 +3461,7 @@ class Game {
       this.ai.atk = null;
     }
   }
+  // AI places a building near its Town Centre
   aiBuild(kind, tc, vils, nBuilders, rmin, rmax) {
     const size = BD[kind].size;
     for (let i = 0; i < 70; i++) {
@@ -3254,6 +3474,7 @@ class Game {
     }
     return false;
   }
+  // AI places a port on the coast
   aiBuildShore(kind, vils) {
     const h = this.portHint[1] || { x: 44, y: 31 }, cx = h.x, cy = h.y;
     for (let r = 0; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -3263,6 +3484,7 @@ class Game {
     }
     return false;
   }
+  // AI places a drop-off near resources
   aiBuildNear(kind, node, vils) {
     const size = BD[kind].size;
     for (let i = 0; i < 40; i++) {
@@ -3278,6 +3500,13 @@ const ORDER_CLS = { spear: 0, sword: 1, elite: 1, vil: 2, archer: 3, healer: 3.5
 const HEAL_CALM = 3;   // a unit hit within the last 3 s can't be healed (no healing mid-fight)
 if (typeof module !== 'undefined') module.exports = { Game, UD, BD, NK, W, H, T, STEP, STARTS, rectDist };
 
+/* ##### CHAPTER ART 1 · Drawing basics #####
+   File: src/js/art/01-core.js
+   What it does: All art is drawn by code, pixel by pixel, then cached as pictures. Team colours and the sprite
+   helper live here.
+   Things you can tweak:
+     - TEAMC: each team's colours. SKIN, HAIR, STEEL, WOOD: shared colours.
+   ############################################################################ */
 /* ===== art.js ===== */
 /* ==========================================================================
    ART — every sprite is drawn from code (no image files), at a logical
@@ -3292,7 +3521,9 @@ const TEAMC = [
 const SKIN = '#d9a066', SKIN_D = '#b97a46', HAIR = '#2a1c14', CREAM = '#efe3c0', STEEL = '#dfe6ee', STEEL_D = '#97a3b0', WOOD = '#8a5a2b', WOOD_D = '#5e3b1c';
 const SPR = {};
 
+// make a blank drawing canvas
 function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+// draw a picture once with the pixel painter P, then reuse the cached copy
 function sprite(key, lw, lh, scale, draw, outline) {
   if (SPR[key]) return SPR[key];
   const c = cv(lw, lh), x = c.getContext('2d');
@@ -3303,6 +3534,7 @@ function sprite(key, lw, lh, scale, draw, outline) {
   ox.imageSmoothingEnabled = false; ox.drawImage(c, 0, 0, lw * scale, lh * scale);
   SPR[key] = o; return o;
 }
+// add the dark outline around a sprite
 function outlineCanvas(c, x) {
   const w = c.width, h = c.height, img = x.getImageData(0, 0, w, h), d = img.data, out = new Uint8ClampedArray(d.length);
   out.set(d);
@@ -3316,14 +3548,18 @@ function outlineCanvas(c, x) {
   img.data.set(out); x.putImageData(img, 0, 0);
 }
 const WHITE = new Map();
+// a white copy of a sprite (flash when hit)
 function whiteOf(spr) {
   let w = WHITE.get(spr); if (w) return w;
   w = cv(spr.width, spr.height); const x = w.getContext('2d');
   x.drawImage(spr, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#ffffff'; x.fillRect(0, 0, w.width, w.height);
   WHITE.set(spr, w); return w;
 }
+// paint a filled pixel circle
 function disc(P, cx, cy, rad, col) { for (let y = -rad; y <= rad; y++) { const w = Math.floor(Math.sqrt(rad * rad - y * y) + 0.5); P.r(cx - w, cy + y, w * 2 + 1, 1, col); } }
+// paint a wooden plank wall
 function planks(P, x, y, w, h, base, line) { P.r(x, y, w, h, base); for (let i = 2; i < w; i += 3) P.r(x + i, y, 1, h, line); }
+// paint a sloped gable roof
 function roofGable(P, cx, y0, y1, hw0, hw1, cA, cB, edge) {
   for (let y = y0; y <= y1; y++) {
     const t = (y - y0) / Math.max(1, y1 - y0), hw = Math.round(hw0 + (hw1 - hw0) * t);
@@ -3331,8 +3567,15 @@ function roofGable(P, cx, y0, y1, hw0, hw1, cA, cB, edge) {
   }
   P.r(cx - hw1 - 1, y1, hw1 * 2 + 2, 1, edge);
 }
+// paint wooden stilts or posts
 function posts(P, xs, y0, y1, w) { for (const x of xs) { P.r(x, y0, w, y1 - y0, '#5a3a1e'); P.r(x, y0, 1, y1 - y0, '#40270f'); } }
 
+/* ##### CHAPTER ART 2 · People #####
+   File: src/js/art/02-people.js
+   What it does: Villagers and soldiers: bodies, legs, weapons and the walk cycle.
+   Things you can tweak:
+     - GOLD, LUK, LEGS: shared colours and leg poses.
+   ############################################################################ */
 /* ------------------------------ people ------------------------------ */
 /* Approved unit art (Oct 2026): distinct silhouettes + cultural detail.
    MERGE: in the art.js section of index.html, replace everything from `const LEGS = ...`
@@ -3346,6 +3589,7 @@ const GOLD = '#e8b830', GOLD_D = '#a87a1c';
 const LUK = [0, 0, 1, 1, 0, 0, 1];
 const LEGS = [[[5, 12, 2, 3], [9, 12, 2, 2]], [[6, 12, 2, 3], [8, 12, 2, 3]], [[6, 12, 2, 2], [10, 12, 2, 3]], [[6, 12, 2, 3], [8, 12, 2, 3]]];
 
+// paint a Melaka/Majapahit person: body, clothes, weapon and pose
 function drawUnit(P, kind, team, anim, f, tool) {
   const T = TEAMC[team] || TEAMC[0], r = P.r, mel = team === 0, vil = kind === 'villager', bh = kind === 'bhaya';
   const walk = anim === 'walk', atk = anim === 'attack';
@@ -3475,12 +3719,15 @@ function drawUnit(P, kind, team, anim, f, tool) {
 
 // the team's age picks the look (AGEART, below); neutral and pre-age callers get the Kingdom Age roster
 function unitAge(team) { return typeof G !== 'undefined' && G && G.age && started && (team === 0 || team === 1) ? G.teamAge(team) : 2; }
+// the picture for a unit, with its age look
 function baseUnitSprite(kind, team, anim, f, tool) { return AGEART.unit(kind, CV(team), unitAge(team), anim, f) || civUnitSprite(kind, CV(team), anim, f, tool); }
+// the picture for a unit by civ (Ayutthaya has its own art)
 function civUnitSprite(kind, team, anim, f, tool) {
   if (team === AYU_CIV) { const s = AYART.unit(kind, anim, f, tool); if (s) return s; }
   if (UD[kind] && UD[kind].cls === 'healer') return CIVB.healerSprite(UD[kind].civ, anim === 'attack' ? 'heal' : anim === 'work' ? 'idle' : anim, anim === 'attack' ? f : anim === 'walk' ? f : 0);
   return sprite(`u|${kind}|${team}|${anim}|${f}|${tool || ''}`, 16, 18, 2, (P) => drawUnit(P, kind, team, anim, f, tool));
 }
+// deer picture
 function deerSprite(f) {
   return sprite('deer|' + f, 18, 16, 2, (P) => {
     const r = P.r, c = '#b0733f', l = f ? 1 : 0;
@@ -3490,6 +3737,7 @@ function deerSprite(f) {
     r(13, 0, 1, 3, '#e6d6aa'); r(15, 0, 1, 3, '#e6d6aa'); r(14, 1, 1, 1, '#e6d6aa'); r(3, 6, 1, 2, '#f4ecd4');
   });
 }
+// hunted animal carcass picture
 function carcassSprite() {
   return sprite('carcass', 18, 14, 2, (P) => {
     const r = P.r; r(3, 7, 11, 4, '#a56d3b'); r(4, 10, 9, 1, '#d4a771'); r(13, 8, 3, 2, '#b98048'); r(5, 6, 1, 1, '#8a5a2b'); r(9, 6, 1, 1, '#8a5a2b'); r(14, 6, 1, 2, '#e6d6aa'); r(6, 8, 3, 1, '#c4894d');
@@ -3513,6 +3761,7 @@ function tanja(P, x, y, w, h, col, colD, T, mark) {
   P.r(x + Math.round(h * 0.5) - 1, y + h, w + 2, 1, WOOD_D);
   if (mark) P.r(x + Math.round(h * 0.25) + (w >> 1) - 1, y + (h >> 1) - 1, 2, 2, T.main);
 }
+// fishing boat picture
 function boatSprite(team) {
   const T = TEAMC[team] || TEAMC[0];
   return sprite('boat|' + team, 24, 22, 2, (P) => {
@@ -3534,6 +3783,10 @@ function boatSprite(team) {
   });
 }
 
+/* ##### CHAPTER ART 3 · Nature #####
+   File: src/js/art/03-nature.js
+   What it does: Trees, bushes, gold, fish and deer.
+   ############################################################################ */
 /* ------------------------------ nature ------------------------------ */
 function treeSprite(v) {
   return sprite('tree|' + v, 20, 28, 2, (P) => {
@@ -3560,6 +3813,7 @@ function treeSprite(v) {
     }
   });
 }
+// berry bush picture
 function bushSprite() {
   return sprite('berry', 16, 14, 2, (P) => {
     const r = P.r;
@@ -3567,6 +3821,7 @@ function bushSprite() {
     for (const p of [[4, 6], [9, 4], [11, 8], [6, 9], [8, 7], [3, 9]]) { r(p[0], p[1], 2, 2, '#d6303a'); r(p[0], p[1], 1, 1, '#ff8a8a'); }
   });
 }
+// gold deposit picture
 function goldSprite() {
   return sprite('gold', 16, 14, 2, (P) => {
     const r = P.r;
@@ -3575,6 +3830,10 @@ function goldSprite() {
   });
 }
 
+/* ##### CHAPTER ART 4 · Ships #####
+   File: src/js/art/04-ships.js
+   What it does: Every civ's ships, sails and hulls (NAVAL).
+   ############################################################################ */
 /* ---------- naval roster and civ buildings (approved art from the art thread) ----------
    Each file is kept whole inside its own scope so its helpers don't clash with the ones above. */
 const NAVAL = (() => {
@@ -3616,10 +3875,15 @@ const NAVAL = (() => {
   }
   // Square sail with a darker belly edge (European-influenced late ships).
   function sq(P, x, y, w, h) { P.r(x, y, w, h, SAIL); P.r(x + w - 1, y + 1, 1, h - 1, SAIL_D); P.r(x, y + h - 1, w, 1, SAIL_D); P.r(x - 1, y - 1, w + 2, 1, WOOD_D); }
+  // paint a ship mast
   function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
+  // paint a small flag
   function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
+  // paint a row of oars
   function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+  // paint a crewman on deck
   function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
+  // paint flames
   function flames(P, list, base) { for (const [x, h] of list) { P.r(x, base - h, 2, h, FIRE); P.r(x, base - h + 2, 1, h - 3, FIRE_L); P.r(x, base - h + 3, 1, 1, '#fff0a0'); } }
 
   const NAVAL_DIMS = { fishing: [24, 22], trade: [36, 30], jong: [36, 30], light: [30, 24], galley: [38, 29], frigate: [44, 36], flagship: [54, 42] };
@@ -3633,6 +3897,7 @@ const NAVAL = (() => {
     { fishing: 'Fishing Boat', trade: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' }
   ];
 
+  // a ship picture by kind and civ
   function navalSprite(kind, team) {
     const T = TEAMC[team] || TEAMC[0], mel = team === 0;
     const d = (kind === 'trade' && !mel) ? [24, 24] : NAVAL_DIMS[kind];
@@ -3737,6 +4002,10 @@ const NAVAL = (() => {
   }
   return { navalSprite };
 })();
+/* ##### CHAPTER ART 5 · Melaka and Majapahit buildings #####
+   File: src/js/art/05-melaka-majapahit-buildings.js
+   What it does: Town Centres, houses, barracks and other buildings for the first two civs (CIVB).
+   ############################################################################ */
 const CIVB = (() => {
   /* Melaka building mockups, same style as buildingSprite() in art.js (stilts, planks, thatch gables).
      Needs sprite(), disc(), planks(), roofGable(), posts(), TEAMC and the palette constants from art.js,
@@ -3746,11 +4015,16 @@ const CIVB = (() => {
   const MB_DIMS = { jelapang: [32, 50], pangkalan: [48, 54], menara: [32, 64], istana: [64, 78] };
   const THATCH = '#c9ae5e', THATCH_D = '#a98f48', BAMBOO = '#c9b27a', BAMBOO_D = '#9c8450';
 
+  // paint woven bamboo walls
   function weave(P, x, y, w, h) { P.r(x, y, w, h, BAMBOO); for (let j = 0; j < h; j += 2) for (let i = (j >> 1) & 1; i < w; i += 2) P.r(x + i, y + j, 1, 1, BAMBOO_D); }
+  // paint grain sacks
   function sacks(P, x, y, n) { for (let i = 0; i < n; i++) { P.r(x + i * 4, y, 3, 3, '#d9c79a'); P.r(x + i * 4, y, 3, 1, '#efe3c0'); P.r(x + i * 4 + 1, y - 1, 1, 1, '#a08a5a'); } }
+  // paint trade crates
   function crates(P, x, y) { P.r(x, y, 5, 4, '#a8773c'); P.r(x, y + 2, 5, 1, '#7d5b30'); P.r(x + 5, y + 1, 4, 3, '#8a5a2b'); P.r(x + 2, y - 3, 4, 3, '#b88a52'); P.r(x + 2, y - 2, 4, 1, '#8a5a2b'); }
+  // paint a Melaka banner
   function banner(P, x, y, h, T) { P.r(x, y, 1, h, WOOD_D); P.r(x + 1, y + 1, 6, 4, T.main); P.r(x + 1, y + 1, 6, 1, GOLD); P.r(x + 3, y + 3, 2, 1, GOLD); }
 
+  // a Melaka building picture
   function melakaBuilding(kind, team) {
     const T = TEAMC[team] || TEAMC[0], d = MB_DIMS[kind];
     return sprite(`mb|${kind}|${team}`, d[0], d[1], 2, (P) => {
@@ -3828,13 +4102,16 @@ const CIVB = (() => {
   const MJ_DIMS = { lumbung: [32, 50], bandar: [48, 54], kulkul: [32, 64], kraton: [64, 78] };
   const BRICK = '#b0533a', BRICK_D = '#843a27', BRICK_L = '#c96d4f', IJUK = '#3a2e2a', IJUK_L = '#54443c';
 
+  // paint red brick courses
   function brick(P, x, y, w, h) { P.r(x, y, w, h, BRICK); for (let j = 1; j < h; j += 2) P.r(x, y + j, w, 1, BRICK_D); for (let j = 0; j < h; j += 2) for (let i = (j & 2) ? 1 : 3; i < w; i += 4) P.r(x + i, y + j, 1, 1, BRICK_D); P.r(x, y, w, 1, BRICK_L); }
   // meru: stacked black thatch tiers, each narrower than the one below
   function meru(P, cx, yBottom, tiers, w0, step) { for (let t = 0; t < tiers; t++) { const w = w0 - t * step, y = yBottom - t * 4; P.r(cx - (w >> 1), y - 2, w, 2, IJUK); P.r(cx - (w >> 1) + 1, y - 3, w - 2, 1, IJUK_L); if (t < tiers - 1) P.r(cx - 2, y - 4, 4, 1, '#5a3a1e'); } P.r(cx - 1, yBottom - tiers * 4 - 2, 2, 3, GOLD); }
   // sun of Majapahit (Surya Majapahit) emblem
   function surya(P, cx, cy) { P.r(cx - 1, cy - 1, 3, 3, GOLD); P.r(cx, cy - 3, 1, 7, GOLD); P.r(cx - 3, cy, 7, 1, GOLD); P.r(cx - 2, cy - 2, 1, 1, GOLD); P.r(cx + 2, cy - 2, 1, 1, GOLD); P.r(cx - 2, cy + 2, 1, 1, GOLD); P.r(cx + 2, cy + 2, 1, 1, GOLD); }
+  // paint a Majapahit banner
   function mjBanner(P, x, y, h, T) { P.r(x, y, 1, h, WOOD_D); P.r(x + 1, y + 1, 7, 5, T.main); P.r(x + 1, y + 1, 7, 1, GOLD); surya({ r: P.r }, x + 4, y + 3); }
 
+  // a Majapahit building picture
   function majapahitBuilding(kind, team) {
     const T = TEAMC[team] || TEAMC[1], d = MJ_DIMS[kind];
     return sprite(`mj|${kind}|${team}`, d[0], d[1], 2, (P) => {
@@ -3894,6 +4171,7 @@ const CIVB = (() => {
   // black ijuk gable roof with a thick dark edge
   function ijukRoof(P, cx, y0, y1, hw0, hw1) { roofGable(P, cx, y0, y1, hw0, hw1, IJUK, IJUK_L, '#241c19'); }
 
+  // Majapahit Town Centre and palace base
   function majapahitBase(kind, team) {
     const T = TEAMC[team == null ? 1 : team], d = MJBASE_DIMS[kind];
     return sprite(`mjbase|${kind}|${T.name}`, d[0], d[1], 2, (P) => {
@@ -3937,6 +4215,7 @@ const CIVB = (() => {
   }
   // pier() and rack() from buildings-mainland.js, used by the Majapahit port and barracks
   function pier(P) { P.r(0, 40, 48, 12, '#a47a45'); for (let x = 0; x < 48; x += 4) P.r(x, 40, 1, 12, '#7d5b30'); P.r(0, 40, 48, 1, '#c99b5d'); P.r(0, 51, 48, 1, '#5a3a1e'); posts(P, [1, 14, 28, 44], 48, 53, 3); }
+  // paint a drying rack
   function rack(P, x, y) { for (let i = 0; i < 4; i++) { P.r(x + i * 3, y, 1, 10, '#8a5a2b'); P.r(x + i * 3, y - 1, 1, 1, STEEL); } P.r(x - 1, y + 4, 12, 1, WOOD_D); }
   // healers.js: Tabib / Acaraki and their buildings
   /* Healers: Melaka Tabib + Rumah Tabib, Majapahit Acaraki + Patirthan. Lore: lore/healers.md.
@@ -3946,6 +4225,7 @@ const CIVB = (() => {
      healerBuilding(kind, team): kind rumahtabib | patirthan | perigi */
   const HERB = '#4e9a3c', HERB_L = '#8fd06a', BRASS = '#c9973a', BRASS_D = '#8e6624', JAMU = '#d9a521';
 
+  // paint a healer (Tabib, Acaraki, Mo)
   function drawHealer(P, team, anim, f) {
     const T = TEAMC[team] || TEAMC[0], r = P.r, mel = team === 0;
     const walk = anim === 'walk', heal = anim === 'heal';
@@ -3992,6 +4272,7 @@ const CIVB = (() => {
       if (f === 2) { r(14, -1 + 2, 1, 3, HERB_L); r(13, 0 + 2, 3, 1, HERB_L); }                     // small green cross: heal lands
     }
   }
+  // healer picture
   function healerSprite(team, anim, f) {
     return sprite(`heal|${team}|${anim}|${f}`, 16, 18, 2, (P) => drawHealer(P, team, anim, f));
   }
@@ -3999,8 +4280,10 @@ const CIVB = (() => {
   const HB_DIMS = { rumahtabib: [48, 54], patirthan: [56, 50], perigi: [32, 34] };
   const WATER = '#3d86a3', WATER_L = '#7fb7b8', WATER_D = '#2d6f8f';
 
+  // paint a herb bed
   function herbBed(P, x, y, w) { P.r(x, y, w, 3, '#6b4a2a'); for (let i = 0; i < w; i += 2) { P.r(x + i, y - 1, 1, 2, HERB); if (i % 4 === 0) P.r(x + i, y - 2, 1, 1, HERB_L); } }
 
+  // healer building picture (Rumah Tabib, Patirthan)
   function healerBuilding(kind, team) {
     const T = TEAMC[team] || TEAMC[kind === 'patirthan' ? 1 : 0], d = HB_DIMS[kind];
     return sprite(`hb|${kind}|${team}`, d[0], d[1], 2, (P) => {
@@ -4047,6 +4330,10 @@ const CIVB = (() => {
   }
   return { melakaBuilding, majapahitBuilding, majapahitBase, neutralSite, healerSprite, healerBuilding };
 })();
+/* ##### CHAPTER ART 6 · Ayutthaya #####
+   File: src/js/art/06-ayutthaya.js
+   What it does: All Ayutthaya art: people, elephants, buildings and boats (AYART).
+   ############################################################################ */
 const AYART = (() => {
   /* Ayutthaya art from the art and lore threads: units (lore/scenes/units-ayutthaya.js), buildings
      (lore/scenes/bld-ayutthaya.js), ships (unit-art/ships.js + ships-mainland.js) and the village woman
@@ -4066,6 +4353,7 @@ const AYU_MET = '#4a4a52', AYU_MET_L = '#6a6a74', AYU_BR = '#7a5a2a', AYU_STRING
 const AYU_FLASH = '#f6d04a', AYU_FLASH_L = '#fff3a0', AYU_SMOKE = '#c8c8c8', AYU_SMOKE_L = '#e0e0e0';
 const AYU_DIMS = { changsuek: [32, 32], cannon: [26, 18] };
 
+// an Ayutthaya unit picture
 function ayUnit(kind, anim, f) {
   f = f | 0;
   if (kind === 'changsuek') return ayuElephant(anim, f);
@@ -4073,6 +4361,7 @@ function ayUnit(kind, anim, f) {
   return sprite(`ayu|${kind}|${anim}|${f}`, 16, 18, 2, (P) => ayuPerson(P, kind, anim, f));
 }
 
+// paint an Ayutthaya person
 function ayuPerson(P, kind, anim, f) {
   const walk = anim === 'walk', atk = anim === 'attack';
   const bob = (walk && (f === 1 || f === 3)) ? -1 : 0;
@@ -4382,6 +4671,7 @@ function ayHouse(P, ox, oy, veranda) {
   }
 }
 
+// an Ayutthaya building picture
 function ayBuilding(kind) {
   const d = AY_DIMS[kind] || AY_DIMS.house;
   return sprite(`ay|${kind}`, d[0], d[1], 2, (P) => {
@@ -4548,10 +4838,15 @@ function fan(P, x, y, w, h) {
 }
 // Square sail with a darker belly edge (European-influenced late ships).
 function sq(P, x, y, w, h) { P.r(x, y, w, h, SAIL); P.r(x + w - 1, y + 1, 1, h - 1, SAIL_D); P.r(x, y + h - 1, w, 1, SAIL_D); P.r(x - 1, y - 1, w + 2, 1, WOOD_D); }
+// paint a ship mast
 function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
+// paint a small flag
 function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
+// paint a row of oars
 function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+// paint a crewman on deck
 function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
+// paint flames
 function flames(P, list, base) { for (const [x, h] of list) { P.r(x, base - h, 2, h, FIRE); P.r(x, base - h + 2, 1, h - 3, FIRE_L); P.r(x, base - h + 3, 1, 1, '#fff0a0'); } }
 
 const NAVAL_DIMS = { fishing: [24, 22], trade: [36, 30], jong: [36, 30], light: [30, 24], galley: [38, 29], frigate: [44, 36], flagship: [54, 42] };
@@ -4565,6 +4860,7 @@ const NAVAL_CLASS = [
   { fishing: 'Fishing Boat', trade: 'Fire Ship', light: 'Sloop', galley: 'Galley', frigate: 'Frigate', flagship: 'Flagship' }
 ];
 
+// a ship picture by kind and civ
 function navalSprite(kind, team) {
   const T = TEAMC[team] || TEAMC[0], mel = team === 0;
   const d = (kind === 'trade' && !mel) ? [24, 24] : NAVAL_DIMS[kind];
@@ -4698,6 +4994,7 @@ function pavilion(P, x, y, w, h, roof, roofD, wall) {
   P.r(x + (w >> 1), y - 5, 1, 2, GOLD);
 }
 
+// a Khmer/Dai Viet ship picture (battle demos)
 function mainlandShip(civ, kind) {
   const T = civ === 'km' ? KHC : CIVC[civ];
   const d = (civ === 'dv' && kind === 'fishing') ? [20, 18] : (civ === 'km' && kind === 'trade') ? [32, 18] : NAVAL_DIMS[kind];
@@ -4853,6 +5150,7 @@ function womanSprite(anim, f, tool) {
   function aySpears(P, x, y, n) { for (let i = 0; i < n; i++) { P.r(x + i * 3, y, 1, 10, WOOD_D); P.r(x + i * 3, y - 1, 1, 1, STEEL); P.r(x + i * 3, y + 2, 1, 1, '#b8322a'); } P.r(x - 1, y + 5, n * 3 + 1, 1, AY.TEAK_D); }
   // small purple round shield with a gold boss
   function ayShield(P, cx, cy) { disc(P, cx, cy, 3, AYC.dark); disc(P, cx, cy, 2, AYC.main); P.r(cx, cy, 1, 1, AY.G); P.r(cx - 1, cy - 2, 1, 1, '#9a5fc0'); }
+  // Ayutthaya barracks, port, granary, teak store and farm pictures
   function ayBuildingX(kind, level) {
     const d = AYX_DIMS[kind];
     return sprite(`ayx|${kind}|${level || 0}`, d[0], d[1], 2, (P) => {
@@ -4920,6 +5218,7 @@ function womanSprite(anim, f, tool) {
     });
   }
   const UNIT = { keris: 'dap', tombak: 'spear', archer: 'archer', namai: 'namai', mo: 'mo', chang: 'changsuek', gunner: 'gunner', musket: 'gunner', cannon: 'cannon' };
+  // an Ayutthaya unit picture (falls back to the shared art)
   function unit(kind, anim, f, tool) {
     if (kind === 'villager') return womanSprite(anim, anim === 'walk' ? f & 3 : Math.min(1, f), tool);
     const k = UNIT[kind]; if (!k) return null;
@@ -4927,10 +5226,16 @@ function womanSprite(anim, f, tool) {
     return ayUnit(k, a, a === 'walk' ? f & 3 : a === 'attack' ? Math.min(2, f) : 0);
   }
   const BLD = { towncentre: 'towncentre', house: 'house', rafthouse: 'raft', tower: 'tower', palace: 'palace', wat: 'healer' };
+  // Ayutthaya building picture (shared entry point)
   function building(kind, level) { return AYX_DIMS[kind] ? ayBuildingX(kind, level) : BLD[kind] ? ayBuilding(BLD[kind]) : null; }
+  // Ayutthaya ship picture (shared entry point)
   function ship(slot) { return mainlandShip('ayu', slot); }
   return { unit, building, ship };
 })();
+/* ##### CHAPTER ART 7 · Soldiers through the ages #####
+   File: src/js/art/07-age-looks.js
+   What it does: How soldiers' dress changes each age (AGEART), plus guns and armour (XU).
+   ############################################################################ */
 /* ===== soldiers through the ages (unit-art/ages-all-civs, Iylia 2026-10-25) =====
    One look per age in every mode. Age 1 a plain levy with no gold, age 2 the roster as drawn, age 3 mail (Melaka's
    baju rantai, Majapahit's kere and bronze helmet, Ayutthaya's lacquered leather), age 4 royal-guard gold. Light
@@ -4944,6 +5249,7 @@ const AGEART = (() => {
      age 3: baju rantai (mail shirt)           age 4: mail with gold trim, gold armbands and a taller gold-tipped tengkolok
    melGunner(anim, f): age 3 Penembak (matchlock gunner)     melMeriam(): age 3 capped bronze cannon */
 function hexRGB(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+// swap colours on a finished picture
 function recolor(P, map) {
   const c = P.x.canvas, img = P.x.getImageData(0, 0, c.width, c.height), d = img.data;
   const m = Object.entries(map).map(([a, b]) => [hexRGB(a), hexRGB(b)]);
@@ -4951,6 +5257,7 @@ function recolor(P, map) {
   P.x.putImageData(img, 0, 0);
 }
 const MAIL = '#9aa4ae', MAIL_D = '#6e7882';
+// Melaka soldier picture for a given age
 function melAge(kind, age, anim, f) {
   return sprite(`melage|${kind}|${age}|${anim}|${f}`, 16, 18, 2, (P) => {
     const T = TEAMC[0], bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0;
@@ -4976,6 +5283,7 @@ function melAge(kind, age, anim, f) {
     }
   });
 }
+// Melaka gunner picture
 function melGunner(anim, f, elite) {
   return sprite(`melgun|${anim}|${f}|${elite ? 1 : 0}`, 16, 18, 2, (P) => {
     const bob = (anim === 'walk' && (f === 1 || f === 3)) ? -1 : 0, atk = anim === 'attack';
@@ -4999,6 +5307,7 @@ function melGunner(anim, f, elite) {
       if (f === 1) { B(15, 7, 1, 3, '#f6d04a'); B(15, 8, 1, 1, '#fff3a0'); B(13, 5, 2, 1, '#c8c8c8'); B(14, 4, 2, 1, '#e0e0e0'); } }
   });
 }
+// Melaka bronze cannon picture
 function melMeriam() {
   return sprite('melmeriam', 26, 18, 2, (P) => {
     const r = P.r, BZ = '#b8862c', BZ_L = '#e0b04a', BZ_D = '#7a5418';
@@ -5037,6 +5346,7 @@ function xuSmoke(r, x, y, late) {  // a few puffs drifting up from (x, y)
   else { r(x - 1, y - 5, 3, 2, XU_SMOKE_D); r(x + 1, y - 7, 2, 2, XU_SMOKE); r(x - 3, y - 6, 2, 1, XU_SMOKE_D); }
 }
 
+// extra unit pictures (guns, armour)
 function xUnit(kind, anim, f) {
   anim = anim === 'attack' ? 'attack' : 'idle'; f = anim === 'attack' ? (f | 0) : 0;
   const atk = anim === 'attack', big = kind === 'cetbang' || kind === 'dvcannon';
@@ -5172,6 +5482,7 @@ function mpAge(kind, age, anim, f) {
     }
   });
 }
+// paint a bronze helmet
 function helmet(P, bob) {
   const BZ = '#b8862c', BZL = '#e0b04a', BZD = '#7a5418', y = bob || 0;
   P.r(6, 3 + y, 4, 1, BZ); P.r(5, 4 + y, 6, 1, BZD); P.r(7, 3 + y, 2, 1, BZL); P.r(7, 2 + y, 2, 1, BZ); P.r(8, 1 + y, 1, 1, '#c0392b');
@@ -5197,6 +5508,7 @@ function lightAge(kind, civ, age, anim, f) {
 }
 /* ---------- Ayutthaya: copies of the AYART roster, recoloured and dressed by age ---------- */
 const AYC = {}, AY_LEVY_MAP = { '#7b4bb3': '#8a6b4a', '#9b6fd0': '#a8885e', '#4e2d78': '#5e4630', '#3a1f5c': '#4a3424', [GOLD]: '#a8885e', [GOLD_D]: '#5e3b1c' };
+// copy a picture with colours swapped
 function canvasRecolor(src, map) {
   const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; const x = c.getContext('2d'); x.drawImage(src, 0, 0);
   if (!map) return c;
@@ -5204,6 +5516,7 @@ function canvasRecolor(src, map) {
   for (let i = 0; i < d.length; i += 4) for (const [a, b] of m) if (d[i] === a[0] && d[i + 1] === a[1] && d[i + 2] === a[2]) { d[i] = b[0]; d[i + 1] = b[1]; d[i + 2] = b[2]; break; }
   x.putImageData(img, 0, 0); return c;
 }
+// Ayutthaya soldier picture for a given age
 function ayAge(kind, age, anim, f) {
   const key = kind + '|' + age + '|' + anim + '|' + f; if (AYC[key]) return AYC[key];
   const base = AYART.unit(kind, anim, f); if (!base) return null;
@@ -5222,6 +5535,7 @@ function ayAge(kind, age, anim, f) {
 }
 /* ---------- the look for a unit of this civ in this age, or null for the plain roster ---------- */
 const CORE = { keris: 1, tombak: 1, archer: 1 }, LIGHT = { sumpit: 1, lembing: 1, namai: 1 };
+// pick the right age look for any civ's soldier
 function unit(kind, civ, age, anim, f) {
   age = Math.max(1, Math.min(4, age || 2));
   const a = anim === 'work' ? 'idle' : anim, ff = a === 'walk' ? f & 3 : Math.min(2, f);
@@ -5246,6 +5560,7 @@ return { unit };
 const CIVB_KIND = { granary: ['jelapang', 'lumbung'], tower: ['menara', 'kulkul'], palace: ['istana', 'kraton'], tradepost: ['pangkalan', 'bandar'] };
 /* where each ship sprite sits on the water: [hull centre x, waterline y] in sprite pixels (Majapahit fire ship differs) */
 const SHIP_ANCHOR = { trade: [35, 50], fire: [22, 40], light: [30, 40], galley: [37, 48], frigate: [43, 64], flagship: [53, 76] };
+// the picture for a ship on the map
 function baseShipSprite(u) { const tm = CV(u.team); if (tm === AYU_CIV && u.kind !== 'raft') return AYART.ship(u.kind === 'boat' ? 'fishing' : UD[u.kind].slot); return u.kind === 'boat' ? boatSprite(tm) : u.kind === 'raft' ? raftSprite(tm) : NAVAL.navalSprite(u.kind === 'trade' && tm === 1 ? 'jong' : UD[u.kind].slot, tm); }
 /* rakit api: a bamboo raft heaped with dry fronds and husks, already alight */
 function raftSprite(team) {
@@ -5259,8 +5574,13 @@ function raftSprite(team) {
     r(15, 4, 1, 5, WOOD_D); r(16, 4, 2, 2, T.main);
   });
 }
+// where a ship picture sits on its tile
 function baseShipAnchor(kind, team) { if (kind === 'boat' && CV(team) === AYU_CIV) return [24, 36]; return kind === 'boat' ? [20, 34] : kind === 'raft' ? [18, 22] : kind === 'fireship' ? SHIP_ANCHOR.fire : SHIP_ANCHOR[UD[kind].slot]; }
 
+/* ##### CHAPTER ART 8 · Shared buildings and walls #####
+   File: src/js/art/08-shared-buildings.js
+   What it does: Walls, gates, farms, ports and other buildings every civ shares, and wall styles by age.
+   ############################################################################ */
 /* ------------------------------ buildings ------------------------------ */
 /* one wall tile. mask: 1 N, 2 E, 4 S, 8 W neighbours of the same side; open: a gate with friends close by.
    Palisade: sharpened logs. Melaka Kubu: planked timber with a walkway. Majapahit: red brick, and the
@@ -5400,7 +5720,9 @@ function sawahSprite(team) {
     r(42, 7, 2, 3, SKIN); r(42, 6, 2, 1, '#c9ae5e'); r(47, 0, 1, 9, WOOD_D); r(46, 1, 1, 3, T.main);
   }, false);
 }
+// the picture for a building
 function baseBuildingSprite(kind, team, level) { return civBuildingSprite(kind, CV(team), level); }
+// the picture for a building by civ
 function civBuildingSprite(kind, team, level) {
   if (team === AYU_CIV && !(BD[kind] && BD[kind].wall)) { const s = AYART.building(kind, level); if (s) return s; }
   if (kind === 'sawah') return sawahSprite(team);
@@ -5463,6 +5785,10 @@ function civBuildingSprite(kind, team, level) {
   });
 }
 
+/* ##### CHAPTER ART 9 · Icons #####
+   File: src/js/art/09-icons.js
+   What it does: Small pictures for buttons, and marks on the ground.
+   ############################################################################ */
 /* ------------------------------ icons & decals ------------------------------ */
 function iconSprite(name) {
   return sprite('i|' + name, 16, 16, 2, (P) => {
@@ -5489,6 +5815,7 @@ function iconSprite(name) {
     else if (name === 'ring') { disc(P, 8, 8, 6, '#fff'); disc(P, 8, 8, 4, '#00000000'); }
   }, name !== 'ring');
 }
+// rubble left by a destroyed building
 function rubbleSprite(size) {
   return sprite('rubble|' + size, size * 16, size * 12, 2, (P) => {
     const r = P.r, w = size * 16, h = size * 12;
@@ -5499,12 +5826,19 @@ function rubbleSprite(size) {
   });
 }
 
+/* ##### CHAPTER ART 10 · Ground #####
+   File: src/js/art/10-terrain.js
+   What it does: Grass, sand, water and cliffs (PAL is the ground palette).
+   Things you can tweak:
+     - PAL: ground colours.
+   ############################################################################ */
 /* ------------------------------ terrain ------------------------------ */
 const PAL = {
   grass: ['#5b8c4a', '#608f4e', '#56853f', '#64954f'], dirt: ['#8d6e4b', '#846643', '#977755', '#7f6140'],
   sand: ['#d6c58b', '#cdbb80', '#ded09a', '#d0bf86'], shallow: ['#4ba3bf', '#4499b6', '#53aac6', '#4fa0bb'],
   deep: ['#2c6f90', '#28678a', '#31779a', '#2a6c8d'], cliff: ['#80848c', '#767a82', '#8b8f97', '#7b7f87']
 };
+// paint the whole ground map once at the start
 function buildTerrain(g) {
   const c = cv(W * TILE, H * TILE), x = c.getContext('2d'), s = g.seed, T_ = g.terrain;
   const tt = (i, j) => (i < 0 || j < 0 || i >= W || j >= H) ? T.DEEP : T_[j * W + i];
@@ -5575,6 +5909,7 @@ function buildTerrain(g) {
   }
   return c;
 }
+// paint the minimap ground
 function buildMiniBase(g) {
   const c = cv(W, H), x = c.getContext('2d');
   const col = ['#5b8c4a', '#8d6e4b', '#d6c58b', '#4ba3bf', '#2c6f90', '#7b7f87'];
@@ -5583,6 +5918,16 @@ function buildMiniBase(g) {
 }
 if (typeof module !== 'undefined') module.exports = { unitSprite, buildingSprite, treeSprite, bushSprite, goldSprite, deerSprite, carcassSprite, boatSprite, iconSprite, buildTerrain, TEAMC };
 
+/* ##### CHAPTER SCREEN 1 · Screen, camera, fog #####
+   File: src/js/ui/01-screen-camera-fog.js
+   What it does: Everything the player sees and touches starts here: the canvas, the camera, the fog of war and
+   the build list.
+   Things you can tweak:
+     - setZoom(): zoom limits, clamp(z, 0.38, 2.6). 0.38 = furthest out.
+     - clampCam(): how far past the map edge you can pan (0.3 and 0.35 of the screen).
+     - BUILD_ORDER, ECO_BLD: the order of build buttons and which tab they sit in.
+     - FORMS: formation types.
+   ############################################################################ */
 /* ===== ui.js ===== */
 /* ==========================================================================
    UI — drawing the world, camera, touch + mouse input, HUD and menus.
@@ -5608,14 +5953,19 @@ let gest = null;
 
 /* ---------------- helpers ---------------- */
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+// screen point to map point
 function s2w(sx, sy) { return { x: (sx / view.zoom + cam.x) / TILE, y: (sy / view.zoom + cam.y) / TILE }; }
+// map point to screen point
 function w2s(wx, wy) { return { x: (wx * TILE - cam.x) * view.zoom, y: (wy * TILE - cam.y) * view.zoom }; }
+// seconds as m:ss
 function fmtTime(t) { t = Math.max(0, Math.floor(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 const urlCache = new Map();
+// picture as an image link (cached)
 function dataURL(key, make) {
   let u = urlCache.get(key); if (u) return u;
   const c = make(); u = c.toDataURL('image/png'); urlCache.set(key, u); return u;
 }
+// shrink a sprite into an icon
 function fitIcon(spr, size) {
   const c = document.createElement('canvas'); c.width = size; c.height = size;
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
@@ -5624,17 +5974,22 @@ function fitIcon(spr, size) {
   return c;
 }
 const MINIC = [['#7dffa8', '#c8ffd9'], ['#ff5a4a', '#ff8a7a'], ['#d8d0b8', '#e8e0c8'], ['#c9a3ff', '#e4d0ff']];
+// button icon for a unit
 function unitIcon(kind, team) { return dataURL('ui|' + kind + CV(team) + '|a' + unitAge(team), () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
+// button icon for a building
 function bldIcon(kind, team) {
   // wall and gate buttons show the civ's own style once the owner reaches the Age of Commerce
   if (BD[kind] && BD[kind].wall && kind !== 'palisade' && typeof G !== 'undefined' && G && G.teamAge && G.teamAge(team) >= 3) return dataURL('bi|' + kind + CV(team) + 'f', () => fitIcon(buildingSprite(kind, team, 100 + 10 + 32), 44));
   return dataURL('bi|' + kind + CV(team), () => fitIcon(buildingSprite(kind, team, 2), 44));
 }
+// icon for food, wood or gold
 function resIcon(name) { return dataURL('ri|' + name, () => iconSprite(name)); }
+// icon for a resource on the map
 function nodeIcon(n) {
   const k = n.kind;
   return dataURL('ni|' + k, () => fitIcon(k === 'tree' ? treeSprite(0) : k === 'berry' ? bushSprite() : k === 'gold' ? goldSprite() : k === 'carcass' ? carcassSprite() : iconSprite('food'), 44));
 }
+// pop-up message on screen
 function toast(text) {
   const box = $('toasts'); if (!box) return;
   const d = document.createElement('div'); d.className = 'toast'; d.textContent = text; box.appendChild(d);
@@ -5656,13 +6011,16 @@ function clampCam() {
   cam.x = WW + 2 * mx > vw ? clamp(cam.x, -mx, WW - vw + mx) : (WW - vw) / 2;
   cam.y = HH + 2 * my > vh ? clamp(cam.y, -my, HH - vh + my) : (HH - vh) / 2;
 }
+// zoom the camera, kept between 0.38 (far) and 2.6 (close)
 function setZoom(z, sx, sy) {
   z = clamp(z, 0.38, 2.6);
   if (sx == null) { sx = view.w / 2; sy = view.h / 2; }
   const wx = sx / view.zoom + cam.x, wy = sy / view.zoom + cam.y;
   view.zoom = z; cam.x = wx - sx / z; cam.y = wy - sy / z; clampCam();
 }
+// move the camera to a tile
 function centerOn(tx, ty) { cam.x = tx * TILE - view.w / view.zoom / 2; cam.y = ty * TILE - view.h / view.zoom / 2; clampCam(); }
+// is this on screen?
 function inView(px, py, m) { return px > cam.x - m && px < cam.x + view.w / view.zoom + m && py > cam.y - m - 40 && py < cam.y + view.h / view.zoom + m; }
 
 /* ---------------- fog ---------------- */
@@ -5670,6 +6028,7 @@ function initFog() {
   fogC = document.createElement('canvas'); fogC.width = W; fogC.height = H;
   fogCtx = fogC.getContext('2d'); fogImg = fogCtx.createImageData(W, H); fogSeen = -1;
 }
+// repaint the fog layer
 function refreshFog() {
   if (fogSeen === G.fogV) return; fogSeen = G.fogV;
   const d = fogImg.data;
@@ -5680,21 +6039,31 @@ function refreshFog() {
   fogCtx.putImageData(fogImg, 0, 0);
 }
 
+/* ##### CHAPTER SCREEN 2 · Drawing the battlefield #####
+   File: src/js/ui/02-drawing.js
+   What it does: Draws ground, buildings, units, health bars, fire, arrows and the minimap every frame, sorted
+   so nearer things cover farther ones.
+   ############################################################################ */
 /* ---------------- drawing ---------------- */
 function ell(x, y, rx, ry) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832); }
+// soft shadow under a unit
 function shadow(x, y, rx, ry, a) { ctx.fillStyle = 'rgba(10,18,12,' + (a || 0.28) + ')'; ell(x, y, rx, ry); ctx.fill(); }
+// health bar
 function hpBar(x, y, w, frac, team) {
   ctx.fillStyle = '#17110c'; ctx.fillRect(x - 1, y - 1, w + 2, 5);
   ctx.fillStyle = frac > 0.6 ? '#5fd37a' : frac > 0.3 ? '#f2c94c' : '#e0524a'; ctx.fillRect(x, y, Math.max(1, w * frac), 3);
 }
+// is this selected?
 function isSel(o) { return sel.indexOf(o) >= 0; }
 
+// which tool a villager holds for its job
 function toolFor(u) {
   const o = u.order;
   if (o.t === 'build' || o.t === 'repair') return 'hammer';
   if (o.t === 'gather') { const n = G.byId.get(o.id); if (!n) return 'hand'; return n.kind === 'tree' ? 'axe' : n.kind === 'gold' ? 'pick' : FIELD[n.kind] ? 'hoe' : 'hand'; }
   return 'hand';
 }
+// draw one unit
 function basePaintUnit(u) {
   if (u.order.t === 'fishhouse' && u.working && !u.moving && G.byId.get(u.order.id)) return;   // drawn on her raft house's deck
   const px = u.x * TILE, py = u.y * TILE;
@@ -5748,6 +6117,7 @@ function torchFor(u) {
   const t = G.byId.get(u.order.id);
   return !!(t && t.isBld && t.hp > 0 && t.team !== u.team && t.team !== 2 && !BD[t.kind].neutral && rectDist(u.x, u.y, t.rect) < 1.6);
 }
+// draw the obor torch pose
 function paintTorch(u, spr) {
   // drawn in the unit's own frame (already flipped to face the building): the obor is held out in front and thrust in on each blow
   const thrust = u.atkT > 0 ? Math.round(Math.min(1, u.atkT / 0.14) * 5) : 0;
@@ -5764,6 +6134,7 @@ function paintTorch(u, spr) {
   ctx.fillStyle = '#f08a24'; ctx.fillRect(hx + (fl === 0 ? 2 : fl === 1 ? -2 : 0), hy - 15 - fh, 2, 3);
   if (thrust) { ctx.fillStyle = '#ffe27a'; for (let i = 0; i < 4; i++) ctx.fillRect(hx + 6 + i * 2, hy - 14 - fh + ((i * 5 + fl * 3) % 11), 1, 1); }
 }
+// draw a resource
 function paintNode(n) {
   const px = n.tx * TILE, py = n.ty * TILE;
   if (n.kind === 'tree') {
@@ -5787,23 +6158,27 @@ function paintNode(n) {
 }
 /* which sides of a wall tile join another wall piece of the same side; gates open when their own people are close */
 let wallGrid = null;
+// map of where wall pieces are
 function buildWallGrid() {
   if (!wallGrid) wallGrid = new Int32Array(W * H);
   wallGrid.fill(0);
   for (const b of G.buildings) if (b.hp > 0 && BD[b.kind].wall) wallGrid[b.ty * W + b.tx] = b.team + 1;
 }
+// which neighbours a wall piece joins
 function wallMask(b) {
   const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && wallGrid[y * W + x] === b.team + 1;
   let m = (at(b.tx, b.ty - 1) ? 1 : 0) | (at(b.tx + 1, b.ty) ? 2 : 0) | (at(b.tx, b.ty + 1) ? 4 : 0) | (at(b.tx - 1, b.ty) ? 8 : 0);
   if (BD[b.kind].gate && b.done && !b.locked && G.units.some(u => u.team === b.team && u.hp > 0 && u.layer === 0 && Math.abs(u.x - b.x) < 1.6 && Math.abs(u.y - b.y) < 1.6)) m |= 16;
   return m;
 }
+// which way a raft house leans to the water
 function raftSide(b) {
   if (b.wd) return b.wd;
   let sx = 0, sy = 0;
   for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) if (G.isWater(x, y)) { sx += x + 0.5 - b.x; sy += y + 0.5 - b.y; }
   const l = Math.hypot(sx, sy) || 1; return (b.wd = { x: sx / l, y: sy / l });
 }
+// draw a raft house
 function paintRaftHouse(b) {
   const d = b.float ? { x: 0, y: 0 } : raftSide(b), spr = buildingSprite(b.kind, b.team, 2), w = b.size * TILE;
   const cx = b.x * TILE + d.x * 12, by = b.ty * TILE + w + Math.max(0, d.y) * 12;
@@ -5830,6 +6205,7 @@ function paintRaftHouse(b) {
   if (fu) paintFisher(fu, cx, by - spr.height + 2, d.x < -0.2 ? -1 : 1);
   if (isSel(b)) { const px = b.tx * TILE, py = b.ty * TILE; ctx.strokeStyle = TEAMC[CV(b.team)].ring; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(px - 1, py - 1, w + 2, w + 2); ctx.setLineDash([]); }
 }
+// draw the woman fishing from a raft house
 function paintFisher(u, x0, y0, f) {
   // she sits at the end of the veranda deck, rod out over the water
   const t = nowS + u.id, px = x0 + f * 17, py = y0 + 55;
@@ -5842,6 +6218,7 @@ function paintFisher(u, x0, y0, f) {
   const p = (t * 0.7) % 1; ctx.strokeStyle = 'rgba(235,248,255,' + (0.6 * (1 - p)).toFixed(2) + ')'; ctx.lineWidth = 1; ell(fx, fy + 1, 3 + p * 6, 1.5 + p * 2.5); ctx.stroke();
   const c = (u.gt || 0) / 10; if (c > 0.8) { const q = (c - 0.8) / 0.2; ctx.fillStyle = '#d8e4ea'; ctx.fillRect(fx - 3, fy - 4 - q * 12, 6, 3); ctx.fillStyle = '#8fa4b0'; ctx.fillRect(fx + 2, fy - 4 - q * 12, 2, 3); }
 }
+// draw one building with fire, flags and bars
 function basePaintBuilding(b) {
   if (b.kind === 'rafthouse' && b.done) { paintRaftHouse(b); return; }
   const bh = b.h || b.size, px = b.tx * TILE, py = (b.ty + bh - b.size) * TILE, size = b.size, w = size * TILE, flat = FIELD[b.kind];
@@ -5871,6 +6248,7 @@ function basePaintBuilding(b) {
   }
   if (b.done && (isSel(b) || b.hp < b.maxHp)) hpBar(px + w * 0.15, flat ? py - 4 : dy + 2, w * 0.7, b.hp / b.maxHp);
 }
+// draw effects (corpses, sparks)
 function paintFx(f) {
   if (f.k === 'corpse' && UD[f.kind] && UD[f.kind].layer) {
     const spr = shipSprite(f), an = shipAnchor(f.kind, f.team), p = 1 - f.t / f.max;
@@ -5888,6 +6266,7 @@ function paintFx(f) {
     ctx.drawImage(spr, f.x * TILE - spr.width / 2, f.y * TILE - spr.height / 2 + 4); ctx.restore();
   }
 }
+// draw top-layer effects (gun flashes)
 function paintTop(f) {
   if (f.sub === 'flash') {
     // a bright pixel burst pointing out of the barrel
@@ -5931,6 +6310,7 @@ function paintTop(f) {
     ctx.fillStyle = 'rgba(80,76,70,' + (0.55 * (1 - p)).toFixed(2) + ')'; const s = 5 + p * 9; ctx.fillRect(x - s / 2, y - s / 2, s, s);
   }
 }
+// draw arrows and bullets in flight
 function drawArrow(a) {
   if (a.k === 'bullet' || a.k === 'ball') {
     const p = a.t / a.dur, lift = a.k === 'ball' ? Math.sin(p * Math.PI) * 0.5 : 0;
@@ -5965,11 +6345,13 @@ function jobTarget(u) {
   if (o.t === 'gather' || o.t === 'build' || (o.t === 'attack' && o.hunt)) { const t = G.byId.get(o.id); return t && t.hp > 0 ? t : null; }
   return null;
 }
+// ring around a target
 function targetRing(t, col, grow, alpha) {
   const big = t.isBld ? t.size * 0.62 : 0.62, x = t.x * TILE, y = (t.isBld ? t.y + (FIELD[t.kind] ? 0 : t.size * 0.32) : t.y + 0.3) * TILE;
   ctx.strokeStyle = col; ctx.globalAlpha = alpha; ctx.lineWidth = 2;
   ell(x, y, big * TILE * grow, big * TILE * 0.5 * grow); ctx.stroke(); ctx.globalAlpha = 1;
 }
+// dashed trail from selected workers to their job
 function paintJobs() {
   // selected workers: a dashed trail to the job they are walking to, and a ring on everything they are working on
   const done = new Set();
@@ -5984,6 +6366,7 @@ function paintJobs() {
     if (!done.has(t)) { done.add(t); targetRing(t, col, 1, 0.7); }
   }
 }
+// tap markers on the ground
 function paintMarkers() {
   paintJobs();
   for (const m of markers) {
@@ -6002,6 +6385,7 @@ function paintMarkers() {
     ctx.globalAlpha = 1 - p; ctx.lineWidth = 2; ell(x, y, 5 + p * 12, 2.5 + p * 6); ctx.stroke(); ctx.globalAlpha = 1;
   }
 }
+// the building ghost while placing
 function paintPlacement() {
   if (!mode || mode.kind !== 'place') return;
   const d = BD[mode.bkind];
@@ -6051,6 +6435,7 @@ function placeButtons() {
   const y = clamp(c.y + 30, 30, view.h - 30), x = clamp(c.x, 50, view.w - 50);
   return { ok: { x: x - 30, y }, no: { x: x + 30, y }, r: 22 };
 }
+// the Place/Cancel buttons on the ghost
 function paintPlaceButtons() {
   const B = placeButtons(); if (!B) return;
   for (const k of ['ok', 'no']) {
@@ -6062,6 +6447,7 @@ function paintPlaceButtons() {
     ctx.globalAlpha = on ? 1 : 0.45; ctx.drawImage(iconSprite(k === 'ok' ? 'check' : 'x'), b.x - 12, b.y - 12, 24, 24); ctx.globalAlpha = 1;
   }
 }
+// draw the whole frame
 function render() {
   const sc = view.zoom * view.dpr;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#0b1612'; ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -6121,12 +6507,14 @@ function render() {
   refreshFog(); ctx.imageSmoothingEnabled = true; ctx.drawImage(fogC, 0, 0, W * TILE, H * TILE); ctx.imageSmoothingEnabled = false;
   ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
   paintPlaceButtons();
+  if (typeof paintAim === 'function') paintAim();
   if (boxRect) {
     const r = boxRect; ctx.fillStyle = 'rgba(125,255,168,0.14)'; ctx.strokeStyle = '#7dffa8'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
     ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
   }
 }
 
+// draw the minimap
 function drawMini() {
   const S = 2;
   mctx.imageSmoothingEnabled = false; mctx.drawImage(miniBase, 0, 0, W * S, H * S);
@@ -6152,10 +6540,17 @@ function drawMini() {
   }
 }
 
+/* ##### CHAPTER SCREEN 3 · Selecting and giving orders #####
+   File: src/js/ui/03-selecting.js
+   What it does: Turns taps into selections and orders (tap a unit, box select, double tap for all of a kind).
+   ############################################################################ */
 /* ---------------- selection and orders ---------------- */
 function selUnits() { return sel.filter(o => o.isUnit && o.team === 0 && o.hp > 0 && !o.aboard); }
+// change the selection
 function select(list) { sel = list.filter(o => o && !(o.isUnit && UD[o.kind].nosel)); panelKey = ''; }
+// show where you tapped
 function addMarker(x, y, kind, o) { const t = o ? 1.3 : 0.7; markers.push({ x, y, kind, t, max: t, o }); }
+// give the selected units an order at a spot
 function issue(wx, wy, hit) {
   const us = selUnits(); if (!us.length) return false;
   const amove = !!(mode && mode.kind === 'amove');
@@ -6171,26 +6566,32 @@ function issue(wx, wy, hit) {
   panelKey = '';
   return true;
 }
+// can this building have a rally point?
 function canRally(b) { return b && b.isBld && b.team === 0 && b.done && BD[b.kind].train; }
+// set a rally point from a tap
 function setRallyFor(b, wx, wy, hit) {
   const t = hit && (hit.isNode || (hit.kind === 'tradepost' && hit.team === 0 && b.kind === 'port')) ? hit : null;
   G.setRally(b, wx, wy, t);
   addMarker(t ? t.x : wx, t ? t.y : wy, 'gather');
 }
+// the right order for what you tapped (gather, attack, repair...)
 function contextCommand(wx, wy) {
   const hit = G.pick(wx, wy);
   if (selUnits().length) { issue(wx, wy, hit); return; }
   if (sel.length === 1 && canRally(sel[0])) setRallyFor(sel[0], wx, wy, hit);
 }
+// select all units of this kind on screen
 function selectSameKind(o) {
   const list = G.units.filter(u => u.team === 0 && u.kind === o.kind && u.hp > 0 && inView(u.x * TILE, u.y * TILE, -8));
   select(list.length ? list : [o]);
 }
+// move the building ghost
 function placeAt(wx, wy) {
   const d = BD[mode.bkind];
   mode.tx = Math.round(wx - d.size / 2); mode.ty = Math.round(wy - (d.fh || d.size) / 2);
   if (d.site) { const v = nearestSite(wx, wy, 4); if (v) { mode.tx = v.site.tx; mode.ty = v.site.ty; } }
 }
+// nearest free village landing (trading post)
 function nearestSite(wx, wy, maxD) {
   let best = null, bd = maxD;
   for (const v of G.villages) {
@@ -6199,6 +6600,7 @@ function nearestSite(wx, wy, maxD) {
   }
   return best;
 }
+// place the building if the spot is OK
 function tryPlace(keep) {
   if (!mode || mode.kind !== 'place' || mode.tx == null) return false;
   const ids = selUnits().filter(u => u.cls === 'vil').map(u => u.id);
@@ -6215,6 +6617,7 @@ function tryPlace(keep) {
   if (keep && G.canAfford(0, BD[mode.bkind].cost)) { /* stay in placement */ } else mode = null;
   panelKey = ''; return true;
 }
+// start placing a building
 function startPlace(kind) {
   if (!selUnits().some(u => u.cls === 'vil')) { toast('Select a villager first.'); return; }
   const d = BD[kind];
@@ -6240,11 +6643,13 @@ function startPlace(kind) {
   }
   panelKey = '';
 }
+// nearest wall piece (for gates)
 function nearWallPiece(cx, cy, maxD) {
   let best = null, bd = maxD;
   for (const b of G.buildings) if (b.team === 0 && b.hp > 0 && BD[b.kind].wall && !BD[b.kind].gate && G.canPlace('gate', b.tx, b.ty, 0)) { const dd = Math.hypot(b.tx - cx, b.ty - cy); if (dd < bd) { bd = dd; best = b; } }
   return best;
 }
+// a good free spot for a building
 function findSpot(kind, cx, cy) {
   const lim = kind === 'port' ? 26 : 10;
   for (let r = 0; r <= lim; r++)
@@ -6255,7 +6660,9 @@ function findSpot(kind, cx, cy) {
   return null;
 }
 let rallyTap = null, groundTap = null;
+// cancel a pending rally tap
 function clearRallyTap() { if (rallyTap) { clearTimeout(rallyTap.timer); rallyTap = null; } }
+// what one tap does
 function handleTap(wx, wy, o) {
   if (mode && mode.kind === 'place') {
     const d = BD[mode.bkind];
@@ -6306,6 +6713,7 @@ function handleTap(wx, wy, o) {
   }
   select(hit ? [hit] : []);
 }
+// select everything inside a dragged box
 function boxSelect(r, shift) {
   const a = s2w(r.x, r.y), b = s2w(r.x + r.w, r.y + r.h);
   const list = G.units.filter(u => u.team === 0 && u.hp > 0 && u.x >= a.x && u.x <= b.x && u.y - 0.3 >= a.y && u.y - 0.3 <= b.y);
@@ -6316,12 +6724,15 @@ function boxSelect(r, shift) {
     select(bl.length ? [bl[0]] : []);
   }
 }
+// list idle villagers
 function idleVillagers() { return G.units.filter(u => u.team === 0 && u.kind === 'villager' && u.order.t === 'idle' && u.hp > 0); }
 let idleIdx = 0;
+// jump to the next idle villager
 function cycleIdle() {
   const l = idleVillagers(); if (!l.length) { toast('No idle villagers.'); return; }
   idleIdx = (idleIdx + 1) % l.length; const u = l[idleIdx]; select([u]); centerOn(u.x, u.y);
 }
+// select all soldiers
 function selectArmy() {
   const l = G.units.filter(u => u.team === 0 && u.hp > 0 && u.cls !== 'vil' && u.layer !== 1);
   if (!l.length) { toast('You have no warriors yet. Build a Barracks.'); return; }
@@ -6334,6 +6745,12 @@ function selectNavy() {
   select(l);
 }
 
+/* ##### CHAPTER SCREEN 4 · Touch, mouse and keys #####
+   File: src/js/ui/04-touch-mouse-keys.js
+   What it does: Finger drag to scroll, pinch to zoom, hold-drag to box select, mouse wheel, keyboard keys.
+   Things you can tweak:
+     - The pinch zoom limit is also here (0.38, 2.6): keep it the same as setZoom().
+   ############################################################################ */
 /* ---------------- pointer input ---------------- */
 function pos(e) { const r = cvs.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 cvs.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -6346,12 +6763,13 @@ cvs.addEventListener('pointerdown', (e) => {
     if (gest && gest.timer) clearTimeout(gest.timer);
     boxRect = null;
     const [a, b] = [...ptrs.values()], cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-    gest = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom, ax: cam.x + cx / view.zoom, ay: cam.y + cy / view.zoom };
+    gest = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom, ax: cam.x + cx / view.zoom, ay: cam.y + cy / view.zoom, t0: performance.now(), c0: [cam.x, cam.y] };
     return;
   }
   if (ptrs.size > 2) return;
+  if (faceAim(p, e)) return;
   if (p.type === 'mouse') {
-    if (e.button === 2) { const w = s2w(q.x, q.y); if (mode) { mode = null; panelKey = ''; } else contextCommand(w.x, w.y); ptrs.delete(e.pointerId); return; }
+    if (e.button === 2) { const w = s2w(q.x, q.y); if (mode) { mode = null; panelKey = ''; ptrs.delete(e.pointerId); return; } if (aimable(w.x, w.y)) { gest = { type: 'raim', p }; return; } contextCommand(w.x, w.y); ptrs.delete(e.pointerId); return; }
     if (e.button === 1) { gest = { type: 'pan', p }; return; }
     gest = { type: 'press', p };
   } else if (mode && mode.kind === 'place' && mode.line && mode.tx != null && (() => { const w = s2w(q.x, q.y); return Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) < 0.9 && Math.hypot(w.x - mode.ax - 0.5, w.y - mode.ay - 0.5) <= Math.hypot(w.x - mode.tx - 0.5, w.y - mode.ty - 0.5); })()) {
@@ -6388,6 +6806,8 @@ cvs.addEventListener('pointermove', (e) => {
     }
     p.lx = q.x; p.ly = q.y; return;
   }
+  if (gest.type === 'raim' && dist > 12) { p.moved = true; startAim(p); }
+  if (gest.type === 'aim') { aimMove(q); p.lx = q.x; p.ly = q.y; return; }
   if (gest.type === 'press') {
     if (p.type === 'mouse') { if (dist > 5) { gest.type = 'box'; p.moved = true; } }
     else if (dist > 9) { p.moved = true; clearTimeout(gest.timer); gest.type = 'pan'; }
@@ -6396,15 +6816,18 @@ cvs.addEventListener('pointermove', (e) => {
   if (gest.type === 'box') { boxRect = { x: Math.min(p.sx, q.x), y: Math.min(p.sy, q.y), w: Math.abs(q.x - p.sx), h: Math.abs(q.y - p.sy) }; }
   p.lx = q.x; p.ly = q.y;
 });
+// finger or mouse lifted: tap, drag or box
 function endPointer(e, cancelled) {
   const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
   if (!gest) return;
-  if (gest.type === 'pinch') { if (ptrs.size < 2) { gest = ptrs.size === 1 ? { type: 'dead' } : null; } return; }
+  if (gest.type === 'pinch') { if (ptrs.size < 2) { if (typeof twoFingerTap === 'function') twoFingerTap(gest); gest = ptrs.size === 1 ? { type: 'dead' } : null; } return; }
   if (gest.type === 'dead') { if (!ptrs.size) gest = null; return; }
   if (!p || gest.p !== p) return;
   if (gest.timer) clearTimeout(gest.timer);
   const g0 = gest; gest = null;
-  if (cancelled) { boxRect = null; return; }
+  if (cancelled) { boxRect = null; aim = null; return; }
+  if (g0.type === 'aim') { aimEnd(); return; }
+  if (g0.type === 'raim') { const w = s2w(p.x, p.y); if (mode) { mode = null; panelKey = ''; } else contextCommand(w.x, w.y); return; }
   if (g0.type === 'box') {
     const r = boxRect; boxRect = null;
     if (r && (r.w > 6 || r.h > 6)) boxSelect(r, p.shift); else { const w = s2w(p.x, p.y); handleTap(w.x, w.y, { touch: p.type !== 'mouse', shift: p.shift }); }
@@ -6417,6 +6840,7 @@ cvs.addEventListener('pointercancel', (e) => endPointer(e, true));
 cvs.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hover = null; });
 cvs.addEventListener('wheel', (e) => { e.preventDefault(); const q = pos(e); setZoom(view.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), q.x, q.y); }, { passive: false });
 let miniDrag = false;
+// tap the minimap to move the camera
 function miniGo(e) {
   const r = miniEl.getBoundingClientRect();
   centerOn(clamp((e.clientX - r.left) / r.width, 0, 1) * W, clamp((e.clientY - r.top) / r.height, 0, 1) * H);
@@ -6452,13 +6876,22 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
+/* ##### CHAPTER SCREEN 5 · Action panel #####
+   File: src/js/ui/05-action-panel.js
+   What it does: The panel at the bottom: build tabs, train buttons, stance, bell, repair, demolish.
+   Things you can tweak:
+     - STANCES: the stance names and order.
+   ############################################################################ */
 /* ---------------- panel ---------------- */
 let panelKey = '', pdyn = [], panelT = 0;
+// cost shown with icons
 function costHTML(cost) {
   let s = ''; for (const k of ['food', 'wood', 'gold']) if (cost[k]) s += '<b style="color:' + RESCOL[k] + '">' + cost[k] + '</b>';
   return s;
 }
+// cost as text
 function costTitle(cost) { return Object.keys(cost).map(k => cost[k] + ' ' + k).join(', '); }
+// make one panel button
 function cmdBtn(act, key, icon, label, cost, title, extra) {
   return '<button class="cmd" data-a="' + act + '" data-k="' + key + '" title="' + (title || label) + '" ' + (extra || '') + '><img alt="" src="' + icon + '"><span class="nm">' + label + '</span><span class="ct">' + (cost ? costHTML(cost) : '&nbsp;') + '</span></button>';
 }
@@ -6474,6 +6907,7 @@ function ageBtn() {
   const n = G.teamAge(0) + 1, A = AGE_TABLE[n]; if (!A || n > (G.maxAge || AGE_MAX)) return '';
   return cmdBtn('ageup', 'ageup', resIcon('flag'), A.local[CI(0)] + '<small class="en">(' + A.name + ')</small>', A.cost, 'Advance to the ' + A.name + ' (' + A.local[CI(0)] + '), ' + A.time + ' s. Needs ' + G.ageText(0, n) + '.', 'data-age="' + n + '"');
 }
+// what a unit is doing, as text
 function describeOrder(u) {
   const o = u.order;
   switch (o.t) {
@@ -6496,6 +6930,7 @@ function describeOrder(u) {
     default: return '';
   }
 }
+// help line for a selected building
 function baseBldNote(b) {
   const own = b.team === 0;
   if (b.kind === 'village') return b.post ? 'A trading post stands on its landing.' : 'Build a Trade Post on the landing beside it.';
@@ -6509,7 +6944,9 @@ function baseBldNote(b) {
   if (b.kind === 'patirthan') return 'Units resting by the pool heal slowly.';
   return '';
 }
+// name line in the panel
 function pName(kind, team, base) { const e = enName(kind, team), n = base || civName(kind, team); return n + (e && n === civName(kind, team) ? ' <span class="en">(' + e + ')</span>' : ''); }
+// build the bottom panel for the selection
 function buildPanel() {
   const P = $('panel'); pdyn = [];
   let info = '', cmds = '', extra = '', tabs = '', extra2 = '';
@@ -6555,10 +6992,10 @@ function buildPanel() {
       if (ln) extra2 = '<div class="p-later">' + ln + '</div>';
     }
     if (hasMil) {
+      cmds += grpPanelButtons();
       cmds += '<button class="cmd" data-a="fmt" title="Formation (F)"><img alt="" src="' + resIcon('form') + '"><span class="nm" id="p-fmt">' + formation + '</span><span class="ct">&nbsp;</span></button>';
       const st0 = stanceOfSel();
       cmds += '<button class="cmd" data-a="stance" title="Stance: Aggressive chases anything it sees, Defensive chases a little then returns to its post, Hold ground never moves"><img alt="" id="p-sti" src="' + resIcon(st0) + '"><span class="nm" id="p-st">' + STANCE_NAME[st0] + '</span><span class="ct">&nbsp;</span></button>';
-      cmds += '<button class="cmd' + (mode && mode.kind === 'amove' ? ' on' : '') + '" data-a="amove" title="Attack-move (A)"><img alt="" src="' + resIcon('amove') + '"><span class="nm">Attack</span><span class="ct">&nbsp;</span></button>';
     }
     if (typeof sgCrewCmds === 'function') cmds += sgCrewCmds(us);
     if (us.some(u => UD[u.kind].troops)) cmds += cmdBtn('unload', 'unload', resIcon('army'), 'Land', null, 'Put the troops ashore at the nearest beach');
@@ -6602,12 +7039,14 @@ function buildPanel() {
   }
   P.innerHTML = '<div class="p-info">' + info + extra + '</div>' + (tabs ? '<div class="p-bld">' + tabs + '<div class="p-cmds bld">' + cmds + '</div>' + extra2 + '</div>' : '<div class="p-cmds">' + cmds + '</div>');
 }
+// panel layout key (rebuild only when it changes)
 function structKey() {
   const us = selUnits();
   let k = sel.map(o => (o.crew | 0) + 'c' + o.id + (o.isBld ? (o.done ? 'd' : 'u') + o.queue.length + 'g' + (o.cargo ? o.cargo.length : 0) : '')).join(',') + (G.bell && G.bell[0] ? 'B' : '') + '|' + G.teamAge(0) + (G.aging && G.aging[0] ? 'A' : '');
   k += '|' + (mode ? mode.kind + (mode.bkind || '') : '') + '|' + formation + '|' + us.some(u => u.cls === 'vil');
   return k;
 }
+// refresh numbers on the panel
 function updatePanel() {
   sel = sel.filter(o => o.hp > 0 || (o.isNode && o.amt > 0));
   const k = structKey();
@@ -6623,7 +7062,9 @@ function updatePanel() {
   const pc = document.querySelector('#panel .p-cmds'); if (pc) pc.classList.toggle('more', pc.scrollWidth > pc.clientWidth + 2 && pc.scrollLeft + pc.clientWidth < pc.scrollWidth - 4);
 }
 const STANCES = ['agg', 'def', 'hold'], STANCE_NAME = { agg: 'Aggressive', def: 'Defensive', hold: 'Hold' };
+// stance of the selected soldiers
 function stanceOfSel() { const m = selUnits().find(u => u.cls !== 'vil' && u.cls !== 'boat' && u.cls !== 'healer'); return (m && m.stance) || 'def'; }
+// Stance button
 function cycleStance() {
   const ms = selUnits().filter(u => u.cls !== 'vil' && u.cls !== 'healer'); if (!ms.length) return;
   const st = STANCES[(STANCES.indexOf(stanceOfSel()) + 1) % 3];
@@ -6631,7 +7072,9 @@ function cycleStance() {
   const l = document.getElementById('p-st'), i = document.getElementById('p-sti'); if (l) l.textContent = STANCE_NAME[st]; if (i) i.src = resIcon(st);
   toast('Stance: ' + (st === 'hold' ? 'Hold ground' : STANCE_NAME[st]));
 }
+// Formation button
 function cycleFormation() { formation = FORMS[(FORMS.indexOf(formation) + 1) % 3]; toast('Formation: ' + formation); }
+// Stop button
 function stopSel() { for (const u of selUnits()) G.idleOrder(u); }
 $('panel').addEventListener('click', (e) => {
   const el = e.target.closest('[data-a]'); if (!el || !started || paused) return;
@@ -6655,6 +7098,8 @@ $('panel').addEventListener('click', (e) => {
   else if (a === 'train') { const b = sel[0]; const err = b && b.isBld ? G.queueUnit(b, k) : 'Not available.'; if (err) toast(err); panelKey = ''; }
   else if (a === 'cancel') { const b = sel[0]; if (b && b.isBld) G.cancelQueue(b, +el.dataset.i); panelKey = ''; }
   else if (a === 'fmt') cycleFormation();
+  else if (a === 'grpmake') makeGroup();
+  else if (a === 'face') toggleFace();
   else if (a === 'btab') { buildTab = k; panelKey = ''; }
   else if (a === 'stance') cycleStance();
   else if (a === 'amove') { mode = mode && mode.kind === 'amove' ? null : { kind: 'amove' }; panelKey = ''; if (mode) toast('Tap where to attack-move.'); }
@@ -6671,8 +7116,15 @@ $('panel').addEventListener('click', (e) => {
   else if (a === 'navy') selectNavy();
 });
 
+/* ##### CHAPTER SCREEN 6 · Top bar, game flow and saves #####
+   File: src/js/ui/06-hud-saves.js
+   What it does: Resource bar, messages, pause, win/lose screens, autosave and the 3 save slots.
+   Things you can tweak:
+     - SAVE_KEY / SLOTS_KEY: where saves are kept on the phone.
+   ############################################################################ */
 /* ---------------- HUD ---------------- */
 let hudT = 0, seenMsgs = new WeakSet();
+// the hint line at the top
 function baseHintText() {
   if (G.over) return '';
   const vSel = selUnits().some(u => u.cls === 'vil');
@@ -6681,6 +7133,7 @@ function baseHintText() {
   if (G.units.filter(u => u.team === 0 && u.cls !== 'vil' && u.cls !== 'boat').length < 4) return 'Train warriors at the Barracks. The enemy will come once it has built up.';
   return 'Destroy the ' + CIV_TITLE[CV(1)] + ' ' + civName('towncentre', 1) + ' to win.';
 }
+// refresh the top bar
 function baseUpdateHud() {
   sfxTick();
   const r = G.res[0];
@@ -6702,6 +7155,7 @@ function showOv(name) {
   $('ov').hidden = !name;
   for (const n of ['start', 'pause', 'end', 'help', 'story']) $('ov-' + n).hidden = n !== name;
 }
+// start a skirmish
 function baseStartGame(seed) {
   seedUsed = seed; G = new Game({ seed, diff, map: mapKind, civs: [pciv, pfoe], startAge });
   enterGame();
@@ -6718,31 +7172,43 @@ function enterGame() {
   speed = settings.speed; syncSpeedButtons(); saveT = 0;
   started = true; paused = false; $('hud').hidden = false; showOv(null); showMenu(null);
 }
+// show which game speed is on
 function syncSpeedButtons() { document.querySelectorAll('[data-do="speed"]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === speed ? 'true' : 'false')); }
 
 /* ---------------- save / resume ---------------- */
 const SAVE_KEY = 'seak-save-v1', SET_KEY = 'seak-settings';
 // storage can be missing (private windows, previews): the game still runs, it just can't resume
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+// save to the phone's storage
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+// delete from the phone's storage
 function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nothing to do */ } }
 let saveT = 0;
 const settings = Object.assign({ speed: 1, bars: 'auto', sound: 'on', music: 'on' }, (() => { try { return JSON.parse(lsGet(SET_KEY)) || {}; } catch (e) { return {}; } })());
+// save settings
 function saveSettings() { lsSet(SET_KEY, JSON.stringify(settings)); }
 /* three save slots, shared with the mission pages (sea-rts-fixes/mission-save): seak-slots holds a short
    description of each, seak-slot-N the game itself. A new game takes a free slot, or the oldest. */
 const SLOTS_KEY = 'seak-slots', SLOT_N = 3;
 let curSlot = null;
 let slotBak = {};   // what each slot held before this game first wrote to it, so Exit without saving can put it back
+// what is in the 3 save slots
 function slotMetas() { try { const a = JSON.parse(lsGet(SLOTS_KEY)); if (Array.isArray(a)) return a.concat([null, null, null]).slice(0, SLOT_N); } catch (e) { /* none yet */ } return [null, null, null]; }
+// which slot a new game uses
 function slotPick(cur) { if (cur != null) return cur; const m = slotMetas(), free = m.findIndex((x) => !x); if (free >= 0) return free; let o = 0; m.forEach((x, i) => { if (x.when < m[o].when) o = i; }); return o; }
+// write a save slot
 function slotWrite(i, meta, rec) { if (!(i in slotBak)) slotBak[i] = [slotMetas()[i], lsGet('seak-slot-' + i)]; if (!lsSet('seak-slot-' + i, JSON.stringify(rec))) return false; const m = slotMetas(); m[i] = Object.assign(meta, { when: Date.now() }); lsSet(SLOTS_KEY, JSON.stringify(m)); return true; }
+// read a save slot
 function slotRead(i) { try { const r = JSON.parse(lsGet('seak-slot-' + i)); return r && r.snap ? r : null; } catch (e) { return null; } }
+// delete a save slot
 function slotDel(i) { lsDel('seak-slot-' + i); const m = slotMetas(); m[i] = null; lsSet(SLOTS_KEY, JSON.stringify(m)); }
+// most recent save
 function slotNewest() { const m = slotMetas(); let b = -1; m.forEach((x, i) => { if (x && (b < 0 || x.when > m[b].when)) b = i; }); return b; }
+// save slot label text
 function slotLine(x) { return (x.kind === 'skirmish' ? x.sub + ' \u00b7 ' : '') + fmtTime(x.t || 0) + ' \u00b7 ' + x.diff[0].toUpperCase() + x.diff.slice(1) + ' \u00b7 ' + new Date(x.when).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); }
 // the skirmish save from before the slots moves into one
 (function () { const old = lsGet(SAVE_KEY); if (!old) return; try { const r = JSON.parse(old); if (r && r.snap) slotWrite(slotPick(null), { kind: 'skirmish', title: 'Skirmish', sub: CIV_TITLE[r.snap.civs ? r.snap.civs[0] : 0] + ' vs ' + CIV_TITLE[r.snap.civs ? r.snap.civs[1] : 1], t: r.snap.t, diff: r.diff }, r); } catch (e) { /* drop it */ } lsDel(SAVE_KEY); })();
+// save the current game
 function saveGame() {
   if (!started || ended || !G || G.over) return;
   const rec = { snap: G.snapshot(), seed: seedUsed, diff, cam: { x: cam.x, y: cam.y }, zoom: view.zoom, when: Date.now() };
@@ -6756,6 +7222,7 @@ function openSlot(i) {
   const url = SITE + m.page + '?slot=' + i;
   if (SITE === './') location.replace(url); else window.open(url, '_blank', 'noopener');
 }
+// load a saved game
 function continueGame(i) {
   const r = slotRead(i); const g = r && Game.restore(r.snap);
   if (!g) { slotDel(i); refreshHome(); toastMenu('That saved game could not be loaded.'); return; }
@@ -6764,6 +7231,7 @@ function continueGame(i) {
   view.zoom = r.zoom || view.zoom; resize(); cam.x = r.cam.x; cam.y = r.cam.y; clampCam();
   updateHud(); updatePanel();
 }
+// save and go to the menu
 function quitToMenu() { saveGame(); started = false; paused = true; showOv(null); $('hud').hidden = true; showMenu('home'); }
 // leave without keeping anything from this game: every slot it wrote goes back to what it held before
 function discardGame() {
@@ -6785,11 +7253,21 @@ function confirmBox(title, text, okLabel, onOk) {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame(); });
 window.addEventListener('pagehide', saveGame);
 
+/* ##### CHAPTER SCREEN 7 · Menus and encyclopedia #####
+   File: src/js/ui/07-menus-encyclopedia.js
+   What it does: Home screen, Skirmish setup, Campaign and Battles lists, mission briefings, Encyclopedia text,
+   Settings.
+   Things you can tweak:
+     - BUILD: the version shown in Settings.
+     - ENCY_UNITS / ENCY_BLDS / ENCY_CIVS / ENCY_GUIDE: encyclopedia text.
+     - CAMPAIGNS / MISSIONS: mission lists, briefings and which are unlocked.
+   ############################################################################ */
 /* ---------------- main menu ---------------- */
 // links to the demos: relative on the live site, absolute anywhere else (the playable artifact)
 const SITE = /github\.io$/.test(location.hostname) ? './' : 'https://therediris0827.github.io/SEA-RTS/';
 let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroes', startAge = 1;
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
+// show a menu screen
 function showMenu(name) {
   $('menu').hidden = !name;
   for (const n of ['home', 'skirmish', 'campaign', 'brief', 'battles', 'ency', 'settings', 'load']) $('m-' + n).hidden = n !== name;
@@ -6801,14 +7279,16 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.41 \u00b7 5 Nov 2026';
+const BUILD = '0.9.43 \u00b7 7 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
+// two-tap Delete on the home screen
 function delAsk(on) {
   const b = $('m-del'); if (!b) return;
   clearTimeout(delT); b.classList.toggle('ask', on); b.querySelector('small').textContent = on ? 'Sure?' : 'Delete';
   if (on) delT = setTimeout(() => delAsk(false), 4000);
 }
+// update the home screen
 function refreshHome() {
   const i = slotNewest(), m = slotMetas()[i], n = slotMetas().filter(Boolean).length;
   $('m-ver').textContent = 'v' + BUILD + (navigator.onLine === false ? ' \u00b7 offline' : '');
@@ -6817,6 +7297,7 @@ function refreshHome() {
   $('m-load-sub').textContent = n ? n + ' of 3 saved' : 'No saves yet';
 }
 const TRASH = '<svg width="20" height="24" viewBox="0 0 10 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 2h10v1h-10zM3 0h4v2h-4zM1 3h8v9h-8z" fill="currentColor"></path><path d="M3 5h1v5h-1zM6 5h1v5h-1z" fill="var(--face)"></path></svg>';
+// Load game screen
 function renderSlots() {
   const m = slotMetas();
   $('m-slots').innerHTML = m.map((x, i) => x
@@ -6826,6 +7307,7 @@ function renderSlots() {
 }
 /* version, updates and exit (the installed app has no browser bar to reload or close it) */
 function setVerNote(t) { const e = $('m-vernote'); if (e) e.textContent = t || 'You have version ' + BUILD + '.'; }
+// Settings > Check for updates
 function checkForUpdate() {
   saveGame();
   const reg = window.swReg;
@@ -6839,6 +7321,7 @@ function checkForUpdate() {
     nw.addEventListener('statechange', done); done();
   }).catch(() => setVerNote('No connection. Try again when you are online.'));
 }
+// bar saying a new version is ready
 function showUpdateReady() {
   if ($('upd-bar')) return;
   const b = document.createElement('button'); b.id = 'upd-bar'; b.className = 'upd-bar';
@@ -6846,18 +7329,22 @@ function showUpdateReady() {
   b.addEventListener('click', () => { saveGame(); location.reload(); });
   document.body.appendChild(b);
 }
+// Exit button
 function exitApp() {
   saveGame();
   try { window.close(); } catch (e) { /* not allowed here */ }
   setTimeout(() => { const b = document.querySelector('.m-exit'); if (b) { b.classList.add('m-exit-hint'); b.setAttribute('aria-label', 'Swipe the app away to close it'); } toastMenu('Your game is saved. Swipe the app away to close it.'); }, 300);
 }
+// pop-up message on the menu
 function toastMenu(t) {
   let e = $('m-toast'); if (!e) { e = document.createElement('div'); e.id = 'm-toast'; e.className = 'upd-bar'; e.style.pointerEvents = 'none'; document.body.appendChild(e); }
   e.textContent = t; e.hidden = false; clearTimeout(e._t); e._t = setTimeout(() => { e.hidden = true; }, 3000);
 }
+// highlight the chosen Skirmish options
 function syncMenuSegs() {
   const press = (box, attr, val) => document.querySelectorAll('#' + box + ' button').forEach((b) => b.setAttribute('aria-pressed', b.dataset[attr] === String(val) ? 'true' : 'false'));
   press('m-diff', 'v', diff); press('m-sage', 'v', startAge); press('m-map', 'v', mapChoice); press('m-mapk', 'v', mapKind); if ($('m-mapnote')) $('m-mapnote').textContent = MAP_NOTES[mapKind]; press('m-speed', 'v', settings.speed); press('m-bars', 'v', settings.bars); press('m-sound', 'v', settings.sound); press('m-music', 'v', settings.music);
+  let tap = 'single'; try { if (localStorage.getItem('seak-tapmode') === 'double') tap = 'double'; } catch (_) { /* ignore */ } press('m-tap', 'v', tap);
   document.querySelectorAll('#m-civpick [data-m="civ"]').forEach((b) => { const on = +b.dataset.v === pciv; b.classList.toggle('sel', on); b.setAttribute('aria-current', on ? 'true' : 'false'); });
   press('m-foe', 'v', pfoe); document.querySelectorAll('#m-foe button').forEach((b) => { b.disabled = +b.dataset.v === pciv; });
 }
@@ -6929,7 +7416,7 @@ Object.assign(MENU_ART, {"heroBg":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA
 /* campaign flow (Iylia, 2026-10-24): built missions are playable, every other planned mission is shown locked */
 const CAMPAIGNS = [
   ['mel', 'parameswara', 'Start here   1398-1511', 'Melaka', 'From a prince fleeing Singapura to the greatest port of the age.',
-    [['mel1', "The Treasurer's Gate"], ['mel2', 'Rise of Melaka'], [0, 'Torches in the Mangroves'], [0, 'Mendam Berahi'], [0, 'Tuah and Jebat'], [0, 'The Last Sultan']]],
+    [['mel1', "The Treasurer's Gate"], ['mel2', 'Rise of Melaka'], ['mel3', 'Torches in the Mangroves'], [0, 'Mendam Berahi'], [0, 'Tuah and Jebat'], [0, 'The Last Sultan']]],
   ['maj', 'gajah-mada', '1293-1527', 'Majapahit', 'From its founding to the war over Singapura: an empire holding to the Palapa oath.',
     [['maj1', 'Rise of Majapahit'], ['maj2', "The Treasurer's Gate"], [0, 'The Paregreg War'], [0, 'The Melaka Envoys'], [0, 'Sirna Ilang Kertaning Bumi'], [0, 'The Road to Bali']]],
   ['ayu', 'u-thong', '1351-1569', 'Ayutthaya', 'The river kingdom of war elephants.',
@@ -6946,6 +7433,9 @@ const MISSIONS = {
   mel2: { civ: 'mel', n: 2, site: 'melaka-ages/', year: '1400-1459', hero: 'tun-perak', name: 'Tun Perak', as: 'The Great Bendahara', foe: 'Majapahit, then Siam', fc: '#7b4fb0',
     story: 'A fishing village at the river mouth must grow into a sultanate while raiders come from Java, and then the great army of Siam.',
     obj: [['Grow', 'Rise from Kampung to Kesultanan'], ['Defend', 'Survive the raids on the coast'], ['Break', 'Defeat the Siamese army of 1446']] },
+  mel3: { civ: 'mel', n: 3, site: 'campaign/melaka-3/', year: 'c. 1456', hero: 'tun-perak', name: 'Tun Perak', as: 'Torches in the Mangroves', foe: 'Siamese war fleet', fc: '#7b4fb0',
+    story: 'A Siamese war fleet anchors off the mangrove coast, and Melaka has too few ships to fight it. Tun Perak has another idea.',
+    obj: [['Ready', 'Build a port and win over the Orang Laut'], ['Trick', 'Tie torches in the mangroves at night'], ['Chase', 'Break their courage and chase the fleet']] },
   maj1: { civ: 'maj', n: 1, site: 'majapahit-ages/', year: '1293-1336', hero: 'gajah-mada', name: 'Gajah Mada', as: 'The Oath of Palapa', foe: 'Kediri, Yuan, rebels', fc: '#8a6a4a',
     story: 'A new town rises in the Tarik forest. Kediri, a Yuan fleet and Majapahit’s own lords will test it before Gajah Mada swears his oath.',
     obj: [['Found', 'Grow the village into a kingdom'], ['Defend', 'Turn back Kediri, the Yuan and the rebels'], ['Unite', 'Crush Sadeng and Keta']] },
@@ -6974,7 +7464,9 @@ let heroSel = 'hang-tuah';
 const escM = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const PLAY_SVG = '<svg width="16" height="22" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0 L0 11 L8 5.5 Z" fill="#f0c060"></path></svg>';
 const LOCK_SVG = '<svg width="18" height="24" viewBox="0 0 9 12" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 5h9v7h-9z M2 5v-2h1v-1h3v1h1v2h-1v-2h-3v2z" fill="var(--lock)"></path></svg>';
+// hero portrait picture
 function portraitImg(key, cls) { return '<img class="m-por' + (cls ? ' ' + cls : '') + '" alt="" src="' + (MENU_ART.portraits[key] || '') + '">'; }
+// Campaign screen
 function renderCampaign() {
   let h = '';
   CAMPAIGNS.forEach(([cv, hero, tag, name, blurb, ms], ci) => {
@@ -6987,6 +7479,7 @@ function renderCampaign() {
   });
   $('m-camp-list').innerHTML = h;
 }
+// mission briefing screen
 function showBrief(id) {
   const m = MISSIONS[id]; if (!m) return;
   $('m-brief-tag').textContent = CIV_LABEL[m.civ] + '  mission ' + m.n;
@@ -7000,6 +7493,7 @@ function showBrief(id) {
   const go = $('m-brief-go'); go.href = SITE + m.site; if (SITE !== './') { go.target = '_blank'; go.rel = 'noopener'; }
   showMenu('brief');
 }
+// Encyclopedia heroes tab
 function renderHeroes() {
   const sel = HEROES.find((x) => x[1] === heroSel) || HEROES[0];
   let h = '<div class="px m-hero-c cv-' + sel[0] + ' sel">' + portraitImg(sel[1]) + '<div><b>' + escM(sel[2]) + '</b><small>' + escM(CIV_LABEL[sel[0]]) + '</small><span>' + escM(sel[3]) + '</span></div></div>';
@@ -7011,16 +7505,19 @@ function renderHeroes() {
   }
   return h;
 }
+// menu background art
 function paintMenuArt() {
   const m = $('menu'), u = (k) => 'url(' + MENU_ART[k] + ')';
   m.style.setProperty('--sky-main', u('skyMain')); m.style.setProperty('--sky-sub', u('skySub')); m.style.setProperty('--sea-tile', u('sea'));
   document.querySelectorAll('#menu [data-art]').forEach((e) => { e.src = MENU_ART[e.dataset.art]; });
   renderCampaign();
 }
+// Encyclopedia screen
 function renderEncy() {
   const keep = CIVMAP; CIVMAP = [0, 1];
   try { renderEncyList(); } finally { CIVMAP = keep; }
 }
+// Encyclopedia list for the chosen tab
 function renderEncyList() {
   document.querySelectorAll('#m-tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === encyTab ? 'true' : 'false'));
   const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -7069,6 +7566,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'hero') { heroSel = v; renderEncy(); }
   else if (a === 'brief') showBrief(v);
   else if (a === 'locked') toastMenu('This mission comes in a later update.');
+  else if (a === 'set' && el.dataset.k === 'tapmode') { setTapMode(v); syncMenuSegs(); }
   else if (a === 'set') { settings[el.dataset.k] = el.dataset.k === 'speed' ? +v : v; saveSettings(); syncMenuSegs(); SFX.apply && SFX.apply(); }
   else if (a === 'delsave') { for (let i = 0; i < SLOT_N; i++) slotDel(i); curSlot = null; refreshHome(); toastMenu('All saved games deleted.'); }
   else if (a === 'delcont') { if (el.classList.contains('ask')) { const i = slotNewest(); if (i >= 0) slotDel(i); if (curSlot === i) curSlot = null; refreshHome(); toastMenu('Saved game deleted.'); } else delAsk(true); }
@@ -7084,11 +7582,18 @@ document.addEventListener('click', (e) => {
   const u = new URL(a.href, location.href); if (u.origin !== location.origin) return;
   e.preventDefault(); saveGame(); location.replace(u.href);
 });
+// pause or resume
 function baseTogglePause() {
   if (!started || ended) return;
   paused = !paused;
   if (paused) { $('speed-val').textContent = speed + 'x'; showOv('pause'); } else showOv(null);
 }
+/* ##### CHAPTER SCREEN 8 · Sound #####
+   File: src/js/ui/08-sound.js
+   What it does: All sounds and music are made by code (SFX).
+   Things you can tweak:
+     - master.gain.value (0.22): overall volume.
+   ############################################################################ */
 function baseEndGame() {
   ended = true; paused = true; if (curSlot != null) { slotDel(curSlot); curSlot = null; }
   const win = G.over === 'win';
@@ -7120,6 +7625,10 @@ $('btn-army').addEventListener('click', () => { if (started && !paused) selectAr
 $('btn-zin').addEventListener('click', () => setZoom(view.zoom * 1.25));
 $('btn-zout').addEventListener('click', () => setZoom(view.zoom / 1.25));
 
+/* ##### CHAPTER SCREEN 9 · Main loop #####
+   File: src/js/ui/09-main-loop.js
+   What it does: Starts the game and keeps it ticking: 30 rule steps a second, drawing every frame.
+   ############################################################################ */
 /* ---------------- main loop ---------------- */
 function frame(ts) {
   const dt = Math.min(0.1, (ts - lastTs) / 1000 || 0); lastTs = ts; nowS = ts / 1000;
@@ -9841,6 +10350,13 @@ missionBoot();
 </script>
 
 <script>
+/* ##### CHAPTER EXTRA 1 · Calm map look and new maps #####
+   File: src/js/extras/01-maps.js
+   What it does: Add-on: the quieter ground painting and the newer skirmish maps (Highlands, Deep Jungle,
+   Mangrove Delta...).
+   Things you can tweak:
+     - NEWMAPS entries: each new map's layout.
+   ############################################################################ */
 /* ===== maps: calm look + new maps (sea-rts-fixes/maps/wiring/wire.py) ===== */
 /* Calm map painter (art thread, 2026-11-01, round 2 after Iylia: "too complicated, keep it simple yet diverse").
    Same six grounds as the game, same 4px blocks, with three quiet changes:
@@ -9868,6 +10384,7 @@ missionBoot();
   const WET = (t) => t === 3 || t === 4 || t === 7;
   const MEADOW = ['#62934e', '#679752', '#5d8c48', '#6a9b54'];   // sunlit grass patches
   const FOREST = ['#4c7c3e', '#507f42', '#48763a', '#548446'];   // shade under tree clusters
+  // paint the calm ground look
   function paint(ctx, terr, W, H, x0, y0, w, hh, opt) {
     const T = 32, s = opt.seed || 1, at = (tx, ty) => terr[Math.max(0, Math.min(H - 1, ty)) * W + Math.max(0, Math.min(W - 1, tx))];
     const shade = opt.shade || (() => 0);
@@ -9914,6 +10431,7 @@ missionBoot();
   }
   // trees: the game's two plus three simple regional ones, same size and palette
   const L1 = '#245f2d', L2 = '#2f7a3a', L3 = '#3a8a42', L4 = '#5fb35a', L5 = '#79c871';
+  // paint a regional tree (palm, broadleaf...)
   function tree(kind) {
     return sprite('calm|' + kind, 20, 28, 2, (P) => {
       const r = P.r;
@@ -10035,6 +10553,7 @@ missionBoot();
       r(16, 3, 1, 2, '#e6d6aa'); r(21, 3, 1, 2, '#e6d6aa'); r(15, 2, 1, 1, '#e6d6aa'); r(22, 2, 1, 1, '#e6d6aa');
       for (const [x, d] of [[5, -l], [8, l], [13, l], [16, -l]]) { r(x, 13, 2, 3 + d, c); r(x, 15 + d, 2, 1, '#f0e8d8'); } });
   }
+  // durian and wild banana pictures
   function foodSprite(kind) {
     if (kind === 'durian') return sprite('food|durian', 20, 30, 2, (P) => { const r = P.r;
       r(9, 15, 3, 14, '#6b4a2a'); r(9, 15, 1, 14, '#4d3320'); r(7, 27, 2, 2, '#6b4a2a'); r(12, 27, 2, 2, '#6b4a2a');
@@ -10046,6 +10565,7 @@ missionBoot();
       leaf(9, 5, -1, 8); leaf(10, 4, 1, 8); leaf(6, 9, -1, 6); leaf(13, 8, 1, 5); leaf(9, 2, 0, 1);
       r(10, 10, 1, 3, '#4e6e2a'); for (let i = 0; i < 3; i++) r(9 + (i % 2), 12 + i, 3, 1, i ? '#c8c040' : '#a8b040'); r(10, 15, 2, 2, '#7a2a4a'); });
   }
+  // which tree type grows at a spot
   function treeFor(n, g) {
     const r = hash2(n.tx, n.ty, 4242), lk = lookOf(g), t = lk.look[n.ty * W + n.tx];
     if (g.map === 'jungle') { if (lk.bam && lk.bam(n.tx, n.ty)) return CALM.plant('bamboo'); return r < 0.45 ? CALM.plant('jungle') : r < 0.8 ? treeSprite(2 + (n.v & 1)) : r < 0.9 ? CALM.tree('angsana') : r < 0.95 ? CALM.tree('mango') : treeSprite(n.v & 1); }
@@ -10072,6 +10592,7 @@ missionBoot();
     return { wl, creeks };
   }
   const LOOKC = new WeakMap();
+  // which ground look a map uses
   function lookOf(g) {
     let L = LOOKC.get(g); if (L && L.ver === g.terrain) return L;
     const F = fields(g.map, g.seed), terr = g.terrain, look = new Uint8Array(W * H);
@@ -10087,10 +10608,12 @@ missionBoot();
     L = { ver: terr, look, e: F.e, bam: F.bam }; LOOKC.set(g, L); return L;
   }
 
+  // clear space around the start bases
   function clearStarts(g, r) {
     for (const st of g.starts) for (let y = st.y - r; y <= st.y + r + 3; y++) for (let x = st.x - r; x <= st.x + r + 3; x++)
       if (g.inb(x, y) && Math.hypot(x - st.x - 1, y - st.y - 1) < r + 1) g.terrain[y * W + x] = hash2(x, y, g.seed + 5) > 0.93 ? T.DIRT : T.GRASS;
   }
+  // make sure both bases can reach each other
   function linkStarts(g, mat) {
     const S = g.starts; if (g.landConnected(S[0].x + 1, S[0].y + 3, S[1].x + 1, S[1].y + 3)) return;
     let x = S[0].x + 1, y = S[0].y + 1; const gx = S[1].x + 1, gy = S[1].y + 1;
@@ -10099,6 +10622,7 @@ missionBoot();
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (g.inb(x + dx, y + dy) && g.terrain[(y + dy) * W + x + dx] > T.SAND) g.terrain[(y + dy) * W + x + dx] = mat;
     }
   }
+  // make the Highlands map
   function genHighlands() {
     const s = this.seed, terr = this.terrain, F = fields('highlands', s);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -10125,6 +10649,7 @@ missionBoot();
       const x = Math.round(ax + (bx - ax) * f + Math.sin(f * 9) * 1.5), y = Math.round(ay + (by - ay) * f); for (const dy of [0, 1]) if (this.inb(x, y + dy) && terr[(y + dy) * W + x] <= T.DIRT) terr[(y + dy) * W + x] = T.CLIFF; }
     clearStarts(this, 8); linkStarts(this, T.SAND);
   }
+  // make the Deep Jungle map
   function genJungle() {
     const s = this.seed, terr = this.terrain, F = fields('jungle', s);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -10140,6 +10665,7 @@ missionBoot();
       if (this.inb(x, y) && Math.hypot(x - cx, y - cy) < 1.6 + hash2(x, y, s + 6) * 0.8 && terr[y * W + x] === T.GRASS) terr[y * W + x] = T.CLIFF;
     clearStarts(this, 8); linkStarts(this, T.SAND);
   }
+  // make the Mangrove Delta map
   function genDelta() {
     const s = this.seed, terr = this.terrain, F = fields('delta', s);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -10352,6 +10878,16 @@ missionBoot();
 })();
 
 /* ===== end maps ===== */
+/* ##### CHAPTER EXTRA 2 · Animals and kerbau #####
+   File: src/js/extras/02-animals-kerbau.js
+   What it does: Add-on: fruit groves, hunt animals (kancil, boar, seladang) and kerbau herding, fattening and
+   ploughing.
+   Things you can tweak:
+     - KB: cap 6 kerbau each, perGran 3 per granary, fat0 200 -> fatMax 400 food over fatTime 240 s, plough 1.3
+       (= 30% faster farm), buy 75 gold.
+     - NK.durian / NK.pisang: food in the new fruit trees.
+     - UD.seladang atk: how hard it fights back.
+   ############################################################################ */
 /* ===== animal pack (2026-11-02, lore thread design, Iylia approved) =====
    Banana groves and mango trees in place of berry bushes (same 'berry' node, new look).
    Hunt animals: rusa (sambar deer), kancil and seladang on every skirmish map; seladang fights back;
@@ -10386,8 +10922,10 @@ missionBoot();
     });
   }
   const isMango = (n) => hash2(n.tx, n.ty, 9191) < 0.33;
+  // banana grove or mango tree picture
   function berryArt(n) { return isMango(n) && window.CALM ? CALM.tree('mango') : bananaSprite(); }
 
+  // kerbau picture: standing, grazing (head down) or ploughing (yoke and plough)
   function kerbauSprite(col, f, fat, pose) {
     pose = pose || 0;
     const l = pose === 1 ? 0 : (f ? 1 : 0), M = col ? col.main : '#b89a60', D = col ? col.dark : '#8a7438', OX = pose === 2 ? 10 : 0;
@@ -10431,6 +10969,7 @@ missionBoot();
       if (pose === 2) { r(14, 5, 2, 6, W); r(14, 5, 2, 1, WL); r(13, 4, 4, 1, W); }   // kuk (yoke) on the neck
     });
   }
+  // hay pile at the granary
   function haySprite() {
     return sprite('kb|hay', 9, 6, 2, (P) => { const r = P.r; r(1, 2, 7, 4, '#c9a24a'); r(0, 4, 9, 2, '#b08a36'); r(2, 1, 4, 1, '#e0bf62'); r(3, 3, 1, 2, '#e8cf7a'); r(6, 2, 1, 2, '#9a7a2e'); r(1, 5, 7, 1, '#7d6226'); });
   }
@@ -10478,6 +11017,7 @@ missionBoot();
   const own = (g, team) => g.units.filter(u => u.kind === 'kerbau' && u.hp > 0 && u.own === team);
   Game.prototype.kerbauCount = function (team) { return own(this, team).length; };
   const center = (b) => ({ x: b.tx + b.size / 2, y: b.ty + (b.h || b.size) / 2 });
+  // where an owned kerbau should stand (granary, Town Centre or farm)
   function homeFor(g, u) {
     const grans = g.buildings.filter(b => b.team === u.own && b.done && b.hp > 0 && (b.kind === 'granary'));
     let best = null, bd = 1e9;
@@ -10490,6 +11030,7 @@ missionBoot();
     const tc = g.buildings.find(b => b.team === u.own && b.kind === 'towncentre' && b.hp > 0);
     return { job: 'home', b: tc || null };
   }
+  // walk a kerbau to its spot
   function sendHome(g, u) { const h = homeFor(g, u); u.job = h.job; u.bid = h.b ? h.b.id : 0; u.path = null; u.arrived = false; u.order = { t: 'kb' }; }
   Game.prototype.kerbauStay = function (u, x, y) { const f = this.byId.get(u.bid); if (f && f.kb === u.id) f.kb = 0; u.job = 'stay'; u.bid = 0; u.sx = x; u.sy = y; u.path = null; u.arrived = false; u.order = { t: 'kb' }; };
   Game.prototype.claimKerbau = function (u, team) {
@@ -10553,6 +11094,7 @@ missionBoot();
 
   /* standing spots: a row on the quietest side of the granary (3) or behind the Town Centre (2 rows of 3) */
   const SIDES = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+  // the quietest side of a building for kerbau spots
   function kbSide(g, b) {
     if (b.kbSide != null && g.t - (b.kbSideT || 0) < 20) return b.kbSide;
     const bw = b.size || 2, bh = b.h || bw; let best = 0, bs = 1e9;
@@ -10569,12 +11111,17 @@ missionBoot();
     });
     b.kbSide = best; b.kbSideT = g.t; return best;
   }
+  // which standing spot a kerbau gets (by arrival time)
   function slotIndex(g, u, b) {
     // spots fill in order of arrival at this building, and close up when one leaves
-    if (u.slotB !== b.id) { u.slotB = b.id; u.slotT = g.t + u.id * 1e-6; }
-    let i = 0; for (const k of g.units) if (k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.bid === b.id && k.slotB === b.id && k.slotT < u.slotT) i++;
-    u.slot = i; return i;
+    if (u.slotB !== b.id || u.slot == null) {
+      const used = new Set(); for (const k of g.units) if (k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.bid === b.id && k.slotB === b.id && k.slot != null) used.add(k.slot);
+      let i = 0; while (used.has(i)) i++;
+      u.slotB = b.id; u.slotT = g.t + u.id * 1e-6; u.slot = i;
+    }
+    return u.slot;
   }
+  // map position of a standing spot
   function slotPoint(g, u, b) {
     const i = slotIndex(g, u, b), side = kbSide(g, b), [sx, sy] = SIDES[side];
     const bw = b.size || 2, bh = b.h || bw, cx = b.tx + bw / 2, cy = b.ty + bh / 2;
@@ -10588,6 +11135,7 @@ missionBoot();
     return { x, y, face };
   }
 
+  // kerbau each tick: claim, fatten, plough, follow
   function kbTick(g, dt) {
     g._kbT = (g._kbT || 0) + dt; const scan = g._kbT >= 0.4; if (scan) g._kbT = 0;
     for (const u of g.units) {
@@ -10815,6 +11363,13 @@ missionBoot();
   window.KERBAU_ART = { kerbauSprite, bananaSprite, syahbandarSprite, haySprite };
 })();
 /* ===== end animal pack ===== */
+/* ##### CHAPTER EXTRA 3 · Smarter AI #####
+   File: src/js/extras/03-ai-plus.js
+   What it does: Add-on: the computer runs trade ships, claims wild kerbau, and Melaka's AI ploughs with them.
+   Things you can tweak:
+     - AIP.traders: trade ships per difficulty (2/3/4).
+     - AIP.claimEvery (8 s), AIP.claimR (26 tiles): how often and how far it looks for kerbau.
+   ############################################################################ */
 /* ===== ai plus: the computer uses trade ships and kerbau (Kerbau Minang for Melaka) ===== */
 (function () {
   const AIP = { traders: { easy: 2, normal: 3, hard: 4 }, claimEvery: 8, claimR: 26 };
@@ -10824,6 +11379,7 @@ missionBoot();
     _ai.apply(this, arguments);
     try { aiPlus(this, 1); } catch (e) { if (!this._aipErr) { this._aipErr = 1; console.warn('ai plus', e); } }
   };
+  // the AI's extra jobs: trade ships, claim kerbau, plough
   function aiPlus(g, t) {
     const tc = g.buildings.find(b => b.team === t && b.kind === 'towncentre' && b.done && b.hp > 0); if (!tc) return;
     const r = g.res[t], pop = g.popOf(t), cap = g.popCap(t);
@@ -10855,6 +11411,352 @@ missionBoot();
   }
 })();
 /* ===== end ai plus ===== */
+/* ##### CHAPTER EXTRA 4 · Groups, facing and taps #####
+   File: src/js/extras/04-groups-facing-taps.js
+   What it does: group tabs 1-4 and Make group, the Face button, soldiers facing their move direction, one-tap orders with two-finger deselect (or double-tap orders).
+   Things you can tweak:
+     - TAP_MODE: 'single' (one tap orders) or 'double'; players switch it in Settings > Orders on touch (saved as seak-tapmode).
+   ############################################################################ */
+/* ===== features.js: unit groups (bookmark tabs), the Face button, facing after a move, double tap to deselect =====
+   Proposed for the main game (Iylia, 2026-11-03). build.py also patches groupMove, the pointer code,
+   the paint loop and the unit panel so these hooks are called. Charge archers was tried and dropped (Iylia: keep the micro). */
+
+/* ---------- facing: soldiers turn to their move's direction (or the aimed arrow) once they stop ---------- */
+const _fUpdateUnit = Game.prototype.updateUnit;
+Game.prototype.updateUnit = function (u, dt) {
+  _fUpdateUnit.call(this, u, dt);
+  if (!u.isUnit || u.hp <= 0) return;
+  const t = u.order.t;
+  if (u.endFace && (t === 'gather' || t === 'build' || t === 'repair' || t === 'board')) u.endFace = 0;
+  if (u.endFace && !u.moving && !(u.atkT > 0) && (t === 'idle' || (t === 'move' && !u.path))) u.face = u.endFace;
+};
+
+/* ---------- hold and drag to aim ---------- */
+var aim = null;
+function aimable(wx, wy) {
+  if (!selUnits().some(u => u.cls !== 'vil' && u.layer !== 1)) return false;
+  const hit = G.pick(wx, wy);
+  return !hit || (hit.isNode && hit.kind !== 'tree' && hit.kind !== 'gold');
+}
+function startAim(p) {
+  const w = s2w(p.sx, p.sy);
+  if (!aimable(w.x, w.y) || (mode && mode.kind === 'place')) return false;
+  gest.type = 'aim'; aim = { x: w.x, y: w.y, ex: w.x, ey: w.y };
+  if (p.type !== 'mouse') { const q = s2w(p.x, p.y); aim.ex = q.x; aim.ey = q.y; }
+  if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) { /* ignore */ } }
+  return true;
+}
+// touch orders. Default 'single': a tap on the ground or an enemy gives the order (the selection stays),
+// a two-finger tap anywhere deselects. Option 'double': one tap only selects or deselects, orders need a
+// double tap (the first tap changes the selection at once; the second brings it back and gives the order).
+// Attack and Face modes act on one tap either way.
+let TAP_MODE = 'single';
+try { const v = localStorage.getItem('seak-tapmode'); if (v === 'double' || v === 'single') TAP_MODE = v; } catch (_) { /* ignore */ }
+function setTapMode(m) { TAP_MODE = m; try { localStorage.setItem('seak-tapmode', m); } catch (_) { /* ignore */ } }
+function twoFingerTap(g) {
+  if (!g || !g.t0 || performance.now() - g.t0 > 350) return;
+  if (Math.abs(view.zoom - g.z0) > 0.04 || Math.hypot(cam.x - g.c0[0], cam.y - g.c0[1]) > 12) return;
+  if (mode) { mode = null; panelKey = ''; }
+  if (sel.length) { select([]); toast('Deselected.'); }
+}
+let pendTap = null;
+const DT_MS = 380, DT_R = 1.3;
+const _fTap = handleTap;
+handleTap = function (wx, wy, o) {
+  if (TAP_MODE !== 'double' || !o || !o.touch || mode) { pendTap = null; return _fTap.apply(this, arguments); }
+  const now = performance.now();
+  if (pendTap && now - pendTap.t < DT_MS && Math.hypot(wx - pendTap.wx, wy - pendTap.wy) < DT_R) {
+    const prev = pendTap.sel.filter(u => u.hp > 0); pendTap = null;
+    if (prev.length) { select(prev); lastTap = { id: 0, t: 0 }; return _fTap.apply(this, arguments); }
+  }
+  const us = selUnits(), hit = G.pick(wx, wy);
+  if (us.length && !(sel.length === 1 && sel[0].isBld)) {
+    if (hit && hit.isUnit && hit.team === 0) { pendTap = null; return _fTap.apply(this, arguments); }   // own unit: select it (double tap = all of that kind)
+    pendTap = { t: now, wx, wy, sel: us.slice() };
+    select(hit ? [hit] : []); return;
+  }
+  pendTap = null;
+  return _fTap.apply(this, arguments);
+};
+// the Face button: press where the soldiers should stand, drag to face, let go
+function faceSoldiers() { return selUnits().filter(u => u.cls !== 'vil' && u.layer !== 1); }
+function toggleFace() {
+  if (mode && mode.kind === 'face') { mode = null; panelKey = ''; return; }
+  if (!faceSoldiers().length) return;
+  mode = { kind: 'face' }; panelKey = '';
+}
+function faceAim(p, e) {
+  if (!mode || mode.kind !== 'face' || (p.type === 'mouse' && e.button !== 0)) return false;
+  if (!faceSoldiers().length) { mode = null; return false; }
+  const w = s2w(p.sx, p.sy);
+  gest = { type: 'aim', p }; aim = { x: w.x, y: w.y, ex: w.x, ey: w.y, face: true };
+  return true;
+}
+let FACE_ICON = null;
+// pixel icon: a turning arrow around the spot where the soldiers stand
+function faceIcon() {
+  if (FACE_ICON) return FACE_ICON;
+  const c = document.createElement('canvas'); c.width = c.height = 24; const x = c.getContext('2d');
+  const cells = [], head = [];
+  for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
+    const dx = i - 5.5, dy = j - 5.5, d = Math.hypot(dx, dy), a = Math.atan2(dy, dx) * 180 / Math.PI;
+    if (d >= 3.4 && d <= 4.9 && !(a > -75 && a < 0)) cells.push([i, j]);
+  }
+  // arrowhead at the end of the arc (top), pointing right
+  for (const [i, j] of [[7, 0], [7, 1], [8, 1], [7, 2], [8, 2], [9, 2], [7, 3], [8, 3], [7, 4]]) head.push([i, j]);
+  const dot = [[5, 5], [6, 5], [5, 6], [6, 6]];
+  const all = cells.concat(head, dot);
+  x.fillStyle = '#3a2a10'; for (const [i, j] of all) x.fillRect(i * 2 - 1, j * 2 - 1, 4, 4);
+  x.fillStyle = '#f2c94c'; for (const [i, j] of cells.concat(head)) x.fillRect(i * 2, j * 2, 2, 2);
+  x.fillStyle = '#ffffff'; for (const [i, j] of dot) x.fillRect(i * 2, j * 2, 2, 2);
+  return (FACE_ICON = c.toDataURL());
+}
+// while Face is on, the hint bar says what to do (instead of a label on the map)
+const _faceHint = hintText;
+hintText = function () {
+  if (mode && mode.kind === 'face') return aim ? 'Drag the way they should face, then let go.' : 'Face: press where they should stand, then drag the way to face.';
+  return _faceHint.apply(this, arguments);
+};
+function aimMove(q) { if (!aim) return; const w = s2w(q.x, q.y); aim.ex = w.x; aim.ey = w.y; }
+function aimDir() { if (!aim) return null; const dx = aim.ex - aim.x, dy = aim.ey - aim.y; return Math.hypot(dx, dy) < 0.7 ? null : [dx, dy]; }
+function aimEnd() {
+  const a = aim; aim = null; if (!a) return;
+  const us = selUnits(); if (!us.length) return;
+  const dir = Math.hypot(a.ex - a.x, a.ey - a.y) >= 0.7 ? [a.ex - a.x, a.ey - a.y] : null;
+  if (a.face) { mode = null; panelKey = ''; }
+  if (!dir) { issue(a.x, a.y, null); return; }
+  const amove = !a.face && !!(mode && mode.kind === 'amove');
+  G.command(us.map(u => u.id), a.x, a.y, null, { formation, amove, dir });
+  addMarker(a.x, a.y, amove ? 'attack' : 'move');
+  if (amove) mode = null;
+  panelKey = '';
+}
+function paintAim() {
+  const S = (x, y) => [(x * TILE - cam.x) * view.zoom, (y * TILE - cam.y) * view.zoom];
+  if (!aim) {
+    // Face mode waiting for a press: a ring under the selected soldiers and a hint
+    if (!mode || mode.kind !== 'face') return;
+    const us = faceSoldiers(); if (!us.length) { mode = null; panelKey = ''; return; }
+    let cx = 0, cy = 0; for (const u of us) { cx += u.x; cy += u.y; } cx /= us.length; cy /= us.length;
+    const [mx, my] = S(cx, cy), r = Math.max(22, Math.sqrt(us.length) * 0.6 * TILE * view.zoom);
+    ctx.save(); ctx.strokeStyle = '#f2c94c'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -performance.now() / 60;
+    ctx.beginPath(); ctx.arc(mx, my, r, 0, 7); ctx.stroke(); ctx.restore();
+    return;
+  }
+  const dir = aimDir(), [ax, ay] = S(aim.x, aim.y);
+  // ghost spots: where each soldier will stand
+  if (dir) {
+    const out = []; G.groupMove(selUnits(), aim.x, aim.y, { formation, dir, out });
+    ctx.save(); ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+    for (const o of out) { const [sx, sy] = S(o.x, o.y); ctx.fillStyle = 'rgba(242,201,76,0.3)'; ctx.strokeStyle = '#f2c94c'; ctx.beginPath(); ctx.ellipse(sx, sy + 3 * view.zoom, 9 * view.zoom, 4.5 * view.zoom, 0, 0, 7); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+    const [bx, by] = S(aim.ex, aim.ey), ang = Math.atan2(by - ay, bx - ax);
+    for (const [col, w] of [['#3a2a10', 9], ['#f2c94c', 5]]) {
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      const h = w + 9; ctx.beginPath(); ctx.moveTo(bx + Math.cos(ang) * (w / 2 + 3), by + Math.sin(ang) * (w / 2 + 3));
+      ctx.lineTo(bx + Math.cos(ang + 2.5) * h, by + Math.sin(ang + 2.5) * h); ctx.lineTo(bx + Math.cos(ang - 2.5) * h, by + Math.sin(ang - 2.5) * h); ctx.fill();
+    }
+  }
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(ax, ay, 8, 0, 7); ctx.stroke();
+}
+
+/* ---------- unit groups (1 to 4) ---------- */
+const GROUPS = [[], [], [], []];
+function groupUnits(i) { return GROUPS[i].map(id => G.byId.get(id)).filter(u => u && u.hp > 0 && u.team === 0); }
+function soldiersSel() { return selUnits().filter(u => u.cls !== 'vil'); }
+function grpPanelButtons() {
+  const us = soldiersSel(); if (!us.length) return '';
+  let s = '<button class="cmd" data-a="grpmake" title="Save these units as a group (or tap an empty tab above)"><img alt="" src="' + unitIcon(us[0].kind, 0) + '"><span class="nm">Make group</span><span class="ct">&nbsp;</span></button>';
+  if (us.some(u => u.layer !== 1)) s += '<button class="cmd' + (mode && mode.kind === 'face' ? ' on' : '') + '" data-a="face" title="Press where they should stand, then drag to face"><img alt="" src="' + faceIcon() + '"><span class="nm">Face</span><span class="ct">&nbsp;</span></button>';
+  return s;
+}
+function saveGroup(i, add) {
+  const us = selUnits(); if (!us.length) { toast('Select some units first.'); return; }
+  const ids = new Set(add ? groupUnits(i).map(u => u.id) : []); for (const u of us) ids.add(u.id);
+  // a unit belongs to one group at a time
+  for (let j = 0; j < 4; j++) if (j !== i) GROUPS[j] = GROUPS[j].filter(id => !ids.has(id));
+  GROUPS[i] = [...ids]; toast((add ? 'Added to group ' : 'Saved as group ') + (i + 1) + '.'); updateGroupBar(true);
+}
+function makeGroup() {
+  let i = GROUPS.findIndex((g, j) => !groupUnits(j).length);
+  if (i < 0) { toast('All 4 groups are in use. Hold a tab to replace it.'); return; }
+  saveGroup(i, false); panelKey = '';
+}
+function pickGroup(i) {
+  const us = groupUnits(i);
+  if (!us.length) { if (selUnits().length) saveGroup(i, false); else toast('Select units, then tap this tab to make group ' + (i + 1) + '.'); return; }
+  const same = sel.length === us.length && us.every(u => sel.includes(u));
+  if (same) { let x = 0, y = 0; for (const u of us) { x += u.x; y += u.y; } centerOn(x / us.length, y / us.length); }
+  else select(us);
+}
+let grpEl = null, grpMenu = null, grpSig = '';
+const tabCss = document.createElement('style');
+tabCss.textContent = `
+#grps { position: fixed; z-index: 4; display: flex; gap: 4px; align-items: flex-end; pointer-events: none; }
+#grps .grp { pointer-events: auto; position: relative; width: 62px; height: 32px; padding: 0 6px 0 4px; display: flex; align-items: center; gap: 3px;
+  background: var(--panel); border: 2px solid var(--edge-dark); border-bottom: 0; border-radius: 8px 8px 0 0; box-shadow: inset 0 2px 0 var(--edge); color: #fff4dc; touch-action: none; }
+#grps .grp img { width: 22px; height: 22px; image-rendering: pixelated; }
+#grps .grp b { font: 700 13px var(--font-num, sans-serif); margin-left: auto; }
+#grps .grp i { font-style: normal; font: 700 12px var(--font-num, sans-serif); width: 17px; height: 17px; border-radius: 9px; background: #c83a30; color: #fff; display: grid; place-items: center; flex: none; }
+#grps .grp.empty { opacity: .55; justify-content: flex-start; } #grps .grp.empty b { margin-left: 4px; font-size: 16px; color: var(--muted); }
+#grps .grp.on { height: 38px; box-shadow: inset 0 2px 0 var(--gold); border-color: var(--gold); }
+#grps .grp.on i { background: var(--gold); color: #3a2a10; }
+#btn-zin, #btn-zout { display: none !important; }`;
+document.head.appendChild(tabCss);
+function updateGroupBar(force) {
+  // the groups are bookmark tabs on the top edge of the action panel
+  if (!grpEl) { grpEl = document.createElement('div'); grpEl.id = 'grps'; document.body.appendChild(grpEl); }
+  const panel = document.getElementById('panel');
+  if (typeof G === 'undefined' || !G || !panel || !started) { grpEl.hidden = true; return; }
+  const r = panel.getBoundingClientRect(); grpEl.hidden = r.height < 10;
+  grpEl.style.left = (r.left + 10) + 'px'; grpEl.style.bottom = (innerHeight - r.top - 2) + 'px';
+  const parts = GROUPS.map((g, i) => { const us = groupUnits(i); if (!us.length) return [i, null, 0, false]; const cnt = {}; for (const u of us) cnt[u.kind] = (cnt[u.kind] || 0) + 1; const k = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0]; return [i, k, us.length, us.every(u => sel.includes(u)) && sel.length === us.length]; });
+  const sig = JSON.stringify(parts); if (sig === grpSig && !force) return; grpSig = sig;
+  grpEl.innerHTML = parts.map(([i, k, n, on]) => k
+    ? '<button class="grp' + (on ? ' on' : '') + '" data-g="' + i + '" aria-label="Group ' + (i + 1) + '"><i>' + (i + 1) + '</i><img alt="" src="' + unitIcon(k, 0) + '"><b>' + n + '</b></button>'
+    : '<button class="grp empty" data-g="' + i + '" aria-label="Empty group ' + (i + 1) + '"><i>' + (i + 1) + '</i><b>+</b></button>').join('');
+}
+setInterval(() => { if (typeof started !== 'undefined' && started) updateGroupBar(false); }, 250);
+function closeGrpMenu() { if (grpMenu) { grpMenu.remove(); grpMenu = null; } }
+function openGrpMenu(i, btn) {
+  closeGrpMenu(); const r = btn.getBoundingClientRect();
+  grpMenu = document.createElement('div');
+  grpMenu.style.cssText = 'position:fixed;z-index:50;left:' + Math.min(r.left, innerWidth - 200) + 'px;bottom:' + (innerHeight - r.top + 8) + 'px;display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--panel);border:2px solid var(--edge-dark);box-shadow:inset 0 0 0 2px var(--edge),0 3px 0 rgba(0,0,0,.45)';
+  const b = (t, f) => { const e = document.createElement('button'); e.className = 'cmd'; e.style.cssText = 'width:auto;min-width:170px;height:40px;min-height:0;padding:0 10px;display:flex;align-items:center;justify-content:flex-start'; e.innerHTML = '<span class="nm" style="font-size:14px">' + t + '</span>'; e.onclick = (ev) => { ev.stopPropagation(); f(); closeGrpMenu(); }; grpMenu.appendChild(e); };
+  b('Group ' + (i + 1) + ': add selected', () => saveGroup(i, true));
+  b('Replace with selected', () => saveGroup(i, false));
+  b('Clear group ' + (i + 1), () => { GROUPS[i] = []; updateGroupBar(true); });
+  document.body.appendChild(grpMenu);
+  setTimeout(() => document.addEventListener('pointerdown', function off(ev) { if (grpMenu && !grpMenu.contains(ev.target)) { closeGrpMenu(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
+}
+document.addEventListener('pointerdown', (e) => {
+  const btn = e.target.closest && e.target.closest('.grp'); if (!btn) return;
+  e.preventDefault(); const i = +btn.dataset.g; let held = false;
+  const t = setTimeout(() => { if (!groupUnits(i).length) return; held = true; openGrpMenu(i, btn); }, 550);
+  const up = () => { clearTimeout(t); btn.removeEventListener('pointerup', up); btn.removeEventListener('pointerleave', up); if (!held) pickGroup(i); updateGroupBar(true); };
+  btn.addEventListener('pointerup', up); btn.addEventListener('pointerleave', () => clearTimeout(t), { once: true });
+});
+document.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('.grp')) e.preventDefault(); });
+window.addEventListener('keydown', (e) => {
+  if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (typeof started === 'undefined' || !started || paused) return;
+  const n = '1234'.indexOf(e.key); if (n < 0) return;
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) saveGroup(n, e.shiftKey); else pickGroup(n);
+});
+
+/* ##### CHAPTER EXTRA 5 · Compact screen #####
+   File: src/js/extras/05-compact-hud.js
+   What it does: a bigger play area: no hint strip (small clock, tips pop up then fade), slim one-row panel, icon-only command buttons, smaller foldable minimap.
+   Things you can tweak:
+     - the CSS sizes at the top (minimap 84x63) and how long a tip stays (5 s).
+   ############################################################################ */
+/* ===== compact.js: a bigger play area (Iylia, 2026-11-07), in the main game since v0.9.43 =====
+   - the hint strip is gone: the clock sits small over the map and tips pop up for a few seconds, then fade
+   - the command panel is slimmer: header and tabs share a row, buttons show the icon and price only
+     (hold a button to see its name), the extra text lines are hidden
+   - the minimap is smaller and can be folded away
+   - group tabs only show once a group has been made */
+(function () {
+  const css = `
+body.cmp:not(.cmp-m) #strip { display: none; }
+body.cmp:not(.cmp-m) #clock { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none;
+  font-size: 12px; padding: 1px 8px; background: rgba(11, 22, 18, .6); border: 1px solid var(--edge-dark); color: var(--muted); }
+#hintpop { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); z-index: 3; max-width: min(78%, 420px);
+  background: rgba(11, 22, 18, .9); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--gold); font-size: 13px; line-height: 1.3; padding: 5px 10px; text-align: center; transition: opacity .6s; opacity: 0; pointer-events: none; }
+#hintpop.on { opacity: 1; pointer-events: auto; }
+body.cmp #mini { width: 84px; height: 63px; opacity: .92; }
+body.cmp.nomini #mini { display: none; }
+#minitog { position: absolute; top: 2px; left: 2px; z-index: 3; width: 26px; height: 26px; padding: 0; font: 700 14px var(--font-num, sans-serif);
+  color: var(--text); background: rgba(11, 22, 18, .85); border: 2px solid var(--edge-dark); display: grid; place-items: center; }
+body.cmp:not(.nomini) #minitog { left: 66px; top: 47px; width: 22px; height: 22px; font-size: 12px; }
+body.cmp.nogrp #grps { display: none; }
+body.cmp #panel { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px 8px; padding: 5px; }
+body.cmp .p-info { min-width: 0; max-width: 46vw; gap: 2px; }
+body.cmp .p-head { gap: 6px; }
+body.cmp .p-info:has(.chips) { grid-column: 1 / -1; max-width: none; }
+body.cmp .p-head .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; }
+body.cmp .p-head .chip { padding: 1px 6px 1px 1px; flex: none; }
+body.cmp .p-head > img { width: 28px; height: 28px; }
+body.cmp .p-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.cmp .p-sub { font-size: 12px; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.cmp .p-line, body.cmp .p-later { display: none; }
+body.cmp .bar { height: 5px; }
+body.cmp .chip img { width: 22px; height: 22px; }
+body.cmp .chip b { font-size: 14px; }
+body.cmp .p-bld { display: contents; }
+body.cmp .p-tabs { grid-column: 2; grid-row: 1; gap: 4px; }
+body.cmp .tab { font-size: 11px; padding: 4px 1px; }
+body.cmp .p-cmds, body.cmp .p-cmds.bld { grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; }
+body.cmp .cmd, body.cmp .p-cmds.bld .cmd { min-height: 0; padding: 3px 1px 2px; }
+body.cmp .cmd img { width: 26px; height: 26px; }
+body.cmp .cmd .nm, body.cmp .cmd .en { display: none; }
+/* buildings and units keep their names (Iylia): players should see what each one is */
+body.cmp .cmd[data-a="build"] .nm, body.cmp .cmd[data-a="build"] .en, body.cmp .cmd[data-a="train"] .nm, body.cmp .cmd[data-a="train"] .en, body.cmp .cmd.lock .nm, body.cmp .cmd.lock .en { display: block; }
+body.cmp .p-cmds.bld, body.cmp .p-cmds:has([data-a="train"]) { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+body.cmp .cmd[data-a="build"] .nm, body.cmp .cmd[data-a="train"] .nm { font-size: 11px; line-height: 1.1; text-align: center; }
+body.cmp .cmd[data-a="build"] .en, body.cmp .cmd[data-a="train"] .en { font-size: 9px; }
+body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
+`;
+  const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+
+  // hold a button for its name (the labels are hidden)
+  let holdT = 0, held = false;
+  function nameOf(b) {
+    const nm = b.querySelector('.nm'), en = b.querySelector('.en');
+    const t = (nm ? nm.textContent : b.textContent).trim() + (en && en.textContent.trim() ? ' (' + en.textContent.trim() + ')' : '');
+    return b.title ? b.title : t;
+  }
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest && e.target.closest('#panel .cmd'); if (!b) return;
+    held = false; clearTimeout(holdT);
+    holdT = setTimeout(() => { held = true; toast(nameOf(b)); if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_) { /* ignore */ } } }, 450);
+  }, true);
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) document.addEventListener(ev, () => clearTimeout(holdT), true);
+  document.addEventListener('click', (e) => { if (held && e.target.closest && e.target.closest('#panel .cmd')) { e.stopPropagation(); e.preventDefault(); held = false; } }, true);
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('#panel .cmd')) e.preventDefault(); }, true);
+
+  function boot() {
+    document.body.classList.add('cmp');
+    const mid = document.getElementById('mid'), clock = document.getElementById('clock'), hint = document.getElementById('hint');
+    // campaign missions and battles keep their strip: the objectives open from it (and some show meters there)
+    if (typeof setupObj === 'function') { document.body.classList.add('cmp-m'); return compactRest(mid); }
+    if (mid && clock) mid.appendChild(clock);
+    // tips: show when the advice changes (numbers ignored), fade after 5 s, tap to close
+    const pop = document.createElement('div'); pop.id = 'hintpop'; if (mid) mid.appendChild(pop);
+    pop.addEventListener('click', () => pop.classList.remove('on'));
+    let lastKey = '', hideT = 0;
+    setInterval(() => {
+      const t = hint ? hint.textContent.trim() : '', key = t.replace(/[0-9:]+/g, '#');
+      if (t) pop.textContent = t;
+      if (key === lastKey) return; lastKey = key;
+      if (!t) { pop.classList.remove('on'); return; }
+      pop.classList.add('on'); clearTimeout(hideT); hideT = setTimeout(() => pop.classList.remove('on'), 5000);
+    }, 250);
+    compactRest(mid);
+  }
+  // the parts every page gets: the minimap fold button and group tabs that appear once a group exists
+  function compactRest(mid) {
+    const mini = document.getElementById('mini');
+    if (mid && mini) {
+      const b = document.createElement('button'); b.id = 'minitog'; b.setAttribute('aria-label', 'Show or hide the minimap');
+      const label = () => { b.textContent = document.body.classList.contains('nomini') ? '▣' : '−'; };
+      try { if (localStorage.getItem('seak-nomini') === '1') document.body.classList.add('nomini'); } catch (_) { /* ignore */ }
+      b.addEventListener('click', (e) => { e.stopPropagation(); document.body.classList.toggle('nomini'); label(); try { localStorage.setItem('seak-nomini', document.body.classList.contains('nomini') ? '1' : '0'); } catch (_) { /* ignore */ } });
+      label(); mid.appendChild(b);
+    }
+    // group tabs appear once a group exists
+    setInterval(() => {
+      const any = typeof GROUPS !== 'undefined' && GROUPS.some(g => g.length);
+      document.body.classList.toggle('nogrp', !any);
+    }, 300);
+    if (typeof resize === 'function') resize();
+  }
+  if (document.readyState === 'complete') setTimeout(boot, 200); else window.addEventListener('load', () => setTimeout(boot, 200));
+})();
+
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;
