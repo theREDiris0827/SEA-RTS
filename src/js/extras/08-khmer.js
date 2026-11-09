@@ -1529,31 +1529,79 @@ Object.assign(BD, {
   baray: { name: 'Reservoir', size: 4, hp: 2500, cost: { wood: 200, gold: 80 }, time: 40, sight: 4, civ: KHM_CIV, age: 2, baray: { r: 6, farm: 1.25 } }
 });
 BD.palace.train = BD.palace.train.concat('bal');
+BUILD_ORDER.splice(BUILD_ORDER.indexOf('farm') + 1, 0, 'baray');   // Economy tab, after the farm
 BD.barracks.train = BD.barracks.train.concat('kcart');
 // Melaka-only units stay Melaka's; no guns or cannon for the Khmer
 UD.sumpit.civ = 0; UD.pahlawan.civ = 0; UD.gunner.civ = [0, 3];
 for (const k of ['musket', 'cannon']) if (UD[k]) UD[k].civ = [0, 1, 3];
-ARCHER_LINE[3] = ['archer', 'archer', 'archer', 'archer'];
-// the Sna stays a crossbowman in every age (no guns): it keeps training after the Kingdom Age
+// the archer line turns to crossbows, never guns (lore/khmer.md): bow, then Sna (light, fast), Heavy Sna (longest infantry
+// range, slow reload), and the Golden Age's Royal Sna with still more range
+Object.assign(UD, {
+  sna: { name: 'Crossbowman', hp: 32, spd: 2.4, atk: 6, bonus: { spear: 3, elite: 3 }, rng: 6, rate: 1.3, ma: 0, pa: 0, sight: 8, cost: { wood: 30, gold: 35 }, time: 10, cls: 'archer', ranged: true, civ: KHM_CIV, age: 2, maxAge: 2 },
+  heavysna: { name: 'Heavy Crossbowman', hp: 40, spd: 2.0, atk: 10, bonus: { spear: 3, elite: 4 }, rng: 7.5, rate: 2.4, ma: 0, pa: 1, sight: 8.5, cost: { wood: 40, gold: 45 }, time: 11, cls: 'archer', ranged: true, civ: KHM_CIV, age: 3, maxAge: 3 },
+  elitesna: { name: 'Royal Crossbowman', hp: 44, spd: 2.0, atk: 12, bonus: { spear: 4, elite: 5 }, rng: 8.5, rate: 2.4, ma: 1, pa: 2, sight: 9, cost: { wood: 45, gold: 60 }, time: 12, cls: 'archer', ranged: true, civ: KHM_CIV, age: 4 }
+});
+{ const tr = BD.barracks.train, i = tr.indexOf('archer'); tr.splice(i + 1, 0, 'sna', 'heavysna', 'elitesna'); }
+ARCHER_LINE[3] = ['archer', 'sna', 'heavysna', 'elitesna'];
+// the bow is Age 1 only for the Khmer
 const _kmTrainable = Game.prototype.trainable;
 Game.prototype.trainable = function (kind, team) {
   const t = _kmTrainable.apply(this, arguments);
-  if (t && CV(team) === KHM_CIV && BD[kind].train.includes('archer') && !t.includes('archer')) t.splice(Math.min(2, t.length), 0, 'archer');
+  if (t && CV(team) === KHM_CIV && this.teamAge(team) >= 2) { const i = t.indexOf('archer'); if (i >= 0) t.splice(i, 1); }
   return t;
 };
+// Laksamana's Guard (lore/khmer.md, unit-art/khmer-guard): Golden Age hired gunners from the Prasat, Malay and Cham in turn, 6 at most
+UD.lguard = { name: "Laksamana's Guard", hp: 58, spd: 2.1, atk: 17, bonus: { sword: 3, elite: 7 }, rng: 6.5, rate: 2.6, ma: 1, pa: 2, sight: 8.5,
+  cost: { wood: 40, gold: 160 }, time: 16, cls: 'archer', ranged: true, gun: true, age: 4, cap: 6, civ: KHM_CIV };
+BD.palace.train.push('lguard');
+{ const _add = Game.prototype.addUnit;
+  Game.prototype.addUnit = function (kind, team) {
+    const u = _add.apply(this, arguments);
+    if (u && kind === 'lguard') { this.lgN = this.lgN || {}; const n = this.lgN[team] = (this.lgN[team] || 0) + 1; u.gk = n % 2 ? 'malay' : 'cham'; }
+    return u;
+  }; }
+// villagers repair 25% faster, and towers, walls and gates near a Baray another 25%
+{ const _rep = Game.prototype.doRepair;
+  Game.prototype.doRepair = function (u, dt) {
+    const b = this.byId.get(u.order.id), h0 = b ? b.hp : 0;
+    _rep.apply(this, arguments);
+    if (!b || CV(u.team) !== KHM_CIV || b.hp <= h0) return;
+    const wallish = b.kind === 'tower' || (BD[b.kind] && BD[b.kind].wall);
+    const nearBaray = wallish && this.buildings.some(o => o.kind === 'baray' && o.team === b.team && o.done && o.hp > 0 && Math.hypot(o.x - b.x, o.y - b.y) <= BD.baray.baray.r + 2);
+    b.hp = Math.min(b.maxHp, b.hp + (b.hp - h0) * (nearBaray ? 0.5 : 0.25));
+  }; }
+// the Arogyasala: wounded units standing beside it heal slowly
+{ const _ub = Game.prototype.updateBuilding;
+  Game.prototype.updateBuilding = function (b, dt) {
+    _ub.apply(this, arguments);
+    if (b.kind !== 'rumahtabib' || CV(b.team) !== KHM_CIV || !b.done || b.hp <= 0) return;
+    b.kacd = (b.kacd || 0) - dt; if (b.kacd > 0) return;
+    b.kacd = 1; let n = 0;
+    this.unitsNear(b.x, b.y, 2 + b.size, (o) => { if (n < 6 && this.canHeal(o, b.team) && rectDist(o.x, o.y, b.rect) <= 2) { n++; this.healOne(o, 1); } });
+  }; }
 // the Khmer column of the name table: [local name, button label]
 Object.assign(KHMER, { names: {
-  villager: ['Neak Srae'], keris: ['Neak Kheal', 'Kheal'], tombak: ['Neak Lompeng', 'Lompeng'], archer: ['Sna'], tabib: ['Vaidya'],
+  villager: ['Neak Srae'], keris: ['Neak Kheal', 'Kheal'], tombak: ['Neak Lompeng', 'Lompeng'], archer: ['Neak Thnu', 'Thnu'], sna: ['Sna'], heavysna: ['Sna Thom'], elitesna: ['Sna Reach'], lguard: ["Laksamana's Guard", 'Laksamana'], tabib: ['Vaidya'],
   bal: ['Damrei Sna', 'Damrei Sna'], kcart: ['Rotes Sna', 'Rotes Sna'],
   boat: ['Touk'], trade: ['Touk Ngo'], light: ['Touk Chambang'], galley: ['Touk Bayon'], frigate: ['Ballista Barge'], flagship: ['Naga Barge'],
   towncentre: ['Preah Reachea Veang'], house: ['Phteah'], farm: ['Srae'], granary: ['Chhang'], store: ['Khleang'], barracks: ['Banteay Kang'],
   port: ['Kampong'], tower: ['Prang'], rumahtabib: ['Arogyasala'], palace: ['Prasat'], tradepost: ['Psar'], baray: ['Baray'],
   palisade: ['Robang Chheu'], wall: ['Kampaeng'], gate: ['Tvear Nokor'], raft: ['Kboun Phleung']
-}, roles: { keris: 'Shield Infantry', tombak: 'Spearman', archer: 'Crossbowman', tabib: 'Physician', bal: 'Ballista Elephant', kcart: 'Cart Ballista', baray: 'Reservoir', tradepost: 'Market', trade: 'Trade Ship' } });
+}, roles: { keris: 'Shield Infantry', tombak: 'Spearman', archer: 'Archer', lguard: 'Hired Gunners', tabib: 'Physician', bal: 'Ballista Elephant', kcart: 'Cart Ballista', baray: 'Reservoir', tradepost: 'Market', trade: 'Trade Ship' } });
 for (const k in KHMER.names) { const n = CIV_NAMES[k] || (CIV_NAMES[k] = [null, null, null, null]); while (n.length < 4) n.push(null); n[3] = KHMER.names[k]; }
 for (const k in KHMER.roles) { const r = CIV_ROLE[k] || (CIV_ROLE[k] = [null, null, null, null]); while (r.length < 4) r.push(null); r[3] = KHMER.roles[k]; }
 ['Phum', 'Srok', 'Nokor', 'Moha Nokor'].forEach((n, i) => { AGE_TABLE[i + 1].local[3] = n; });
 FIRE_ARROWS.local[3] = 'Sna Phleung';
+// a weak, river navy: the Touk Ngo is an unarmed river trader and earns like Ayutthaya's
+UD.trade.civAtk[3] = 0; TRADE.civ[3] = 1;
+Object.assign(BRIEF, { sna: 'Light, fast crossbow', heavysna: 'Longest-range foot archer, slow reload', elitesna: 'Golden Age crossbow, longer range still',
+  lguard: 'Hired Malay and Cham gunners, six at most', baray: 'Farms nearby gather 25% faster' });
+Object.assign(ENCY_UNITS, {
+  sna: 'Khmer crossbowman from the Kingdom Age: light and quick to shoot. Strong against spearmen, weak when swords reach it.',
+  heavysna: 'From the Age of Commerce: a heavy crossbow with the longest range of any foot soldier, but slow to reload.',
+  elitesna: 'Golden Age royal crossbowmen: heavy bolts and even more range. The Khmer never take up the matchlock.',
+  lguard: 'Golden Age hired gunners trained at the Prasat for a lot of gold, Malay and Cham in turn: the only guns the Khmer have. Six at most.'
+});
 // stone and laterite: towers, walls and gates +20% hp
 for (const k of ['tower', 'wall', 'gate']) { const h = BD[k].civHp; if (h) h[3] = Math.round(h[0] * 1.2); }
 // the Baray: farms near it gather faster
@@ -1564,15 +1612,380 @@ Game.prototype.gatherInfo = function (o) {
   return g;
 };
 // ---------- Khmer looks ----------
-const KM_UNIT = { villager: 'villager', keris: 'sword', tombak: 'spear', archer: 'archer' };
+/* art book soldiers (lore/scenes/units-khmer.js) and the hired gunners (lore/scenes/units-guard.js), kept in their own scope */
+const KMU_ART = (() => {
+/* Khmer unit sprites, in the game's style (same sprite(), auto outline, LEGS, palette).
+   Runs inside the game page after art.js. Look from the Bayon and Angkor Wat reliefs:
+   bare-chested soldiers in a short blue sampot, gold armbands, bare feet, lotus-petal
+   helmets, pointed crowns or hair buns.
+   kmUnit(kind, anim, f): anim 'idle' (f 0) or 'attack' (f 0, 1, 2); 'walk' f 0..3 also works for people.
+     16x18: shield, spear, archer, sna, heavysna, vaidya
+     32x32: ballista (Ballista Elephant)      30x20: cart (Cart Ballista) */
+const KMU = { main: '#2f6fd0', dark: '#1c4590', trim: '#f2c94c' };
+const KMU_GOLD = (typeof GOLD !== 'undefined') ? GOLD : '#e8b830', KMU_GOLD_D = (typeof GOLD_D !== 'undefined') ? GOLD_D : '#a87a1c';
+const KMU_QUILT = '#3a7ad8', KMU_SAFF = '#e0902a', KMU_SAFF_D = '#b86c1a', KMU_WHITE = '#f1ece0', KMU_WHITE_D = '#cfc6b0';
+const KMU_STRING = '#d8d0b0', KMU_SHAFT = '#c8b088';
+const KMU_BOW = '#b8823e';
+const KMU_ELE = '#8e9198', KMU_ELE_D = '#6c6f77', KMU_ELE_L = '#aeb1b8', KMU_IVORY = '#f4ecd4';
+const KMU_DIMS = { ballista: [32, 32], cart: [30, 20] };
+
+function kmUnit(kind, anim, f) {
+  f = f || 0;
+  const d = KMU_DIMS[kind];
+  if (kind === 'ballista') return sprite(`kmu|${kind}|${anim}|${f}`, d[0], d[1], 2, (P) => kmuElephant(P, anim, f));
+  if (kind === 'cart') return sprite(`kmu|${kind}|${anim}|${f}`, d[0], d[1], 2, (P) => kmuCart(P, anim, f));
+  return sprite(`kmu|${kind}|${anim}|${f}`, 16, 18, 2, (P) => kmuPerson(P, kind, anim, f));
+}
+
+function kmuPerson(P, kind, anim, f) {
+  const T = KMU, walk = anim === 'walk', atk = anim === 'attack';
+  const bob = (walk && (f === 1 || f === 3)) ? -1 : 0;
+  const B = (x, y, w, h, c) => P.r(x, y + 2 + bob, w, h, c);
+  const S = (x, y, w, h, c) => P.r(x, y + 2, w, h, c);
+  const vd = kind === 'vaidya', hv = kind === 'heavysna';
+
+  // bare legs and feet
+  const L = LEGS[walk ? f : 1];
+  for (const l of L) { S(l[0], l[1], l[2], l[3], SKIN); S(l[0], l[1] + l[3] - 1, l[2], 1, SKIN_D); }
+
+  // quiver for the archer, bolt case for the crossbowmen
+  if (kind === 'archer') { B(3, 5, 2, 6, WOOD_D); B(3, 4, 1, 1, KMU_WHITE); B(4, 3, 1, 2, T.main); B(4, 10, 1, 1, KMU_GOLD); }
+  if (kind === 'sna' || hv) { B(3, 7, 2, 4, WOOD_D); B(3, 6, 2, 1, KMU_SHAFT); B(3, 9, 2, 1, T.dark); }
+
+  // torso
+  if (vd) {
+    // saffron robe to the shins, white cloth over one shoulder
+    B(5, 7, 6, 3, SKIN); B(5, 9, 6, 1, SKIN_D);
+    B(5, 10, 6, 4, KMU_SAFF); B(5, 10, 6, 1, KMU_SAFF_D); B(7, 12, 1, 2, KMU_SAFF_D);
+    B(5, 7, 2, 1, KMU_WHITE); B(6, 8, 2, 1, KMU_WHITE); B(7, 9, 2, 1, KMU_WHITE); B(8, 10, 3, 1, KMU_WHITE); B(10, 11, 1, 2, KMU_WHITE_D);
+  } else if (hv) {
+    // quilted blue tunic with stitch pattern, sampot below
+    B(4, 7, 8, 4, KMU_QUILT); B(4, 7, 8, 1, T.main);
+    for (let y = 8; y < 11; y++) for (let x = 4 + (y % 2); x < 12; x += 2) B(x, y, 1, 1, T.dark);
+    B(4, 10, 8, 1, KMU_GOLD); B(5, 11, 6, 1, T.main); B(7, 12, 2, 1, T.dark);
+  } else {
+    // bare chest, gold collar for officers, blue sampot with gold belt and front drape
+    B(5, 7, 6, 3, SKIN); B(5, 9, 6, 1, SKIN_D);
+    if (kind === 'shield') B(7, 7, 3, 1, KMU_GOLD);
+    B(5, 10, 6, 2, T.main); B(5, 10, 6, 1, KMU_GOLD); B(6, 11, 1, 1, T.dark); B(9, 11, 1, 1, T.dark);
+    B(7, 12, 2, 1, T.dark);
+  }
+  if (kind === 'archer') { B(5, 7, 1, 1, WOOD_D); B(6, 8, 1, 1, WOOD_D); B(7, 9, 1, 1, WOOD_D); }
+
+  // arms with gold armbands
+  const ax0 = hv ? 3 : 4, ax1 = hv ? 12 : 11, sleeve = hv ? KMU_QUILT : SKIN;
+  const reach = atk && f === 1 && (kind === 'shield' || vd);
+  B(ax0, 8, 1, 3, sleeve);
+  if (reach) { B(ax1, 8, 3, 1, SKIN); } else B(ax1, 8, 1, 3, sleeve);
+  if (!vd) { B(ax0, 8, 1, 1, KMU_GOLD); B(ax1, 8, 1, 1, KMU_GOLD); }
+  if (hv) { B(ax0, 10, 1, 1, SKIN); B(ax1, 10, 1, 1, SKIN); }
+
+  // head
+  B(6, 3, 4, 4, SKIN); B(6, 6, 4, 1, SKIN_D); B(9, 5, 1, 1, HAIR);
+  // headgear
+  if (kind === 'shield') {
+    // pointed gold helmet-crown (mukuta) with a blue jewel
+    B(5, 3, 6, 1, KMU_GOLD); B(6, 2, 4, 1, KMU_GOLD); B(6, 1, 4, 1, KMU_GOLD_D); B(7, 0, 2, 1, KMU_GOLD); B(7, -1, 1, 1, KMU_GOLD);
+    B(7, 2, 2, 1, T.main); B(5, 4, 1, 1, HAIR);
+  } else if (kind === 'spear') {
+    // lotus-petal helmet: three gold petals over a band
+    B(5, 3, 6, 1, KMU_GOLD_D); B(6, 2, 4, 1, KMU_GOLD);
+    B(5, 1, 1, 2, KMU_GOLD); B(7, 0, 2, 2, KMU_GOLD); B(10, 1, 1, 2, KMU_GOLD); B(8, 0, 1, 1, KMU_GOLD_D); B(5, 4, 1, 1, HAIR);
+  } else if (kind === 'archer') {
+    // hair tied in a bun at the back with a blue headband and a white flower
+    B(6, 2, 4, 1, HAIR); B(5, 3, 6, 1, T.main); B(4, 1, 3, 2, HAIR); B(4, 1, 1, 1, KMU_WHITE); B(5, 4, 1, 1, HAIR);
+  } else if (kind === 'sna') {
+    // small blue cloth cap, bun showing behind
+    B(5, 2, 6, 2, T.main); B(5, 3, 6, 1, T.dark); B(6, 2, 1, 1, KMU_GOLD); B(3, 2, 2, 2, HAIR); B(5, 4, 1, 1, HAIR);
+  } else if (hv) {
+    // tall dark-blue cone helmet with a gold band and finial
+    B(5, 2, 6, 2, T.dark); B(5, 3, 6, 1, KMU_GOLD); B(6, 1, 4, 1, T.dark); B(7, 0, 2, 1, T.main); B(7, -1, 2, 1, KMU_GOLD); B(4, 3, 1, 2, T.dark);
+  } else if (vd) {
+    // Brahmin's high chignon bound with white cloth
+    B(6, 2, 4, 1, HAIR); B(7, 0, 2, 2, HAIR); B(7, 1, 2, 1, KMU_WHITE); B(5, 3, 1, 2, HAIR);
+  }
+
+  // weapons and tools
+  if (kind === 'shield') {
+    // short straight blade
+    if (!atk || f === 2) { B(12, 5, 1, 4, STEEL); B(13, 5, 1, 4, STEEL_D); B(12, 4, 1, 1, STEEL); B(11, 9, 3, 1, KMU_GOLD); B(12, 10, 1, 1, WOOD_D); }
+    else if (f === 0) { B(12, 2, 1, 5, STEEL); B(13, 2, 1, 5, STEEL_D); B(12, 1, 1, 1, STEEL); B(11, 7, 3, 1, KMU_GOLD); }
+    else { B(14, 8, 2, 1, STEEL); B(14, 9, 1, 1, STEEL_D); B(13, 7, 1, 3, KMU_GOLD); }
+    // TALL oblong shield covering the left side, gold rim, rib and boss
+    const sx = (atk && f === 1) ? 2 : 1, top = 3, h = 12;
+    B(sx + 1, top, 4, 1, KMU_GOLD); B(sx, top + 1, 6, h - 2, T.main); B(sx + 1, top + h - 1, 4, 1, KMU_GOLD);
+    B(sx, top + 1, 1, h - 2, T.dark); B(sx + 5, top + 1, 1, h - 2, T.dark);
+    B(sx + 2, top + 2, 1, h - 4, '#5a93ea');
+    B(sx + 2, top + 4, 2, 3, KMU_GOLD); B(sx + 3, top + 5, 1, 1, KMU_GOLD_D); B(sx + 1, top + 5, 1, 1, KMU_GOLD); B(sx + 4, top + 5, 1, 1, KMU_GOLD);
+    B(sx + 2, top + 1, 2, 1, KMU_GOLD_D); B(sx + 2, top + h - 2, 2, 1, KMU_GOLD_D);
+  } else if (kind === 'spear') {
+    // small round shield on the left arm
+    disc({ r: B }, 4, 10, 2, T.main); disc({ r: B }, 4, 10, 1, T.dark); B(4, 10, 1, 1, KMU_GOLD); B(3, 8, 2, 1, '#4f8ae6');
+    // long spear with a blue pennon under the head
+    if (!atk || f === 2) { S(12, 0, 1, 16, WOOD); S(12, -1, 1, 2, STEEL); S(13, 2, 2, 1, T.main); S(13, 3, 1, 1, T.main); }
+    else if (f === 0) { B(6, 9, 8, 1, WOOD); B(14, 9, 1, 1, STEEL); B(9, 8, 2, 1, T.main); }
+    else { B(8, 9, 7, 1, WOOD); B(15, 9, 1, 1, STEEL); B(11, 8, 2, 1, T.main); }
+  } else if (kind === 'archer') {
+    B(13, 4, 1, 1, WOOD); B(14, 5, 1, 8, WOOD); B(13, 13, 1, 1, WOOD); B(14, 8, 1, 2, KMU_GOLD_D);
+    if (atk && f === 0) { B(9, 9, 5, 1, WOOD); B(13, 5, 1, 8, KMU_STRING); B(14, 9, 1, 1, STEEL); B(11, 9, 1, 1, SKIN); }
+    else if (atk && f === 1) { B(13, 5, 1, 8, KMU_STRING); B(15, 8, 1, 1, STEEL); }
+    else B(13, 5, 1, 8, KMU_STRING);
+  } else if (kind === 'sna') {
+    // light crossbow: carried upright, levelled at the chest to shoot fast
+    if (!atk) { B(11, 5, 1, 7, WOOD); B(10, 5, 3, 1, WOOD_D); B(9, 6, 1, 1, WOOD_D); B(13, 6, 1, 1, WOOD_D); }
+    else {
+      B(8, 9, 6, 1, WOOD); B(13, 7, 1, 5, WOOD_D); B(12, 7, 1, 1, WOOD_D); B(12, 11, 1, 1, WOOD_D); B(10, 10, 1, 1, WOOD_D);
+      if (f === 0) { B(11, 8, 1, 3, KMU_STRING); B(10, 9, 1, 1, KMU_STRING); B(10, 8, 4, 1, KMU_SHAFT); B(14, 8, 1, 1, STEEL); }
+      else if (f === 1) { B(12, 8, 1, 3, KMU_STRING); B(14, 8, 2, 1, KMU_SHAFT); B(15, 8, 1, 1, STEEL); }
+      else { B(10, 8, 1, 3, KMU_STRING); B(12, 8, 1, 1, SKIN); B(9, 8, 3, 1, KMU_SHAFT); }
+    }
+  } else if (hv) {
+    // heavy crossbow with a wide bow, braced on the hip over a forked rest
+    if (!atk) {
+      B(13, 0, 1, 11, WOOD); B(13, 11, 1, 1, WOOD_D);
+      B(10, 1, 7, 1, WOOD_D); B(10, 2, 1, 1, WOOD_D); B(16, 2, 1, 1, WOOD_D); B(11, 2, 5, 1, KMU_STRING); B(13, 1, 1, 1, STEEL_D);
+    } else {
+      S(13, 10, 1, 6, WOOD_D); S(12, 10, 1, 1, WOOD_D); S(14, 10, 1, 1, WOOD_D);             // the rest
+      B(7, 9, 8, 1, WOOD); B(6, 10, 2, 1, WOOD_D); B(10, 9, 1, 2, STEEL_D);                    // stock and trigger
+      B(15, 4, 1, 11, WOOD_D); B(14, 4, 1, 1, WOOD_D); B(14, 14, 1, 1, WOOD_D); B(15, 9, 1, 1, KMU_GOLD_D);
+      if (f === 0) { B(14, 5, 1, 4, KMU_STRING); B(14, 10, 1, 4, KMU_STRING); B(11, 9, 3, 1, KMU_STRING); B(9, 8, 6, 1, KMU_SHAFT); B(15, 8, 1, 1, STEEL); }
+      else if (f === 1) { B(14, 5, 1, 9, KMU_STRING); B(13, 8, 1, 1, '#e0e0e0'); }
+      else { B(12, 5, 1, 3, KMU_STRING); B(12, 10, 1, 4, KMU_STRING); B(11, 8, 1, 3, KMU_STRING); B(12, 8, 1, 2, SKIN); }
+    }
+  } else if (vd) {
+    // bowl of herbal medicine; raised, steaming and with a green cross when healing
+    if (atk) {
+      B(13, 8, 3, 1, '#8a5a3a'); B(13, 7, 3, 1, '#5a9a3a'); B(14, 6, 1, 1, '#7ac84a');
+      if (f === 1) { B(13, 5, 1, 1, '#d8e8d0'); B(14, 4, 1, 1, '#d8e8d0'); }
+      if (f >= 1) { B(13, 0, 1, 3, '#7dffa8'); B(12, 1, 3, 1, '#7dffa8'); }
+    } else { B(11, 11, 3, 1, '#8a5a3a'); B(11, 10, 3, 1, '#5a9a3a'); B(12, 9, 1, 1, '#7ac84a'); }
+    if (atk && f !== 1) { B(11, 8, 2, 1, SKIN); B(12, 8, 1, 1, SKIN); }
+  }
+}
+
+// Double-bow crossbow: two bows one behind the other on a long stock. y = stock row.
+// Each bow is an arc with its tips bent back; the string runs to the nock (drawn) or straight across (shot).
+function kmuDoubleBow(P, x0, x1, y, b1, b2, half, state) {
+  const r = P.r;
+  r(x0, y, x1 - x0, 1, WOOD); r(x0, y + 1, x1 - x0, 1, WOOD_D);
+  for (const bx of [b1, b2]) {
+    for (let i = -half; i <= half + 1; i++) {
+      const k = i <= 0 ? -i : i - 1, off = Math.round(2 * k * k / (half * half));
+      r(bx - off, y + i, 1, 1, k === half ? KMU_GOLD : KMU_BOW); if (k < half - 1) r(bx - off + 1, y + i, 1, 1, WOOD_D);
+    }
+    if (state === 'shot') r(bx - 3, y - half + 1, 1, half * 2, KMU_STRING);
+    else for (let i = 1; i < half; i++) { const sx = bx - 2 - Math.round(3 * (half - i) / half); r(sx, y - i, 1, 1, KMU_STRING); r(sx, y + 1 + i, 1, 1, KMU_STRING); }
+  }
+  if (state === 'loaded') { r(b1 - 5, y - 1, x1 - b1 + 6, 1, KMU_SHAFT); r(x1 + 1, y - 1, 2, 1, STEEL); r(x1 + 3, y - 1, 1, 1, STEEL_D); r(b1 - 6, y - 2, 2, 1, KMU_FLETCH); }
+  if (state === 'reload') { r(x0 + 1, y - 1, 5, 1, KMU_SHAFT); r(x0, y - 2, 2, 1, KMU_FLETCH); }
+}
+const KMU_FLETCH = '#f4ecd4';
+
+function kmuCrew(P, x, y, hat) {   // small seated/standing figure: head at y, body below
+  const r = P.r;
+  r(x, y, 2, 2, SKIN); r(x + 1, y + 1, 1, 1, SKIN_D);
+  if (hat === 'bun') { r(x, y - 1, 2, 1, HAIR); r(x - 1, y - 1, 1, 1, HAIR); }
+  else { r(x - 1, y - 1, 4, 1, KMU_GOLD); r(x, y - 2, 2, 1, KMU_GOLD); }
+  r(x, y + 2, 2, 2, SKIN); r(x, y + 2, 1, 1, KMU_GOLD);
+}
+
+function kmuElephant(P, anim, f) {
+  const r = P.r, T = KMU, atk = anim === 'attack';
+  // tail
+  r(4, 15, 1, 6, KMU_ELE_D); r(3, 20, 2, 2, '#4a4c52');
+  // far legs (darker)
+  r(9, 23, 3, 7, KMU_ELE_D); r(21, 23, 3, 7, KMU_ELE_D);
+  // body
+  for (let y = 11; y <= 24; y++) {
+    const t = (y - 17.5) / 7, hw = Math.round(10 * Math.sqrt(Math.max(0, 1 - t * t)));
+    r(15 - hw, y, hw * 2 + 1, 1, y > 21 ? KMU_ELE_D : KMU_ELE);
+  }
+  // near legs with toenails
+  r(6, 22, 4, 8, KMU_ELE); r(18, 22, 4, 8, KMU_ELE);
+  r(6, 22, 1, 8, KMU_ELE_D); r(18, 22, 1, 8, KMU_ELE_D);
+  for (const x of [6, 9, 18, 21]) { r(x, 30, 1, 1, KMU_IVORY); }
+  r(10, 29, 2, 1, KMU_ELE_D); r(22, 29, 2, 1, KMU_ELE_D);
+  // head, ear, trunk, tusk, eye
+  disc(P, 25, 15, 4, KMU_ELE); r(24, 11, 3, 1, KMU_ELE_L);
+  r(26, 17, 3, 4, KMU_ELE); r(27, 21, 2, 3, KMU_ELE); r(28, 24, 2, 3, KMU_ELE); r(29, 27, 1, 2, KMU_ELE); r(28, 28, 1, 1, KMU_ELE_L);
+  r(27, 18, 1, 1, KMU_ELE_D); r(28, 21, 1, 1, KMU_ELE_D); r(29, 24, 1, 1, KMU_ELE_D);
+  r(20, 12, 4, 8, KMU_ELE_D); r(20, 12, 4, 1, KMU_ELE); r(23, 13, 1, 6, KMU_ELE_L);
+  r(25, 19, 4, 1, KMU_IVORY); r(29, 18, 1, 1, KMU_IVORY);
+  r(26, 14, 1, 1, '#1a1a1a');
+  // gold headpiece with a blue jewel
+  r(23, 11, 5, 1, KMU_GOLD); r(25, 12, 1, 2, T.main); r(28, 12, 1, 1, KMU_GOLD);
+  // blue caparison with gold border and fringe
+  r(8, 13, 12, 8, T.main); r(8, 13, 12, 1, T.dark); r(8, 19, 12, 1, KMU_GOLD);
+  for (let x = 8; x < 20; x += 2) r(x, 20, 1, 1, KMU_GOLD_D);
+  for (const x of [10, 14, 18]) { r(x, 15, 1, 1, KMU_GOLD); r(x - 1, 16, 3, 1, KMU_GOLD); r(x, 17, 1, 1, KMU_GOLD); }
+  // platform and the ballista frame
+  r(7, 10, 15, 2, WOOD); r(7, 11, 15, 1, WOOD_D); r(14, 8, 3, 2, WOOD_D); r(15, 7, 1, 1, WOOD_D); r(9, 7, 1, 3, WOOD_D);
+  const state = !atk ? 'loaded' : f === 1 ? 'shot' : f === 2 ? 'reload' : 'loaded';
+  // crewman at the trigger, behind the frame
+  kmuCrew(P, 6, 4, 'bun'); r(6, 8, 2, 2, T.main);
+  if (atk && f !== 2) r(8, 6, 2, 1, SKIN); else r(8, 7, 1, 1, SKIN);
+  kmuDoubleBow(P, 8, 22, 5, 14, 19, 4, state);
+  // mahout on the neck with the hook
+  kmuCrew(P, 22, 7, 'crown'); r(21, 11, 3, 1, T.main); r(22, 12, 1, 2, SKIN);
+  r(24, 9, 1, 3, WOOD_D); r(25, 9, 1, 1, STEEL);
+  // the bolt in flight
+  if (state === 'shot') { r(25, 3, 4, 1, KMU_SHAFT); r(29, 3, 2, 1, STEEL); r(24, 2, 1, 1, KMU_FLETCH); r(24, 4, 1, 1, KMU_FLETCH); }
+}
+
+function kmuCart(P, anim, f) {
+  const r = P.r, T = KMU, atk = anim === 'attack';
+  // shafts and the front rest (lowered when deployed)
+  r(21, 11, 6, 1, WOOD_D); r(27, 12, 2, 1, WOOD_D);
+  if (atk) { r(22, 12, 1, 6, WOOD_D); r(21, 17, 3, 1, WOOD_D); }
+  // pennant on the rear pole, streaming back
+  r(3, 0, 1, 9, WOOD_D); r(0, 0, 3, 1, T.main); r(1, 1, 2, 1, T.main); r(2, 2, 1, 1, T.dark); r(2, 0, 1, 1, KMU_GOLD);
+  // cart bed with a blue cloth along the side
+  r(2, 8, 21, 1, WOOD_D); r(2, 9, 21, 3, WOOD); for (let x = 4; x < 22; x += 3) r(x, 9, 1, 3, WOOD_D);
+  r(3, 11, 19, 2, T.main); r(3, 12, 19, 1, KMU_GOLD); for (let x = 4; x < 22; x += 3) r(x, 13, 1, 1, KMU_GOLD_D);
+  // crossbow posts and the double-bow crossbow
+  r(14, 6, 3, 2, WOOD_D);
+  const state = !atk ? 'loaded' : f === 1 ? 'shot' : f === 2 ? 'reload' : 'loaded';
+  kmuDoubleBow(P, 7, 22, 4, 13, 18, 3, state);
+  // crewman standing at the back of the cart
+  kmuCrew(P, 4, 2, 'bun'); r(4, 6, 2, 1, T.main); r(4, 7, 1, 1, SKIN); r(5, 7, 1, 1, SKIN);
+  if (atk && f !== 2) r(6, 4, 2, 1, SKIN); else r(6, 5, 1, 1, SKIN);
+  // big spoked wheel
+  disc(P, 12, 14, 5, WOOD_D); disc(P, 12, 14, 4, WOOD);
+  r(12, 10, 1, 9, WOOD_D); r(8, 14, 9, 1, WOOD_D); r(9, 11, 1, 1, WOOD_D); r(10, 12, 1, 1, WOOD_D); r(14, 16, 1, 1, WOOD_D); r(15, 17, 1, 1, WOOD_D);
+  r(15, 11, 1, 1, WOOD_D); r(14, 12, 1, 1, WOOD_D); r(10, 16, 1, 1, WOOD_D); r(9, 17, 1, 1, WOOD_D);
+  r(11, 13, 3, 3, WOOD_D); r(12, 14, 1, 1, KMU_GOLD);
+  if (state === 'shot') { r(24, 3, 3, 1, KMU_SHAFT); r(27, 3, 2, 1, STEEL); r(23, 2, 1, 1, KMU_FLETCH); r(23, 4, 1, 1, KMU_FLETCH); }
+}
+
+if (typeof window !== 'undefined') window.kmUnit = kmUnit;
+
+/* Khmer hired gunners (lore/khmer.md, "Hired guns"), in the game's style (sprite(), auto outline, LEGS, palette).
+   Runs inside the game page after art.js.
+   guardUnit(kind, anim, f): anim 'idle' (f 0) or 'attack' (f 0, 1, 2), 16x18.
+     Option 3 (chosen): malay, cham     Option 2 (for comparison): portuguese, spanish, japanese
+   Each wears a small Khmer-blue mark (sash, band or tassel) to show whose service they are in. */
+const GDU = { main: '#2f6fd0', dark: '#1c4590' };
+const GDU_MET = '#4a4a52', GDU_MET_L = '#6a6a74', GDU_RED = '#c0392b', GDU_FLASH = '#f6d04a', GDU_FLASH_L = '#fff3a0';
+const GDU_SMOKE = '#c8c8c8', GDU_SMOKE_L = '#e0e0e0', GDU_WH = '#f1ece0', GDU_WH_D = '#cfc6b2';
+const GDU_GOLD = (typeof GOLD !== 'undefined') ? GOLD : '#e8b830';
+
+function guardUnit(kind, anim, f) {
+  f = f | 0; anim = anim || 'idle';
+  return sprite(`gdu|${kind}|${anim}|${f}`, 16, 18, 2, (P) => gduPerson(P, kind, anim, f));
+}
+
+function gduPerson(P, kind, anim, f) {
+  const walk = anim === 'walk', atk = anim === 'attack';
+  const bob = (walk && (f === 1 || f === 3)) ? -1 : 0;
+  const B = (x, y, w, h, c) => P.r(x, y + 2 + bob, w, h, c);
+  const S = (x, y, w, h, c) => P.r(x, y + 2, w, h, c);
+  const eur = kind === 'portuguese' || kind === 'spanish', jp = kind === 'japanese';
+
+  // ---- legs
+  for (const [x, y, w, h] of LEGS[walk ? f : 1]) {
+    if (eur) { S(x, y, w, h, kind === 'spanish' ? '#5a3a2a' : '#2a2228'); S(x, y + h - 1, w, 1, '#1a1410'); }
+    else if (jp) { S(x, y, w, h, '#2c3450'); S(x, y + h - 1, w, 1, '#d8ccb0'); }          // hakama, tabi
+    else if (kind === 'malay') { S(x, y, w, h, '#2a2a3a'); S(x, y + h - 1, w, 1, SKIN_D); } // seluar
+    else { S(x, y, w, h, SKIN); S(x, y + h - 1, w, 1, SKIN_D); }                           // Cham: bare shins under sarong
+  }
+
+  // ---- body
+  if (kind === 'portuguese') {
+    // steel breastplate, white collar, slashed breeches, blue sash
+    B(5, 7, 6, 3, STEEL); B(5, 7, 6, 1, '#f4f8fc'); B(7, 8, 1, 2, STEEL_D); B(6, 6, 4, 1, GDU_WH);
+    B(10, 7, 1, 1, GDU.main); B(9, 8, 1, 1, GDU.main); B(8, 9, 1, 1, GDU.main); B(7, 10, 1, 1, GDU.main);
+    B(4, 10, 8, 2, '#4a3a2a'); B(5, 10, 1, 2, '#c8a050'); B(8, 10, 1, 2, '#c8a050'); B(10, 10, 1, 2, '#c8a050');
+  } else if (kind === 'spanish') {
+    // buff leather coat with a red cross-sash of the Spanish crown, blue band at the waist
+    B(5, 7, 6, 3, '#c8a468'); B(5, 7, 6, 1, '#dcbc84'); B(8, 8, 1, 2, '#a8844c'); B(6, 6, 4, 1, GDU_WH);
+    B(5, 7, 1, 1, GDU_RED); B(6, 8, 1, 1, GDU_RED); B(7, 9, 1, 1, GDU_RED);
+    B(5, 10, 6, 1, GDU.main); B(4, 11, 8, 1, '#7a5a3a'); B(5, 11, 1, 1, '#5a3a2a'); B(10, 11, 1, 1, '#5a3a2a');
+  } else if (jp) {
+    // dark kosode crossed at the neck, blue obi, wide hakama
+    B(5, 7, 6, 3, '#3a3a4a'); B(6, 7, 1, 1, GDU_WH); B(7, 8, 1, 1, GDU_WH); B(9, 7, 1, 1, GDU_WH);
+    B(5, 10, 6, 1, GDU.main); B(4, 11, 8, 1, '#2c3450'); B(6, 11, 1, 1, '#3e4868'); B(9, 11, 1, 1, '#3e4868');
+  } else if (kind === 'malay') {
+    // baju (short jacket) in cream, blue songket sampin over the trousers, kris at the waist
+    B(5, 7, 6, 3, '#e8dcc0'); B(5, 7, 6, 1, '#f4ecd8'); B(7, 7, 2, 1, SKIN); B(8, 8, 1, 2, '#c8bca0');
+    B(4, 10, 8, 2, GDU.main); B(5, 10, 1, 1, GDU_GOLD); B(8, 11, 1, 1, GDU_GOLD); B(10, 10, 1, 1, GDU_GOLD);
+    B(6, 9, 1, 2, '#5a3a20'); B(5, 9, 1, 1, GDU_GOLD);
+  } else {
+    // Cham: open dark-red jacket over a white shirt, checked sarong, blue cloth belt
+    B(5, 7, 6, 3, '#8a2a2a'); B(7, 7, 2, 3, GDU_WH); B(5, 7, 6, 1, '#a83a3a'); B(7, 7, 2, 1, GDU_WH);
+    B(4, 10, 8, 2, '#6a3a5a'); B(5, 11, 1, 1, '#9a5a7a'); B(7, 10, 1, 1, '#9a5a7a'); B(9, 11, 1, 1, '#9a5a7a'); B(11, 10, 1, 1, '#9a5a7a');
+    B(5, 10, 6, 1, GDU.main);
+  }
+
+  // ---- arms
+  const sleeve = kind === 'portuguese' ? STEEL_D : kind === 'spanish' ? '#c8a468' : jp ? '#3a3a4a'
+    : kind === 'malay' ? '#e8dcc0' : '#8a2a2a';
+  B(4, 8, 1, 3, sleeve); B(4, 11, 1, 1, SKIN);
+  if (!atk) { B(11, 8, 1, 3, sleeve); B(11, 11, 1, 1, SKIN); }
+
+  // ---- head
+  B(6, 3, 4, 4, SKIN); B(6, 6, 4, 1, SKIN_D); B(9, 5, 1, 1, HAIR);
+  if (eur) { B(6, 6, 4, 1, '#5a3a20'); B(9, 6, 1, 1, '#5a3a20'); B(6, 5, 1, 1, '#5a3a20'); }   // beard
+
+  // ---- headgear
+  if (kind === 'portuguese') {
+    // morion: curved brim, tall comb
+    B(4, 3, 8, 1, STEEL_D); B(3, 2, 1, 1, STEEL_D); B(12, 2, 1, 1, STEEL_D);
+    B(5, 1, 6, 2, STEEL); B(6, 0, 4, 1, STEEL); B(7, -1, 2, 1, STEEL_D); B(6, 1, 1, 1, '#f4f8fc');
+  } else if (kind === 'spanish') {
+    // cabasset: pear-shaped helmet with a narrow flat brim and a little stalk, red plume
+    B(5, 3, 6, 1, STEEL_D); B(6, 1, 4, 2, STEEL); B(7, 0, 2, 1, STEEL); B(8, -1, 1, 1, STEEL_D);
+    B(6, 1, 1, 1, '#f4f8fc'); B(9, 0, 1, 1, GDU_RED); B(10, -1, 1, 1, GDU_RED);
+  } else if (jp) {
+    // jingasa: wide shallow conical lacquered hat, blue mon, chin cord
+    B(3, 3, 10, 1, '#2a2226'); B(4, 2, 8, 1, '#3a3036'); B(6, 1, 4, 1, '#3a3036'); B(7, 0, 2, 1, '#2a2226');
+    B(7, 2, 2, 1, GDU.main); B(6, 4, 1, 2, HAIR); B(9, 6, 1, 1, '#c8a050');
+  } else if (kind === 'malay') {
+    // tengkolok: folded blue-and-gold headcloth with a peak
+    B(5, 2, 6, 2, GDU.dark); B(5, 3, 6, 1, GDU_GOLD); B(9, 1, 2, 1, GDU.dark); B(10, 0, 1, 1, GDU.main);
+  } else {
+    // Cham: white wrapped turban with a tail, blue tassel
+    B(5, 2, 6, 2, GDU_WH); B(5, 3, 6, 1, GDU_WH_D); B(6, 1, 4, 1, GDU_WH); B(4, 3, 1, 2, GDU_WH_D); B(3, 4, 1, 2, GDU.main);
+  }
+
+  // ---- matchlock (Europeans carry the long arquebus on a forked rest; the rest a lighter gun)
+  if (eur) {
+    if (!atk || f === 2) {
+      B(12, -3, 1, 12, GDU_MET); B(12, 8, 1, 3, WOOD); B(13, 6, 1, 1, GDU_RED);
+      B(14, 0, 1, 12, WOOD_D); B(13, -1, 1, 1, WOOD_D); B(15, -1, 1, 1, WOOD_D);
+      if (atk) { B(13, -4, 2, 1, GDU_SMOKE); B(14, -5, 1, 1, GDU_SMOKE_L); }
+    } else {
+      B(4, 7, 11, 1, GDU_MET); B(4, 6, 1, 1, GDU_MET_L); B(3, 7, 2, 2, WOOD); B(8, 8, 1, 1, GDU_RED); B(11, 8, 1, 1, SKIN);
+      B(13, 8, 1, 5, WOOD_D);
+      if (f === 1) { B(15, 6, 1, 3, GDU_FLASH); B(15, 7, 1, 1, GDU_FLASH_L); B(13, 4, 2, 1, GDU_SMOKE); B(14, 3, 2, 1, GDU_SMOKE_L); }
+    }
+  } else {
+    const stock = jp ? '#6a2a1a' : WOOD;   // tanegashima: red-lacquered stock
+    if (!atk || f === 2) {
+      B(12, -1, 1, 10, GDU_MET); B(12, 8, 1, 3, stock); B(13, 6, 1, 1, GDU_RED);
+      if (atk) { B(13, -2, 2, 1, GDU_SMOKE); B(14, -3, 1, 1, GDU_SMOKE_L); }
+    } else {
+      B(6, 8, 9, 1, GDU_MET); B(6, 7, 1, 1, GDU_MET_L); B(5, 8, 2, 2, stock); B(9, 9, 1, 1, GDU_RED); B(11, 9, 1, 1, SKIN);
+      if (f === 1) { B(15, 7, 1, 3, GDU_FLASH); B(15, 8, 1, 1, GDU_FLASH_L); B(13, 5, 2, 1, GDU_SMOKE); B(14, 4, 2, 1, GDU_SMOKE_L); }
+    }
+  }
+}
+
+  return { kmUnit, guardUnit };
+})();
+// game kind -> art book kind; the villager keeps the KMART drawing (kmUnit has none)
+const KMU_KIND = { keris: 'shield', tombak: 'spear', archer: 'archer', sna: 'sna', heavysna: 'heavysna', elitesna: 'heavysna', tabib: 'vaidya', bal: 'ballista', kcart: 'cart' };
+let kmCur = null;
+{ const _pu = paintUnit; paintUnit = function (u) { kmCur = u; try { return _pu.apply(this, arguments); } finally { kmCur = null; } }; }
+const KM_UNIT = { villager: 'villager' };
 const _kmUnitSprite = unitSprite;
 unitSprite = function (kind, team, anim, f, tool) {
   if (CV(team) === KHM_CIV) {
     // at work (chopping, mining, farming, building) villagers swing their tool (axe, pick, hoe or hammer)
     const a = anim === 'work' ? (kind === 'villager' ? 'work' : 'idle') : anim, ff = anim === 'walk' ? f : Math.min(2, f);
     if (KM_UNIT[kind]) return KMART.khmerUnitSprite(KM_UNIT[kind], a, ff, a === 'work' ? tool : '');
-    if (kind === 'bal') return KMART.ballistaElephantSprite(a, a === 'walk' ? f : Math.min(1, f));
-    if (kind === 'kcart') return KMART.cartBallistaSprite(a, a === 'walk' ? f : Math.min(1, f));
+    const ak = a === 'heal' ? 'attack' : a === 'work' ? 'idle' : a;
+    if (KMU_KIND[kind]) return KMU_ART.kmUnit(KMU_KIND[kind], ak, ak === 'walk' ? f % 4 : ak === 'attack' ? Math.min(2, f) : 0);
+    if (kind === 'lguard') return KMU_ART.guardUnit(kmCur && kmCur.gk || 'malay', ak, ak === 'walk' ? f % 4 : ak === 'attack' ? Math.min(2, f) : 0);
   }
   return _kmUnitSprite.apply(this, arguments);
 };

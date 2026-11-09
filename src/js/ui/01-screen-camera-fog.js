@@ -17,7 +17,7 @@ const cvs = $('view'), ctx = cvs.getContext('2d');
 const miniEl = $('mini'), mctx = miniEl.getContext('2d');
 const RESCOL = { food: '#ff8f7a', wood: '#d9a66a', gold: '#f2c94c' };
 const NODE_NAME = { tree: 'Tree', berry: 'Berry bush', gold: 'Gold deposit', fish: 'School of fish', carcass: 'Deer carcass' };
-const ECO_BLD = new Set(['house', 'farm', 'sawah', 'store', 'granary', 'port', 'tradepost']);
+const ECO_BLD = new Set(['house', 'farm', 'sawah', 'baray', 'store', 'granary', 'port', 'tradepost']);
 let buildTab = 'eco';
 const BUILD_ORDER = ['house', 'farm', 'sawah', 'store', 'granary', 'barracks', 'rumahtabib', 'patirthan', 'wat', 'port', 'tower', 'palisade', 'wall', 'gate', 'tradepost', 'palace'];
 const FORMS = ['box', 'line', 'wedge'];

@@ -37,7 +37,7 @@
     const D = DIFF[this.diff], ai = this.ai, r = this.res[1], mj = CV(1) === 1;
     const K = mj ? { field: 'sawah', heal: 'patirthan', healer: 'acaraki', elite: 'bhaya', skirm: 'lembing', fire: 'fireship' }
       : CV(1) === AYU_CIV ? { field: 'farm', heal: 'wat', healer: 'mo', elite: 'chang', skirm: 'namai', fire: 'frigate' }
-      : CV(1) === KHM_CIV ? { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'bal', skirm: 'archer', fire: 'frigate' }
+      : CV(1) === KHM_CIV ? { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'bal', skirm: 'tombak', fire: 'frigate' }
       : { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'pahlawan', skirm: 'sumpit', fire: 'frigate' };
     const tc = this.buildings.find(b => b.team === 1 && b.kind === 'towncentre' && b.done && b.hp > 0);
     if (!tc) return;
@@ -107,6 +107,8 @@
     if (nA === 2 && nextA && this.t > AT[0] - 200 && !this.ageNeedMet(1, 2) && r.wood >= 100 && !building.length) this.aiBuild(has('granary') ? 'store' : 'granary', tc, vils, 2, 4, 9);
     if (this.t > 200 * late && !has('tower') && r.wood >= 75 && r.gold >= 25 && !building.length) this.aiBuild('tower', tc, vils, 2, 4, 7);
     if (age >= 2 && this.t > 300 * late && !has('palace') && r.wood >= 400 && r.gold >= 200) this.aiBuild('palace', tc, vils, 4, 6, 12);
+    // Khmer: a Baray beside the Town Centre once the farms are going
+    if (CV(1) === KHM_CIV && age >= 2 && this.t > 280 * late && !has('baray') && r.wood >= 200 && r.gold >= 80 && !building.length) this.aiBuild('baray', tc, vils, 3, 5, 9);
     if (civOk(BD.tradepost, 1) && age >= 2 && this.t > 360 * late && !has('tradepost') && r.wood >= 150 && r.gold >= 50) {
       const v = this.villages.filter(v => !v.post && v.hp > 0 && (!isl || this.regionAt(v.site.tx + 1, v.site.ty + 1) === home)).sort((a, b) => Math.hypot(a.x - tc.x, a.y - tc.y) - Math.hypot(b.x - tc.x, b.y - tc.y))[0];
       if (v) { const near = vils.slice().sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y)).slice(0, 2); this.placeBuilding(1, 'tradepost', v.site.tx, v.site.ty, near.map(u => u.id)); }
@@ -129,7 +131,7 @@
     if (palace && !palace.rally) palace.rally = { x: tc.x - 6, y: tc.y + 2 };
     for (const b of barracks) {
       if (hold || b.queue.length >= 2 || mil.length + b.queue.length >= milCap) continue;
-      const roll = this.rng(), kind = age >= 3 && roll > 0.9 ? 'cannon' : roll < 0.35 ? 'keris' : roll < 0.6 ? K.skirm : roll < 0.82 ? 'tombak' : lineKind(1, age);
+      const roll = this.rng(), kind = CV(1) === KHM_CIV && age >= 2 && roll > 0.88 ? 'kcart' : age >= 3 && roll > 0.9 ? 'cannon' : roll < 0.35 ? 'keris' : roll < 0.6 ? K.skirm : roll < 0.82 ? 'tombak' : lineKind(1, age);
       if (pop + b.queue.length < cap) this.queueUnit(b, kind, 1);
       if (!b.rally) b.rally = { x: tc.x - 6, y: tc.y + 2 };
     }

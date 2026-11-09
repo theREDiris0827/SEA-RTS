@@ -144,7 +144,7 @@ const ENCY_CIVS = [
 /* entries that differ by civ: [Melaka, Majapahit, Ayutthaya, Khmer] (CI column); null falls back to the shared text */
 const ENCY_BY_CIV = {
   keris: [null, null, 'Fights with a dap in each hand. Cheap and fast; runs down archers.', 'Sword and shield. Cheap and fast; runs down archers.'],
-  archer: [null, null, null, 'Crossbowman. Strong against spearmen, weak when swords reach it. Khmer keep the Sna in every age: no guns.'],
+  archer: [null, null, null, 'Bowman of the Village Age. Strong against spearmen, weak when swords reach it. From the Kingdom Age he takes up the Sna crossbow.'],
   gunner: ['In the Age of Commerce Melaka\u2019s archers take up the matchlock. Hits armour hard, slow to reload. Throws fire pots at buildings.', null,
     'In the Age of Commerce Ayutthaya\u2019s archers take up the matchlock. Hits armour hard, slow to reload. Throws fire pots at buildings.'],
   musket: [null, 'Majapahit\u2019s first guns, in the Golden Age. Long range and heavy shot, slow to reload. Throws fire pots at buildings.'],
@@ -153,7 +153,7 @@ const ENCY_BY_CIV = {
   trade: ['Sails between your Port and a Trading Post for gold; the longer the route, the more gold. Armed, and earns the most.',
     'Sails between your Port and a Tribute Post for gold; the longer the route, the more gold. Earns less than other civs\u2019 ships.',
     'A sturdy trade junk. Sails between your Port and a Trading Post for gold; the longer the route, the more gold.',
-    'Sails between your Port and a Psar for gold; the longer the route, the more gold. Armed, and earns as much as Melaka\u2019s.'],
+    'An unarmed river trader. Sails between your Port and a Psar for gold; the longer the route, the more gold.'],
   light: [null, null, null, 'Fast raider. Arrows, then fire arrows. Hunts fire ships and trade ships.'],
   frigate: [null, null, null, 'Ballista barge and harbour breaker. Heavy bolts ignore building armour. Beats galleys, fears fire ships.'],
   flagship: ['One only. Cannon and archers; the Mendam Berahi lifts nearby ships.', 'One only. The great jong of the fleet: cannon, archers and the toughest hull.',

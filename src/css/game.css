@@ -99,6 +99,7 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 }
 .p-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .p-head { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.p-head > div { min-width: 0; }
 .p-head > img { width: 40px; height: 40px; flex: none; background: var(--panel-2); border: 2px solid var(--edge-dark); }
 .p-name { font-family: var(--font-hd); font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--gold); }
 .p-name.sm { font-size: 12px; }

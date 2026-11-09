@@ -28,6 +28,7 @@ body.cmp.nogrp #grps { display: none; }
 body.cmp #panel { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px 8px; padding: 5px; }
 body.cmp .p-info { min-width: 0; max-width: 46vw; gap: 2px; }
 body.cmp .p-head { gap: 6px; }
+body.cmp .p-head > div { min-width: 0; overflow: hidden; }
 body.cmp .p-info:has(.chips) { grid-column: 1 / -1; max-width: none; }
 body.cmp .p-head .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; }
 body.cmp .p-head .chip { padding: 1px 6px 1px 1px; flex: none; }
