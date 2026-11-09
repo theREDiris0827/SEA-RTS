@@ -515,7 +515,7 @@ function elephantSprite(anim, f) {
 const KHC = { name: 'Khmer', main: '#3a5fc8', dark: '#25408c', trim: '#cfc6b0', ring: '#8fb0ff' };
 const STONE = '#b8ab92', STONE_D = '#8c8170';
 
-function drawKhmerUnit(P, kind, anim, f) {
+function drawKhmerUnit(P, kind, anim, f, tool) {
   const C = KHC, r = P.r, vil = kind === 'villager';
   const walk = anim === 'walk', atk = anim === 'attack';
   const bob = (walk && (f === 1 || f === 3)) ? -1 : 0;
@@ -550,10 +550,17 @@ function drawKhmerUnit(P, kind, anim, f) {
   } else if (kind === 'archer') {
     B(13, 4, 1, 1, WOOD); B(14, 5, 1, 8, WOOD); B(13, 13, 1, 1, WOOD);
     if (atk && f === 0) { B(9, 9, 5, 1, WOOD); B(13, 5, 1, 8, '#d8d0b0'); B(14, 9, 1, 1, STEEL); } else B(13, 5, 1, 8, '#d8d0b0');
+  } else if (vil && anim === 'work') {
+    // villager at work: the tool swings up (frame 0) and down (frame 1), as in the other civs
+    if (tool === 'axe') { if (f === 0) { B(12, 2, 1, 7, WOOD); B(12, 1, 3, 2, STEEL); } else { B(12, 9, 3, 1, WOOD); B(14, 8, 2, 3, STEEL); } }
+    else if (tool === 'pick') { if (f === 0) { B(12, 2, 1, 7, WOOD); B(10, 1, 5, 1, STEEL_D); } else { B(12, 9, 3, 1, WOOD); B(14, 7, 1, 5, STEEL_D); } }
+    else if (tool === 'hoe') { if (f === 0) { B(12, 3, 1, 7, WOOD); B(12, 2, 3, 1, STEEL_D); } else { B(12, 8, 3, 1, WOOD); B(14, 9, 1, 3, STEEL_D); } }
+    else if (tool === 'hammer') { if (f === 0) { B(12, 3, 1, 6, WOOD); B(11, 1, 4, 2, STEEL_D); } else { B(12, 9, 3, 1, WOOD); B(14, 8, 2, 3, STEEL_D); } }
+    else { if (f === 0) B(11, 6, 1, 3, SKIN); else B(11, 9, 2, 2, SKIN); }
   }
 }
-function khmerUnitSprite(kind, anim, f) {
-  return sprite(`km|${kind}|${anim}|${f}`, 16, 18, 2, (P) => drawKhmerUnit(P, kind, anim, f));
+function khmerUnitSprite(kind, anim, f, tool) {
+  return sprite(`km|${kind}|${anim}|${f}|${tool || ''}`, 16, 18, 2, (P) => drawKhmerUnit(P, kind, anim, f, tool));
 }
 
 // Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical.
@@ -1561,9 +1568,9 @@ const KM_UNIT = { villager: 'villager', keris: 'sword', tombak: 'spear', archer:
 const _kmUnitSprite = unitSprite;
 unitSprite = function (kind, team, anim, f, tool) {
   if (CV(team) === KHM_CIV) {
-    // at work (chopping, mining, farming, building) villagers swing like the attack frames
-    const a = anim === 'work' ? (kind === 'villager' ? 'attack' : 'idle') : anim, ff = anim === 'walk' ? f : Math.min(2, f);
-    if (KM_UNIT[kind]) return KMART.khmerUnitSprite(KM_UNIT[kind], a, ff);
+    // at work (chopping, mining, farming, building) villagers swing their tool (axe, pick, hoe or hammer)
+    const a = anim === 'work' ? (kind === 'villager' ? 'work' : 'idle') : anim, ff = anim === 'walk' ? f : Math.min(2, f);
+    if (KM_UNIT[kind]) return KMART.khmerUnitSprite(KM_UNIT[kind], a, ff, a === 'work' ? tool : '');
     if (kind === 'bal') return KMART.ballistaElephantSprite(a, a === 'walk' ? f : Math.min(1, f));
     if (kind === 'kcart') return KMART.cartBallistaSprite(a, a === 'walk' ? f : Math.min(1, f));
   }
