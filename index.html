@@ -473,7 +473,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
           <button class="px m-pick cv-mel sel" data-m="civ" data-v="0"><svg width="20" height="30" viewBox="0 0 10 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h8v9l-4-2l-4 2z" fill="#e8c020"></path></svg><b>Melaka</b><small>Ports</small></button>
           <button class="px m-pick cv-maj" data-m="civ" data-v="1"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v2h-11zM1 4h11v2h-11z" fill="#f4f0e8"></path><path d="M1 2h11v2h-11zM1 6h11v2h-11z" fill="#c8281e"></path></svg><b>Majapahit</b><small>Farms</small></button>
           <button class="px m-pick cv-ayu" data-m="civ" data-v="3"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v8h-11z" fill="#c8281e"></path></svg><b>Ayutthaya</b><small>Elephants</small></button>
-          <button class="px m-pick cv-khm" data-m="civ" data-v="4"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v8h-11z" fill="#2f6fb3"></path><path d="M6 1h1v1h1v2h1v3h-5v-3h1v-2h1z" fill="#f4f0e8"></path></svg><b>Khmer</b><small>Stone</small></button>
+          <button class="px m-pick cv-km" data-m="civ" data-v="4"><svg width="24" height="30" viewBox="0 0 12 15" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v15h-1z" fill="#3a2418"></path><path d="M1 0h11v8h-11z" fill="#2f6fb3"></path><path d="M6 1h1v1h1v2h1v3h-5v-3h1v-2h1z" fill="#f4f0e8"></path></svg><b>Khmer</b><small>Stone</small></button>
         </div>
         <div class="m-lbl">Map</div>
         <div class="m-seg" id="m-mapk"><button class="px m-map" data-m="mapk" data-v="strait"><img alt=""><b>The Strait</b></button><button class="px m-map" data-m="mapk" data-v="river"><img alt=""><b>Riverlands</b></button><button class="px m-map" data-m="mapk" data-v="islands"><img alt=""><b>Big Islands</b></button></div>
@@ -7354,7 +7354,7 @@ const ENCY_CIVS = [
   ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate. Its Bandar on a coast village pays tribute in gold.'],
   ['ayu', 'Ayutthaya', 'The river kingdom: raft houses, households that pay food, women who carry more, and war elephants.'],
   ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.'],
-  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Battles.']
+  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Skirmish, or in Battles.']
 ];
 /* Guide tab: how the shared rules work, in every civ */
 const ENCY_GUIDE = [
@@ -7491,15 +7491,15 @@ function renderEncyList() {
     for (const [cls, name, txt] of ENCY_CIVS) h += '<div class="px m-ent cv-' + cls + '"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
   } else {
     const blds = encyTab === 'blds', ships = encyTab === 'ships', table = blds ? ENCY_BLDS : ENCY_UNITS;
-    for (const [t, cls] of [[0, 'mel'], [1, 'maj'], [AYU_CIV, 'ayu']]) {
+    for (const [t, cls] of [[0, 'mel'], [1, 'maj'], [AYU_CIV, 'ayu'], [KHM_CIV, 'km']]) {
       let g = '', n = 0;
       for (const k in table) {
         const d = blds ? BD[k] : UD[k];
         if (!blds && !!d.layer !== ships) continue;
         if (d.civ != null && ![].concat(d.civ).includes(t)) continue;
-        const name = civName(k, t), role = civRole(k, t), hp = d.civHp ? d.civHp[t === 1 ? 1 : t === AYU_CIV ? 2 : 0] || d.civHp[0] : d.hp;
+        const name = civName(k, t), role = civRole(k, t), hp = d.civHp ? d.civHp[t === 1 ? 1 : t === AYU_CIV ? 2 : t === KHM_CIV ? 3 : 0] || d.civHp[0] : d.hp;
         const title = blds && role && role.toLowerCase() !== name.toLowerCase() ? esc(name) + ' <small class="m-en">(' + esc(role) + ')</small>' : esc(name);
-        g += '<div class="px m-ent cv-' + cls + '"><img alt="" src="' + (blds ? bldIcon(k, t) : unitIcon(k, t)) + '"><div><b>' + title + '</b><span>' + table[k] + '</span><em>' + (blds ? '' : esc(role) + ' \u00b7 ') + (hp ? hp + ' hp' : '') + (!blds && d.atk ? ' \u00b7 ' + d.atk + ' attack' : '') + (cost(d.cost) ? ' \u00b7 ' + cost(d.cost) : '') + '</em></div></div>';
+        g += '<div class="px m-ent cv-' + cls + '"><img alt="" src="' + (blds ? bldIcon(k, t) : unitIcon(k, t)) + '"><div><b>' + title + '</b><span>' + ((t === KHM_CIV && KHMER.ency[k]) || table[k]) + '</span><em>' + (blds ? '' : esc(role) + ' \u00b7 ') + (hp ? hp + ' hp' : '') + (!blds && d.atk ? ' \u00b7 ' + d.atk + ' attack' : '') + (cost(d.cost) ? ' \u00b7 ' + cost(d.cost) : '') + '</em></div></div>';
         n++;
       }
       h += '<div class="m-hgrp m-cap"><span>' + CIV_TITLE[t] + '</span><span>' + n + '</span></div>' + g;
@@ -9379,7 +9379,17 @@ const KHMER = {
   team: { name: 'Khmer', main: '#2f6fb3', dark: '#1d4a7a', trim: '#d8cfb8', roofA: '#b8a27a', roofB: '#94805c', roofR: '#3a3a44', ring: '#8ec2ff' },
   mini: ['#6fb0ff', '#b8d8ff'],
   mod: { hp: 1, spd: 1, cost: 1, arm: 0 },
-  burn: 0.25   // stone and laterite: a quarter of the normal burn
+  burn: 0.25,  // stone and laterite: a quarter of the normal burn
+  // Encyclopedia lines for the Khmer group where the shared line names another civ
+  ency: {
+    tabib: 'Khmer physician from the Arogyasala. Heals one wounded soldier at a time.',
+    rumahtabib: 'The Arogyasala, a royal hospital as Jayavarman VII built them: trains the Vaidya.',
+    palace: 'One only. The Prasat trains the Damrei Sna, the ballista elephant.',
+    bal: 'A war elephant carrying a twin-bow ballista. Long range, hits elephants, ships and siege hard. Trained at the Prasat from Age 2.',
+    kcart: 'A great crossbow on an ox cart. Very long range and heavy bolts, slow to move. Up to 3, from the Barracks in Age 2.',
+    baray: 'A stone-banked reservoir. Farms within 6 tiles gather 25% faster. Age 2.',
+    store: 'Khleang: drop-off for wood and gold.'
+  }
 };
 (function khmerColumns() {
   const pad = (a) => { if (Array.isArray(a) && a.length === 3) a.push(a[0]); };
@@ -10551,6 +10561,8 @@ function cartBallistaSprite(anim, f) {
 return { khmerUnitSprite, ballistaElephantSprite, cartBallistaSprite, mainlandShip, mainlandBuilding, mainlandBase, kmBuilding, KHC };
 })();
 
+// Encyclopedia entries for the Khmer-only units and buildings
+Object.assign(ENCY_UNITS, { bal: KHMER.ency.bal, kcart: KHMER.ency.kcart }); ENCY_BLDS.baray = KHMER.ency.baray;
 /* Khmer buildings (unit-art/khmer-buildings/km-bld-patch.js, art thread 2026-11-09) */
 const KMBLD = (() => {
 /* Khmer buildings patch (art thread, 2026-11-09), for playable Khmer. Paste-ready, like unit-art/ayutthaya-buildings/ayu-bld-patch.js.
@@ -10898,8 +10910,9 @@ Object.assign(KHMER, { names: {
   bal: ['Damrei Sna', 'Damrei Sna'], kcart: ['Rotes Sna', 'Rotes Sna'],
   boat: ['Touk'], trade: ['Touk Ngo'], light: ['Touk Chambang'], galley: ['Touk Bayon'], frigate: ['Ballista Barge'], flagship: ['Naga Barge'],
   towncentre: ['Preah Reachea Veang'], house: ['Phteah'], farm: ['Srae'], granary: ['Chhang'], store: ['Khleang'], barracks: ['Banteay Kang'],
-  port: ['Kampong'], tower: ['Prang'], rumahtabib: ['Arogyasala'], palace: ['Prasat'], tradepost: ['Psar'], baray: ['Baray']
-}, roles: { keris: 'Shield Infantry', tombak: 'Spearman', archer: 'Crossbowman', tabib: 'Physician', bal: 'Ballista Elephant', kcart: 'Cart Ballista', baray: 'Reservoir', tradepost: 'Market' } });
+  port: ['Kampong'], tower: ['Prang'], rumahtabib: ['Arogyasala'], palace: ['Prasat'], tradepost: ['Psar'], baray: ['Baray'],
+  palisade: ['Robang Chheu'], wall: ['Kampaeng'], gate: ['Tvear Nokor'], raft: ['Kboun Phleung']
+}, roles: { keris: 'Shield Infantry', tombak: 'Spearman', archer: 'Crossbowman', tabib: 'Physician', bal: 'Ballista Elephant', kcart: 'Cart Ballista', baray: 'Reservoir', tradepost: 'Market', trade: 'Trade Ship' } });
 for (const k in KHMER.names) { const n = CIV_NAMES[k] || (CIV_NAMES[k] = [null, null, null, null]); while (n.length < 4) n.push(null); n[3] = KHMER.names[k]; }
 for (const k in KHMER.roles) { const r = CIV_ROLE[k] || (CIV_ROLE[k] = [null, null, null, null]); while (r.length < 4) r.push(null); r[3] = KHMER.roles[k]; }
 ['Phum', 'Srok', 'Nokor', 'Moha Nokor'].forEach((n, i) => { AGE_TABLE[i + 1].local[3] = n; });
@@ -10918,7 +10931,8 @@ const KM_UNIT = { villager: 'villager', keris: 'sword', tombak: 'spear', archer:
 const _kmUnitSprite = unitSprite;
 unitSprite = function (kind, team, anim, f, tool) {
   if (CV(team) === KHM_CIV) {
-    const a = anim === 'work' ? 'idle' : anim, ff = anim === 'walk' ? f : Math.min(2, f);
+    // at work (chopping, mining, farming, building) villagers swing like the attack frames
+    const a = anim === 'work' ? (kind === 'villager' ? 'attack' : 'idle') : anim, ff = anim === 'walk' ? f : Math.min(2, f);
     if (KM_UNIT[kind]) return KMART.khmerUnitSprite(KM_UNIT[kind], a, ff);
     if (kind === 'bal') return KMART.ballistaElephantSprite(a, a === 'walk' ? f : Math.min(1, f));
     if (kind === 'kcart') return KMART.cartBallistaSprite(a, a === 'walk' ? f : Math.min(1, f));

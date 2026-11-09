@@ -9,7 +9,17 @@ const KHMER = {
   team: { name: 'Khmer', main: '#2f6fb3', dark: '#1d4a7a', trim: '#d8cfb8', roofA: '#b8a27a', roofB: '#94805c', roofR: '#3a3a44', ring: '#8ec2ff' },
   mini: ['#6fb0ff', '#b8d8ff'],
   mod: { hp: 1, spd: 1, cost: 1, arm: 0 },
-  burn: 0.25   // stone and laterite: a quarter of the normal burn
+  burn: 0.25,  // stone and laterite: a quarter of the normal burn
+  // Encyclopedia lines for the Khmer group where the shared line names another civ
+  ency: {
+    tabib: 'Khmer physician from the Arogyasala. Heals one wounded soldier at a time.',
+    rumahtabib: 'The Arogyasala, a royal hospital as Jayavarman VII built them: trains the Vaidya.',
+    palace: 'One only. The Prasat trains the Damrei Sna, the ballista elephant.',
+    bal: 'A war elephant carrying a twin-bow ballista. Long range, hits elephants, ships and siege hard. Trained at the Prasat from Age 2.',
+    kcart: 'A great crossbow on an ox cart. Very long range and heavy bolts, slow to move. Up to 3, from the Barracks in Age 2.',
+    baray: 'A stone-banked reservoir. Farms within 6 tiles gather 25% faster. Age 2.',
+    store: 'Khleang: drop-off for wood and gold.'
+  }
 };
 (function khmerColumns() {
   const pad = (a) => { if (Array.isArray(a) && a.length === 3) a.push(a[0]); };
@@ -1181,6 +1191,8 @@ function cartBallistaSprite(anim, f) {
 return { khmerUnitSprite, ballistaElephantSprite, cartBallistaSprite, mainlandShip, mainlandBuilding, mainlandBase, kmBuilding, KHC };
 })();
 
+// Encyclopedia entries for the Khmer-only units and buildings
+Object.assign(ENCY_UNITS, { bal: KHMER.ency.bal, kcart: KHMER.ency.kcart }); ENCY_BLDS.baray = KHMER.ency.baray;
 /* Khmer buildings (unit-art/khmer-buildings/km-bld-patch.js, art thread 2026-11-09) */
 const KMBLD = (() => {
 /* Khmer buildings patch (art thread, 2026-11-09), for playable Khmer. Paste-ready, like unit-art/ayutthaya-buildings/ayu-bld-patch.js.
@@ -1528,8 +1540,9 @@ Object.assign(KHMER, { names: {
   bal: ['Damrei Sna', 'Damrei Sna'], kcart: ['Rotes Sna', 'Rotes Sna'],
   boat: ['Touk'], trade: ['Touk Ngo'], light: ['Touk Chambang'], galley: ['Touk Bayon'], frigate: ['Ballista Barge'], flagship: ['Naga Barge'],
   towncentre: ['Preah Reachea Veang'], house: ['Phteah'], farm: ['Srae'], granary: ['Chhang'], store: ['Khleang'], barracks: ['Banteay Kang'],
-  port: ['Kampong'], tower: ['Prang'], rumahtabib: ['Arogyasala'], palace: ['Prasat'], tradepost: ['Psar'], baray: ['Baray']
-}, roles: { keris: 'Shield Infantry', tombak: 'Spearman', archer: 'Crossbowman', tabib: 'Physician', bal: 'Ballista Elephant', kcart: 'Cart Ballista', baray: 'Reservoir', tradepost: 'Market' } });
+  port: ['Kampong'], tower: ['Prang'], rumahtabib: ['Arogyasala'], palace: ['Prasat'], tradepost: ['Psar'], baray: ['Baray'],
+  palisade: ['Robang Chheu'], wall: ['Kampaeng'], gate: ['Tvear Nokor'], raft: ['Kboun Phleung']
+}, roles: { keris: 'Shield Infantry', tombak: 'Spearman', archer: 'Crossbowman', tabib: 'Physician', bal: 'Ballista Elephant', kcart: 'Cart Ballista', baray: 'Reservoir', tradepost: 'Market', trade: 'Trade Ship' } });
 for (const k in KHMER.names) { const n = CIV_NAMES[k] || (CIV_NAMES[k] = [null, null, null, null]); while (n.length < 4) n.push(null); n[3] = KHMER.names[k]; }
 for (const k in KHMER.roles) { const r = CIV_ROLE[k] || (CIV_ROLE[k] = [null, null, null, null]); while (r.length < 4) r.push(null); r[3] = KHMER.roles[k]; }
 ['Phum', 'Srok', 'Nokor', 'Moha Nokor'].forEach((n, i) => { AGE_TABLE[i + 1].local[3] = n; });
@@ -1548,7 +1561,8 @@ const KM_UNIT = { villager: 'villager', keris: 'sword', tombak: 'spear', archer:
 const _kmUnitSprite = unitSprite;
 unitSprite = function (kind, team, anim, f, tool) {
   if (CV(team) === KHM_CIV) {
-    const a = anim === 'work' ? 'idle' : anim, ff = anim === 'walk' ? f : Math.min(2, f);
+    // at work (chopping, mining, farming, building) villagers swing like the attack frames
+    const a = anim === 'work' ? (kind === 'villager' ? 'attack' : 'idle') : anim, ff = anim === 'walk' ? f : Math.min(2, f);
     if (KM_UNIT[kind]) return KMART.khmerUnitSprite(KM_UNIT[kind], a, ff);
     if (kind === 'bal') return KMART.ballistaElephantSprite(a, a === 'walk' ? f : Math.min(1, f));
     if (kind === 'kcart') return KMART.cartBallistaSprite(a, a === 'walk' ? f : Math.min(1, f));

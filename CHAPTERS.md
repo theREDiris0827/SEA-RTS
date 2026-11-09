@@ -45,7 +45,7 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9145 to 9255 |
 | [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9256 to 9303 |
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9304 to 9370 |
-| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9371 to 10944 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9371 to 10957 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1074,7 +1074,7 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 
 ## EXTRA 8 · Khmer
 
-`src/js/extras/08-khmer.js` · lines 9371 to 10944
+`src/js/extras/08-khmer.js` · lines 9371 to 10957
 
 the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
 
@@ -1086,72 +1086,72 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 
 | Name | Line | What it does |
 |---|---|---|
-| `weave` | 9408 |  |
-| `sacks` | 9409 |  |
-| `crates` | 9410 |  |
-| `banner` | 9411 |  |
-| `melakaBuilding` | 9413 |  |
-| `neutralSite` | 9463 | Neutral map sites. Pangkalan can only be built on a landing next to a settlement. |
-| `brick` | 9491 |  |
-| `meru` | 9493 | meru: stacked black thatch tiers, each narrower than the one below |
-| `surya` | 9495 | sun of Majapahit (Surya Majapahit) emblem |
-| `mjBanner` | 9496 |  |
-| `majapahitBuilding` | 9498 |  |
-| `ijukRoof` | 9555 | black ijuk gable roof with a thick dark edge |
-| `majapahitBase` | 9557 |  |
-| `hull` | 9605 | Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line. |
-| `tanja` | 9613 | Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig. |
-| `fan` | 9621 | Junk-style battened fan sail (the green sails of the great Jong). |
-| `sq` | 9629 | Square sail with a darker belly edge (European-influenced late ships). |
-| `mast` | 9630 |  |
-| `flag` | 9631 |  |
-| `oars` | 9632 |  |
-| `crew` | 9633 |  |
-| `flames` | 9634 |  |
-| `navalSprite` | 9647 |  |
-| `drawCivUnit` | 9752 |  |
-| `civUnitSprite` | 9838 |  |
-| `elephantSprite` | 9843 | Chang Suek: Ayutthaya war elephant with a mahout and a spearman in a gilded howdah. 28x26 logical. |
-| `drawKhmerUnit` | 9879 |  |
-| `khmerUnitSprite` | 9916 |  |
-| `ballistaElephantSprite` | 9921 | Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical. |
-| `khmerCanoeSprite` | 9947 | River war canoe from the Bayon naval relief: long, low, many paddlers, a carved prow. 32x18 logical. |
-| `junk` | 9975 | Battened junk sail: a tall rectangle with battens and a rounded top-front corner. |
-| `prow` | 9980 | Tall curving prow (Thai and Khmer barges). |
-| `eye` | 9982 | Painted bow eye, the mark of Vietnamese boats. |
-| `pavilion` | 9984 | Pavilion with a tiered pointed roof. |
-| `mainlandShip` | 9989 |  |
-| `civTeam` | 10114 |  |
-| `thaiRoof` | 10120 | Thai roof: steep layered gable with chofa horns at the ridge ends |
-| `vietRoof` | 10126 | Vietnamese roof: low tiled hip roof with upturned corners |
-| `prasat` | 10133 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
-| `mainlandBuilding` | 10138 |  |
-| `pier` | 10225 |  |
-| `rack` | 10226 |  |
-| `mainlandBase` | 10228 |  |
-| `kmHash` | 10316 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10318 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10333 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10343 | sandstone coping / cornice band |
-| `kmPrasat` | 10345 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10369 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10391 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10401 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10403 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10414 |  |
-| `cartBallistaSprite` | 10532 |  |
-| `kmHash` | 10578 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10580 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10595 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10605 | sandstone coping / cornice band |
-| `kmPrasat` | 10607 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10631 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10653 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10663 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10665 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10676 |  |
-| `bxPaddy` | 10797 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
-| `bxSpears` | 10809 | a rack of spears (tassel colour per civ) |
-| `kmBuildingX` | 10811 |  |
-| `building` | 10864 |  |
-| `kmShipFor` | 10929 |  |
+| `weave` | 9417 |  |
+| `sacks` | 9418 |  |
+| `crates` | 9419 |  |
+| `banner` | 9420 |  |
+| `melakaBuilding` | 9422 |  |
+| `neutralSite` | 9472 | Neutral map sites. Pangkalan can only be built on a landing next to a settlement. |
+| `brick` | 9500 |  |
+| `meru` | 9502 | meru: stacked black thatch tiers, each narrower than the one below |
+| `surya` | 9504 | sun of Majapahit (Surya Majapahit) emblem |
+| `mjBanner` | 9505 |  |
+| `majapahitBuilding` | 9507 |  |
+| `ijukRoof` | 9564 | black ijuk gable roof with a thick dark edge |
+| `majapahitBase` | 9566 |  |
+| `hull` | 9614 | Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line. |
+| `tanja` | 9622 | Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig. |
+| `fan` | 9630 | Junk-style battened fan sail (the green sails of the great Jong). |
+| `sq` | 9638 | Square sail with a darker belly edge (European-influenced late ships). |
+| `mast` | 9639 |  |
+| `flag` | 9640 |  |
+| `oars` | 9641 |  |
+| `crew` | 9642 |  |
+| `flames` | 9643 |  |
+| `navalSprite` | 9656 |  |
+| `drawCivUnit` | 9761 |  |
+| `civUnitSprite` | 9847 |  |
+| `elephantSprite` | 9852 | Chang Suek: Ayutthaya war elephant with a mahout and a spearman in a gilded howdah. 28x26 logical. |
+| `drawKhmerUnit` | 9888 |  |
+| `khmerUnitSprite` | 9925 |  |
+| `ballistaElephantSprite` | 9930 | Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical. |
+| `khmerCanoeSprite` | 9956 | River war canoe from the Bayon naval relief: long, low, many paddlers, a carved prow. 32x18 logical. |
+| `junk` | 9984 | Battened junk sail: a tall rectangle with battens and a rounded top-front corner. |
+| `prow` | 9989 | Tall curving prow (Thai and Khmer barges). |
+| `eye` | 9991 | Painted bow eye, the mark of Vietnamese boats. |
+| `pavilion` | 9993 | Pavilion with a tiered pointed roof. |
+| `mainlandShip` | 9998 |  |
+| `civTeam` | 10123 |  |
+| `thaiRoof` | 10129 | Thai roof: steep layered gable with chofa horns at the ridge ends |
+| `vietRoof` | 10135 | Vietnamese roof: low tiled hip roof with upturned corners |
+| `prasat` | 10142 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
+| `mainlandBuilding` | 10147 |  |
+| `pier` | 10234 |  |
+| `rack` | 10235 |  |
+| `mainlandBase` | 10237 |  |
+| `kmHash` | 10325 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10327 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10342 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10352 | sandstone coping / cornice band |
+| `kmPrasat` | 10354 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10378 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10400 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10410 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10412 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10423 |  |
+| `cartBallistaSprite` | 10541 |  |
+| `kmHash` | 10589 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10591 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10606 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10616 | sandstone coping / cornice band |
+| `kmPrasat` | 10618 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10642 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10664 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10674 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10676 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10687 |  |
+| `bxPaddy` | 10808 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
+| `bxSpears` | 10820 | a rack of spears (tassel colour per civ) |
+| `kmBuildingX` | 10822 |  |
+| `building` | 10875 |  |
+| `kmShipFor` | 10942 |  |

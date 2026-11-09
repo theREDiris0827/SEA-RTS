@@ -139,7 +139,7 @@ const ENCY_CIVS = [
   ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate. Its Bandar on a coast village pays tribute in gold.'],
   ['ayu', 'Ayutthaya', 'The river kingdom: raft houses, households that pay food, women who carry more, and war elephants.'],
   ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.'],
-  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Battles.']
+  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Skirmish, or in Battles.']
 ];
 /* Guide tab: how the shared rules work, in every civ */
 const ENCY_GUIDE = [
@@ -276,15 +276,15 @@ function renderEncyList() {
     for (const [cls, name, txt] of ENCY_CIVS) h += '<div class="px m-ent cv-' + cls + '"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
   } else {
     const blds = encyTab === 'blds', ships = encyTab === 'ships', table = blds ? ENCY_BLDS : ENCY_UNITS;
-    for (const [t, cls] of [[0, 'mel'], [1, 'maj'], [AYU_CIV, 'ayu']]) {
+    for (const [t, cls] of [[0, 'mel'], [1, 'maj'], [AYU_CIV, 'ayu'], [KHM_CIV, 'km']]) {
       let g = '', n = 0;
       for (const k in table) {
         const d = blds ? BD[k] : UD[k];
         if (!blds && !!d.layer !== ships) continue;
         if (d.civ != null && ![].concat(d.civ).includes(t)) continue;
-        const name = civName(k, t), role = civRole(k, t), hp = d.civHp ? d.civHp[t === 1 ? 1 : t === AYU_CIV ? 2 : 0] || d.civHp[0] : d.hp;
+        const name = civName(k, t), role = civRole(k, t), hp = d.civHp ? d.civHp[t === 1 ? 1 : t === AYU_CIV ? 2 : t === KHM_CIV ? 3 : 0] || d.civHp[0] : d.hp;
         const title = blds && role && role.toLowerCase() !== name.toLowerCase() ? esc(name) + ' <small class="m-en">(' + esc(role) + ')</small>' : esc(name);
-        g += '<div class="px m-ent cv-' + cls + '"><img alt="" src="' + (blds ? bldIcon(k, t) : unitIcon(k, t)) + '"><div><b>' + title + '</b><span>' + table[k] + '</span><em>' + (blds ? '' : esc(role) + ' \u00b7 ') + (hp ? hp + ' hp' : '') + (!blds && d.atk ? ' \u00b7 ' + d.atk + ' attack' : '') + (cost(d.cost) ? ' \u00b7 ' + cost(d.cost) : '') + '</em></div></div>';
+        g += '<div class="px m-ent cv-' + cls + '"><img alt="" src="' + (blds ? bldIcon(k, t) : unitIcon(k, t)) + '"><div><b>' + title + '</b><span>' + ((t === KHM_CIV && KHMER.ency[k]) || table[k]) + '</span><em>' + (blds ? '' : esc(role) + ' \u00b7 ') + (hp ? hp + ' hp' : '') + (!blds && d.atk ? ' \u00b7 ' + d.atk + ' attack' : '') + (cost(d.cost) ? ' \u00b7 ' + cost(d.cost) : '') + '</em></div></div>';
         n++;
       }
       h += '<div class="m-hgrp m-cap"><span>' + CIV_TITLE[t] + '</span><span>' + n + '</span></div>' + g;
