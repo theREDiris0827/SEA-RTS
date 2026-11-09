@@ -37,6 +37,7 @@
     const D = DIFF[this.diff], ai = this.ai, r = this.res[1], mj = CV(1) === 1;
     const K = mj ? { field: 'sawah', heal: 'patirthan', healer: 'acaraki', elite: 'bhaya', skirm: 'lembing', fire: 'fireship' }
       : CV(1) === AYU_CIV ? { field: 'farm', heal: 'wat', healer: 'mo', elite: 'chang', skirm: 'namai', fire: 'frigate' }
+      : CV(1) === KHM_CIV ? { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'bal', skirm: 'archer', fire: 'frigate' }
       : { field: 'farm', heal: 'rumahtabib', healer: 'tabib', elite: 'pahlawan', skirm: 'sumpit', fire: 'frigate' };
     const tc = this.buildings.find(b => b.team === 1 && b.kind === 'towncentre' && b.done && b.hp > 0);
     if (!tc) return;

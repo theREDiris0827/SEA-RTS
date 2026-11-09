@@ -304,6 +304,7 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-lbl { color: var(--foot); margin: 4px 0 -6px; }
 .m-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .m-seg.two { grid-template-columns: 1fr 1fr; }
+#m-civpick, #m-foe { grid-template-columns: 1fr 1fr; }
 .m-seg button { text-align: center; padding: 8px 4px; font-size: 20px; line-height: 22px; }
 .m-seg button:disabled { opacity: .55; }
 .m-seg .m-map[aria-pressed="true"] { --face: var(--s-face); --hi: var(--s-hi); --lo: var(--s-lo); --text: var(--s-text); --sub: var(--s-sub); --trim: var(--p-trim); outline: 2px solid var(--p-trim); }
