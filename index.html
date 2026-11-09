@@ -709,15 +709,15 @@ const UD = {
 let CIVMAP = [0, 1];
 // which civ a team plays (0 Melaka, 1 Majapahit, 3 Ayutthaya)
 function CV(team) { return team === 0 || team === 1 ? CIVMAP[team] : team; }
-/* civ ids: 0 Melaka, 1 Majapahit, 3 Ayutthaya (2 stays the neutral team). CI(team) is the column in the
-   [Melaka, Majapahit, Ayutthaya] name and stat tables; a unit or building's `civ` is one id or a list */
-const AYU_CIV = 3;
-// which column of a [Melaka, Majapahit, Ayutthaya] table to read
-function CI(team) { const c = CV(team); return c === 1 ? 1 : c === AYU_CIV ? 2 : 0; }
+/* civ ids: 0 Melaka, 1 Majapahit, 3 Ayutthaya, 4 Khmer (2 stays the neutral team). CI(team) is the column in the
+   [Melaka, Majapahit, Ayutthaya, Khmer] name and stat tables; a unit or building's `civ` is one id or a list */
+const AYU_CIV = 3, KHM_CIV = 4;
+// which column of a [Melaka, Majapahit, Ayutthaya, Khmer] table to read
+function CI(team) { const c = CV(team); return c === 1 ? 1 : c === AYU_CIV ? 2 : c === KHM_CIV ? 3 : 0; }
 // can this civ use this unit or building?
 function civOk(d, team) { return d.civ == null || (Array.isArray(d.civ) ? d.civ.includes(CV(team)) : d.civ === CV(team)); }
-const CIV_TITLE = ['Melaka', 'Majapahit', 'Neutral', 'Ayutthaya'];
-const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutthaya'];
+const CIV_TITLE = ['Melaka', 'Majapahit', 'Neutral', 'Ayutthaya', 'Khmer'];
+const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutthaya', 'Khmer Empire'];
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
 /* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
 const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };
@@ -9365,6 +9365,31 @@ function fireArrowBtn() {
   if (G.fireRes[0] != null) { pdyn.push(() => { const e = $('p-fa'); if (e && G.fireRes[0] != null) e.textContent = Math.floor((1 - G.fireRes[0] / F.time) * 100) + '%'; }); return '<button class="cmd on" data-a="locked" title="Researching Fire Arrows"><img alt="" src="' + resIcon('firearrow') + '"><span class="nm">' + nm + '</span><span class="ct" id="p-fa">0%</span></button>'; }
   return cmdBtn('firearrow', 'firearrow', resIcon('firearrow'), nm, F.cost, 'Research Fire Arrows (' + F.time + ' s): archers do +' + F.bld + ' damage to buildings and set them alight more often.');
 }
+/* ##### CHAPTER EXTRA 8 · Khmer #####
+   File: src/js/extras/08-khmer.js
+   What it does: the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a
+     Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
+   Things you can tweak:
+     - KHMER: Khmer's own values; anything set here wins over the Melaka copy.
+   ############################################################################ */
+const KHMER = {
+  team: { name: 'Khmer', main: '#2f6fb3', dark: '#1d4a7a', trim: '#d8cfb8', roofA: '#b8a27a', roofB: '#94805c', roofR: '#3a3a44', ring: '#8ec2ff' },
+  mini: ['#6fb0ff', '#b8d8ff'],
+  mod: { hp: 1, spd: 1, cost: 1, arm: 0 },
+  burn: 0.25   // stone and laterite: a quarter of the normal burn
+};
+(function khmerColumns() {
+  const pad = (a) => { if (Array.isArray(a) && a.length === 3) a.push(a[0]); };
+  for (const k in CIV_NAMES) pad(CIV_NAMES[k]);
+  for (const k in CIV_ROLE) { const r = CIV_ROLE[k]; while (r.length < 3) r.push(null); pad(r); }
+  for (const A of AGE_TABLE) if (A) pad(A.local);
+  pad(ARCHER_LINE); pad(TRADE.civ); pad(FIRE_ARROWS.local);
+  for (const D of [UD, BD]) for (const k in D) for (const f of ['civHp', 'civAtk', 'civCap', 'civBld']) pad(D[k][f]);
+  // civ-id tables (indexed by CV, not CI)
+  TEAMC[KHM_CIV] = KHMER.team; MINIC[KHM_CIV] = KHMER.mini; TEAMMOD[KHM_CIV] = KHMER.mod; BURNMAT[KHM_CIV] = KHMER.burn;
+  // until Khmer has its own roster it builds and trains what Melaka does
+  for (const D of [UD, BD]) for (const k in D) { const c = D[k].civ; if (Array.isArray(c) ? c.includes(0) && !c.includes(KHM_CIV) : c === 0) D[k].civ = Array.isArray(c) ? c.concat(KHM_CIV) : [0, KHM_CIV]; }
+})();
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;

@@ -50,15 +50,15 @@ const UD = {
 let CIVMAP = [0, 1];
 // which civ a team plays (0 Melaka, 1 Majapahit, 3 Ayutthaya)
 function CV(team) { return team === 0 || team === 1 ? CIVMAP[team] : team; }
-/* civ ids: 0 Melaka, 1 Majapahit, 3 Ayutthaya (2 stays the neutral team). CI(team) is the column in the
-   [Melaka, Majapahit, Ayutthaya] name and stat tables; a unit or building's `civ` is one id or a list */
-const AYU_CIV = 3;
-// which column of a [Melaka, Majapahit, Ayutthaya] table to read
-function CI(team) { const c = CV(team); return c === 1 ? 1 : c === AYU_CIV ? 2 : 0; }
+/* civ ids: 0 Melaka, 1 Majapahit, 3 Ayutthaya, 4 Khmer (2 stays the neutral team). CI(team) is the column in the
+   [Melaka, Majapahit, Ayutthaya, Khmer] name and stat tables; a unit or building's `civ` is one id or a list */
+const AYU_CIV = 3, KHM_CIV = 4;
+// which column of a [Melaka, Majapahit, Ayutthaya, Khmer] table to read
+function CI(team) { const c = CV(team); return c === 1 ? 1 : c === AYU_CIV ? 2 : c === KHM_CIV ? 3 : 0; }
 // can this civ use this unit or building?
 function civOk(d, team) { return d.civ == null || (Array.isArray(d.civ) ? d.civ.includes(CV(team)) : d.civ === CV(team)); }
-const CIV_TITLE = ['Melaka', 'Majapahit', 'Neutral', 'Ayutthaya'];
-const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutthaya'];
+const CIV_TITLE = ['Melaka', 'Majapahit', 'Neutral', 'Ayutthaya', 'Khmer'];
+const CIV_REALM = ['Melaka Sultanate', 'Majapahit Empire', '', 'Kingdom of Ayutthaya', 'Khmer Empire'];
 const TEAMMOD = [{ hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 0.92, spd: 1.12, cost: 0.85, arm: 1 }, { hp: 1, spd: 1, cost: 1, arm: 0 }, { hp: 1, spd: 1, cost: 1, arm: 0 }];
 /* Majapahit naval doctrine on top of TEAMMOD: about 25% cheaper, 18% faster and 20% weaker ships */
 const NAVMOD = { hp: 0.87, spd: 1.05, cost: 0.88 };

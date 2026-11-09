@@ -45,6 +45,7 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9142 to 9252 |
 | [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9253 to 9300 |
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9301 to 9367 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9368 to 9392 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -92,7 +93,7 @@ The big tables. UD lists every unit, BD every building. Each civ's names and bon
 | Name | Line | What it does |
 |---|---|---|
 | `CV` | 711 | which civ a team plays (0 Melaka, 1 Majapahit, 3 Ayutthaya) |
-| `CI` | 716 | which column of a [Melaka, Majapahit, Ayutthaya] table to read |
+| `CI` | 716 | which column of a [Melaka, Majapahit, Ayutthaya, Khmer] table to read |
 | `civOk` | 718 | can this civ use this unit or building? |
 | `civEntry` | 756 | the civ's name entry for a unit or building |
 | `civRole` | 758 | the English role name ("Spearman") |
@@ -1070,3 +1071,14 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 | Name | Line | What it does |
 |---|---|---|
 | `fireArrowBtn` | 9361 | the Barracks button: research, progress, or done |
+
+## EXTRA 8 · Khmer
+
+`src/js/extras/08-khmer.js` · lines 9368 to 9392
+
+the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
+
+**Things you can tweak**
+
+- KHMER: Khmer's own values; anything set here wins over the Melaka copy.
+

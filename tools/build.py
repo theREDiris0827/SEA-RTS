@@ -62,6 +62,7 @@ JS_PARTS = [
     ('/* ##### CHAPTER EXTRA 5 · Compact screen #####', 'js/extras/05-compact-hud.js'),
     ('/* ##### CHAPTER EXTRA 6 · Base footprints, wading, wet ports, house drop-off #####', 'js/extras/06-footprint-wading.js'),
     ('/* ##### CHAPTER EXTRA 7 · Fire Arrows research #####', 'js/extras/07-fire-arrows.js'),
+    ('/* ##### CHAPTER EXTRA 8 · Khmer #####', 'js/extras/08-khmer.js'),
 ]
 
 
