@@ -10551,6 +10551,324 @@ function cartBallistaSprite(anim, f) {
 return { khmerUnitSprite, ballistaElephantSprite, cartBallistaSprite, mainlandShip, mainlandBuilding, mainlandBase, kmBuilding, KHC };
 })();
 
+/* Khmer buildings (unit-art/khmer-buildings/km-bld-patch.js, art thread 2026-11-09) */
+const KMBLD = (() => {
+/* Khmer buildings patch (art thread, 2026-11-09), for playable Khmer. Paste-ready, like unit-art/ayutthaya-buildings/ayu-bld-patch.js.
+   Made by make.py from lore/scenes/bld-khmer.js (kmBuilding) and lore/scenes/bld-econ-dv-km.js (kmBuildingX); edit those and re-run.
+   Needs the game's sprite(), planks(), posts(), disc(), WOOD/WOOD_D/STEEL/GOLD. Wrap it in its own scope (e.g. const KMART = (() => { ...; return { building }; })())
+   because it defines KMC, KM_*, BX_* and helper names.
+   building(kind, level) returns the Khmer sprite or null (null = let the game draw its shared art). Sizes match the shared ones.
+     towncentre 48x62, house 32x46, tower 32x64, palace 64x78, healer 48x52 (Arogyasala), baray 64x48 (unique),
+     barracks 48x58, port 48x54, granary 32x46, store 32x46, farm 32x32 (level 0..2 = growth).
+   Walls: palisade/wall/gate art is here as kmBuilding('palisade'|'wall'|'gate') for reference only; in game the shared
+   wallSprite draws walls (plain timber until Age 3), so the civ wall style for Khmer would be added there. */
+/* Khmer building art (post-Angkor Cambodia, 1400s-1500s). Same style as CIVB melakaBuilding/majapahitBuilding.
+   Needs sprite(), planks(), posts(), WOOD/WOOD_D/CREAM and GOLD from the game (art.js / drawUnit.js).
+   kmBuilding(kind): kind towncentre | house | tower | palisade | wall | gate | healer | palace | baray
+   Team colour is blue (KMC). Lore: lore/buildings.md (Khmer), lore/khmer.md. */
+const KMC = { main: '#2f6fd0', dark: '#1c4590', trim: '#f2c94c', ring: '#8ab8ff' };
+const KM_DIMS = { towncentre: [48, 62], house: [32, 46], tower: [32, 64], palisade: [32, 30], wall: [32, 34], gate: [48, 48], healer: [48, 52], palace: [64, 78], baray: [64, 48] };
+const KM_LAT = '#a0522d', KM_LAT_D = '#7a3c22', KM_LAT_L = '#b96a3e', KM_PIT = '#4e2414';
+const KM_SAND = '#b8ad8f', KM_SAND_D = '#8f866c', KM_SAND_L = '#d4cbab', KM_SAND_S = '#6f6852';
+const KM_TILE = '#b4583a', KM_TILE_D = '#8a3f27', KM_TILE_E = '#4a2416';
+const KM_WATER = '#4ba3bf', KM_WATER_D = '#2c6f90', KM_WATER_L = '#9fd6e2';
+const KM_GOLD = (typeof GOLD !== 'undefined') ? GOLD : '#e8b830';
+
+// deterministic hash for pit/texture placement
+function kmHash(x, y) { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+// laterite blocks: rusty orange-brown, staggered courses, dark pits
+function kmLaterite(P, x, y, w, h) {
+  P.r(x, y, w, h, KM_LAT);
+  for (let j = 0; j < h; j++) {
+    const row = Math.floor(j / 3), off = (row & 1) ? 3 : 0;
+    if (j % 3 === 2) P.r(x, y + j, w, 1, KM_LAT_D);
+    else for (let i = off; i < w; i += 6) P.r(x + i, y + j, 1, 1, KM_LAT_D);
+  }
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    if (j % 3 === 2) continue;
+    const v = kmHash(x + i, y + j);
+    if (v < 0.09) P.r(x + i, y + j, 1, 1, KM_PIT); else if (v > 0.95) P.r(x + i, y + j, 1, 1, KM_LAT_L);
+  }
+  P.r(x, y, w, 1, KM_LAT_L);
+}
+// sandstone: smooth grey-tan ashlar
+function kmSand(P, x, y, w, h) {
+  P.r(x, y, w, h, KM_SAND);
+  for (let j = 0; j < h; j++) {
+    const row = Math.floor(j / 3), off = (row & 1) ? 2 : 5;
+    if (j % 3 === 2) P.r(x, y + j, w, 1, KM_SAND_D);
+    else for (let i = off; i < w; i += 7) P.r(x + i, y + j, 1, 1, KM_SAND_D);
+  }
+  P.r(x, y, w, 1, KM_SAND_L);
+}
+// sandstone coping / cornice band
+function kmCoping(P, x, y, w) { P.r(x - 1, y, w + 2, 2, KM_SAND); P.r(x - 1, y, w + 2, 1, KM_SAND_L); P.r(x, y + 2, w, 1, KM_SAND_S); }
+// corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud
+function kmPrasat(P, cx, yBase, w, bodyH, spireH, door) {
+  const hw = w >> 1, yb = yBase - bodyH;
+  kmSand(P, cx - hw, yb, w, bodyH);
+  P.r(cx - hw, yb, 1, bodyH, KM_SAND_L); P.r(cx + hw - 1, yb, 1, bodyH, KM_SAND_D);
+  P.r(cx - hw - 1, yBase - 2, w + 2, 2, KM_SAND_D); P.r(cx - hw - 1, yBase - 2, w + 2, 1, KM_SAND);   // plinth
+  kmCoping(P, cx - hw, yb, w);
+  if (door) {
+    const dw = Math.max(2, (w >> 2) | 1), dh = Math.min(bodyH - 4, Math.max(4, dw * 2));
+    P.r(cx - (dw >> 1) - 1, yBase - 2 - dh - 2, dw + 2, 2, KM_SAND_D);          // lintel
+    P.r(cx - (dw >> 1), yBase - 2 - dh, dw, dh, '#2a1d14');
+  }
+  // the corncob spire: tiers of 3 rows, each tier a bit narrower, bulging slightly, notched edges
+  const top = yb - spireH, hw0 = hw - 1;
+  for (let y = yb - 1; y >= top + 3; y--) {
+    const t = (yb - 1 - y) / Math.max(1, spireH - 3);
+    const hwy = Math.max(1, Math.round(hw0 * Math.pow(Math.cos(t * Math.PI / 2), 0.55)));
+    const k = (yb - 1 - y) % 3;
+    P.r(cx - hwy, y, hwy * 2, 1, k === 0 ? KM_SAND_D : k === 1 ? KM_SAND : KM_SAND_L);
+    P.r(cx + hwy - 1, y, 1, 1, k === 2 ? KM_SAND : KM_SAND_D);                   // shaded right side
+    if (k === 1 && hwy > 2) { P.r(cx - hwy - 1, y, 1, 1, KM_SAND_L); P.r(cx + hwy, y, 1, 1, KM_SAND_D); }   // antefix notches
+  }
+  P.r(cx - 1, top + 1, 2, 2, KM_SAND_L); P.r(cx, top, 1, 1, KM_GOLD); P.r(cx - 1, top + 2, 2, 1, KM_GOLD);   // lotus bud
+}
+// carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13)
+function kmFace(P, cx, y, s) {
+  const r = P.r;
+  if (s === 1) {
+    r(cx - 3, y, 7, 2, KM_SAND_D); r(cx - 2, y - 1, 5, 1, KM_SAND_D); r(cx, y - 2, 1, 1, KM_SAND_D);   // diadem
+    r(cx - 3, y + 2, 7, 7, KM_SAND_L); r(cx + 2, y + 2, 1, 7, KM_SAND);
+    r(cx - 3, y + 3, 2, 1, KM_SAND_S); r(cx + 1, y + 3, 2, 1, KM_SAND_S);                                // brows
+    r(cx - 2, y + 4, 1, 1, '#3a3024'); r(cx + 2, y + 4, 1, 1, '#3a3024');                                 // eyes
+    r(cx, y + 4, 1, 3, KM_SAND_D);                                                                         // nose
+    r(cx - 1, y + 7, 3, 1, '#5e4a3a');                                                                     // lips
+    r(cx - 4, y + 3, 1, 4, KM_SAND_D); r(cx + 4, y + 3, 1, 4, KM_SAND_D);                                 // ears
+  } else {
+    r(cx - 5, y, 11, 3, KM_SAND_D); r(cx - 4, y - 2, 9, 2, KM_SAND_D); r(cx - 1, y - 4, 3, 2, KM_SAND_D);   // diadem
+    for (let i = -4; i <= 4; i += 2) r(cx + i, y + 1, 1, 1, KM_SAND_L);
+    r(cx - 5, y + 3, 11, 10, KM_SAND_L); r(cx + 4, y + 3, 1, 10, KM_SAND); r(cx - 4, y + 12, 9, 1, KM_SAND);
+    r(cx - 4, y + 4, 3, 1, KM_SAND_S); r(cx + 2, y + 4, 3, 1, KM_SAND_S);                                // brows
+    r(cx - 4, y + 6, 3, 1, '#3a3024'); r(cx + 2, y + 6, 3, 1, '#3a3024');                                 // lowered eyes
+    r(cx, y + 5, 1, 4, KM_SAND_D); r(cx - 1, y + 8, 3, 1, KM_SAND_D);                                     // nose
+    r(cx - 2, y + 10, 5, 1, '#5e4a3a'); r(cx - 3, y + 9, 1, 1, '#5e4a3a'); r(cx + 3, y + 9, 1, 1, '#5e4a3a');   // smile
+    r(cx - 6, y + 4, 1, 6, KM_SAND_D); r(cx + 6, y + 4, 1, 6, KM_SAND_D); r(cx - 6, y + 9, 1, 3, KM_SAND_S); r(cx + 6, y + 9, 1, 3, KM_SAND_S);   // long ears
+  }
+}
+// naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood
+function kmNaga(P, x, y, len, dir) {
+  const r = P.r;
+  r(x, y, len, 2, KM_SAND); r(x, y, len, 1, KM_SAND_L);
+  for (let i = 2; i < len; i += 4) r(x + i, y + 2, 1, 2, KM_SAND_D);
+  const hx = dir > 0 ? x + len : x - 5;
+  r(hx, y - 3, 5, 5, KM_SAND); r(hx, y - 4, 5, 1, KM_SAND_L);
+  for (let i = 0; i < 5; i += 2) r(hx + i, y - 5, 1, 1, KM_SAND_L);
+  r(hx + 1, y - 2, 1, 1, '#3a3024'); r(hx + 3, y - 2, 1, 1, '#3a3024');
+}
+// blue team banner with a gold border and a small gold lotus
+function kmBanner(P, x, y, h) { P.r(x, y, 1, h, WOOD_D); P.r(x, y - 1, 1, 1, KM_GOLD); P.r(x + 1, y + 1, 6, 5, KMC.main); P.r(x + 1, y + 1, 6, 1, KM_GOLD); P.r(x + 1, y + 5, 6, 1, KMC.dark); P.r(x + 3, y + 3, 2, 1, KM_GOLD); P.r(x + 4, y + 2, 1, 1, KM_GOLD); }
+// steep tile roof with ribbed tile channels and upswept gold gable horns
+function kmTileRoof(P, cx, y0, y1, hw0, hw1) {
+  for (let y = y0; y <= y1; y++) {
+    const t = (y - y0) / Math.max(1, y1 - y0), hw = Math.round(hw0 + (hw1 - hw0) * t);
+    P.r(cx - hw, y, hw * 2, 1, ((y - y0) % 3 === 2) ? KM_TILE_D : KM_TILE);
+    for (let i = cx - hw + 1 + ((y - y0) & 1); i < cx + hw - 1; i += 3) if ((y - y0) % 3 !== 2) P.r(i, y, 1, 1, KM_TILE_D);
+  }
+  P.r(cx - hw1 - 1, y1, hw1 * 2 + 2, 1, KM_TILE_E);
+  P.r(cx - hw1 - 2, y1 - 2, 1, 2, KM_GOLD); P.r(cx + hw1 + 1, y1 - 2, 1, 2, KM_GOLD);       // upswept eave horns
+  P.r(cx - 1, y0 - 2, 2, 2, KM_GOLD);
+}
+
+function kmBuilding(kind) {
+  const d = KM_DIMS[kind];
+  return sprite('km|' + kind, d[0], d[1], 2, (P) => {
+    const r = P.r;
+    if (kind === 'towncentre') {
+      // Royal compound: sandstone prasat rising at the back, a wooden hall with a tile roof, low laterite wall in front
+      kmPrasat(P, 30, 36, 12, 10, 24, false);
+      planks(P, 6, 34, 30, 12, '#b88a52', '#9a6f3a');
+      r(16, 37, 10, 9, '#3f2713'); r(15, 36, 12, 1, KMC.trim); r(20, 37, 1, 9, '#2a190a');
+      r(9, 38, 4, 4, '#2b1a0c'); r(29, 38, 4, 4, '#2b1a0c');
+      kmTileRoof(P, 21, 20, 34, 4, 18); r(2, 34, 38, 1, KMC.main);
+      r(20, 14, 2, 4, WOOD_D);
+      kmLaterite(P, 1, 48, 46, 12); kmCoping(P, 1, 46, 46); r(1, 59, 46, 2, KM_LAT_D);
+      r(19, 49, 10, 12, '#2a1d14'); r(18, 48, 12, 1, KM_SAND_D); r(19, 60, 10, 1, KM_SAND);          // gate opening
+      kmBanner(P, 41, 24, 23);
+    } else if (kind === 'house') {
+      // Stilt house: tall posts, plank walls with shutters, steep tile roof, ladder
+      posts(P, [4, 11, 19, 26], 36, 45, 2); r(2, 34, 28, 3, '#8f6232'); r(2, 37, 28, 1, '#5a3a1e');
+      planks(P, 4, 24, 24, 10, '#c99b5d', '#a97d45');
+      r(13, 26, 6, 8, '#3f2713'); r(6, 27, 4, 3, '#2b1a0c'); r(22, 27, 4, 3, '#2b1a0c'); r(12, 25, 8, 1, KMC.trim);
+      kmTileRoof(P, 16, 6, 24, 2, 15); r(2, 24, 28, 1, KMC.main);
+      r(14, 38, 1, 8, WOOD); r(18, 38, 1, 8, WOOD); for (let y = 39; y < 46; y += 2) r(14, y, 5, 1, WOOD);
+      r(27, 41, 4, 4, '#a8803c'); r(27, 41, 4, 1, '#c9a05a');                                              // rice jar
+    } else if (kind === 'tower') {
+      // Face tower: laterite base, sandstone shaft with a carved face, corncob tiers to a lotus bud
+      kmLaterite(P, 5, 44, 22, 18); r(4, 60, 24, 2, KM_LAT_D); kmCoping(P, 5, 42, 22);
+      r(13, 51, 6, 11, '#2a1d14'); r(12, 50, 8, 1, KM_SAND_D);
+      r(5, 48, 22, 1, KMC.main);
+      kmSand(P, 8, 24, 16, 18); r(8, 24, 1, 18, KM_SAND_L); r(23, 24, 1, 18, KM_SAND_D);
+      kmFace(P, 16, 29, 1);
+      r(9, 38, 14, 1, KM_SAND_S);
+      r(6, 26, 2, 5, KM_SAND_D); r(24, 26, 2, 5, KM_SAND_D); r(6, 25, 2, 1, KM_SAND_L); r(24, 25, 2, 1, KM_SAND_L);   // side faces in profile
+      kmCoping(P, 8, 22, 16);
+      for (let i = 0; i < 6; i++) { const w = 14 - i * 2, y = 19 - i * 3; r(16 - (w >> 1), y, w, 3, KM_SAND); r(16 - (w >> 1), y, w, 1, KM_SAND_L); r(16 + (w >> 1) - 1, y, 1, 3, KM_SAND_D); r(16 - (w >> 1) - 1, y + 2, w + 2, 1, KM_SAND_D); }
+      r(15, 2, 2, 3, KM_SAND_L); r(15, 1, 2, 1, KM_GOLD); r(15, 0, 1, 1, KM_GOLD);
+      r(26, 4, 1, 18, WOOD_D); r(27, 5, 4, 4, KMC.main); r(27, 5, 4, 1, KM_GOLD);
+    } else if (kind === 'palisade') {
+      // Wooden stockade: sharpened log stakes with a lashed rail
+      for (let i = 0; i < 8; i++) {
+        const x = i * 4, top = 6 + ((i * 5) % 3);
+        r(x, top, 4, 30 - top - 2, '#8a5a2b'); r(x, top, 1, 30 - top - 2, '#a9733c'); r(x + 3, top, 1, 30 - top - 2, '#5e3b1c');
+        r(x + 1, top - 2, 2, 2, '#8a5a2b'); r(x + 1, top - 3, 1, 1, '#a9733c');
+        for (let y = top + 3; y < 26; y += 5) r(x + 1, y, 2, 1, '#6e4521');
+      }
+      r(0, 13, 32, 2, '#5e3b1c'); r(0, 13, 32, 1, '#8a6a3a'); r(0, 21, 32, 2, '#5e3b1c'); r(0, 21, 32, 1, '#8a6a3a');
+      r(0, 28, 32, 2, '#6b5a3a');
+      r(14, 15, 4, 4, KMC.main); r(14, 15, 4, 1, KM_GOLD);
+    } else if (kind === 'wall') {
+      // Laterite wall: big pitted blocks, sandstone coping with a crest of lotus merlons
+      kmLaterite(P, 1, 10, 30, 22); r(1, 31, 30, 2, KM_LAT_D);
+      r(1, 10, 1, 22, KM_LAT_L);
+      kmCoping(P, 1, 8, 30);
+      for (let x = 2; x < 30; x += 6) { r(x, 4, 4, 4, KM_SAND); r(x, 4, 4, 1, KM_SAND_L); r(x + 3, 5, 1, 3, KM_SAND_D); r(x + 1, 3, 2, 1, KM_SAND_L); }
+      r(1, 20, 30, 1, KMC.main);
+    } else if (kind === 'gate') {
+      // Face gate (Angkor Thom): laterite wall stubs, an arched sandstone gateway, a tower with a big carved face
+      kmLaterite(P, 0, 26, 12, 20); kmCoping(P, 0, 24, 12); kmLaterite(P, 36, 26, 12, 20); kmCoping(P, 36, 24, 12);
+      r(0, 45, 12, 2, KM_LAT_D); r(36, 45, 12, 2, KM_LAT_D);
+      kmSand(P, 11, 22, 26, 25); r(11, 22, 1, 25, KM_SAND_L); r(36, 22, 1, 25, KM_SAND_D);
+      // corbelled arch
+      r(18, 34, 12, 13, '#2a1d14'); r(19, 32, 10, 2, '#2a1d14'); r(21, 30, 6, 2, '#2a1d14'); r(23, 29, 2, 1, '#2a1d14');
+      r(17, 34, 1, 13, KM_SAND_S); r(30, 34, 1, 13, KM_SAND_S); r(18, 46, 12, 1, KM_SAND_D);
+      r(12, 34, 4, 12, KM_SAND_D); r(32, 34, 4, 12, KM_SAND_D);                               // elephant-trunk piers
+      r(13, 40, 2, 6, KM_SAND_S); r(33, 40, 2, 6, KM_SAND_S);
+      // tower with a big face
+      kmSand(P, 13, 8, 22, 14); r(13, 8, 1, 14, KM_SAND_L); r(34, 8, 1, 14, KM_SAND_D);
+      kmFace(P, 24, 9, 2);
+      r(10, 12, 3, 8, KM_SAND_D); r(35, 12, 3, 8, KM_SAND_D); r(10, 11, 3, 1, KM_SAND_L); r(35, 11, 3, 1, KM_SAND_L);   // side faces
+      kmCoping(P, 13, 21, 22); r(12, 23, 24, 1, KMC.main);
+      for (let i = 0; i < 3; i++) { const w = 16 - i * 5, y = 5 - i * 2; r(24 - (w >> 1), y, w, 2, KM_SAND); r(24 - (w >> 1), y, w, 1, KM_SAND_L); r(24 + (w >> 1) - 1, y, 1, 2, KM_SAND_D); }
+      r(23, 0, 2, 1, KM_GOLD);
+      kmBanner(P, 2, 12, 12);
+    } else if (kind === 'healer') {
+      // Arogyasala: a small sandstone prasat chapel, a gopura-like porch in front, herb pots, blue banner
+      kmPrasat(P, 32, 44, 16, 16, 22, true);
+      r(4, 46, 40, 4, KM_LAT); kmLaterite(P, 4, 44, 40, 6); r(4, 50, 40, 1, KM_LAT_D);           // laterite terrace
+      kmSand(P, 8, 34, 20, 10); r(8, 34, 1, 10, KM_SAND_L);
+      r(15, 36, 6, 8, '#2a1d14'); r(14, 35, 8, 1, KM_SAND_D);
+      r(10, 37, 3, 4, '#2b1a0c'); r(23, 37, 3, 4, '#2b1a0c');
+      for (const x of [10, 11, 23, 24]) r(x, 37, 1, 4, KM_SAND_D);                               // balustered windows
+      kmTileRoof(P, 18, 26, 33, 4, 12); r(5, 34, 26, 1, KMC.main);
+      r(14, 50, 8, 1, KM_SAND); r(15, 51, 6, 1, KM_SAND_D);                                      // steps
+      for (const x of [2, 40]) { r(x, 41, 5, 4, '#a8803c'); r(x, 41, 5, 1, '#c9a05a'); r(x + 1, 38, 1, 3, '#4e9a3c'); r(x + 3, 39, 1, 2, '#8fd06a'); }   // herb pots
+      kmBanner(P, 40, 14, 27);
+    } else if (kind === 'palace') {
+      // Prasat palace: stepped laterite/sandstone platform, central corncob prasat with two smaller ones, a wooden pavilion in blue and gold
+      kmLaterite(P, 2, 64, 60, 12); r(2, 75, 60, 2, KM_LAT_D);
+      kmCoping(P, 2, 62, 60); kmLaterite(P, 7, 54, 50, 8); kmCoping(P, 7, 52, 50);
+      r(26, 54, 12, 23, KM_SAND_D); for (let y = 55; y < 77; y += 2) r(27, y, 10, 1, KM_SAND);  // central stair
+      kmNaga(P, 8, 66, 17, -1); kmNaga(P, 39, 66, 17, 1);
+      kmPrasat(P, 13, 52, 10, 10, 16, true); kmPrasat(P, 51, 52, 10, 10, 16, true);
+      kmPrasat(P, 32, 40, 16, 12, 30, true);
+      // wooden pavilion in front of the central tower: red-gold posts, blue frieze, tile roof
+      for (const x of [21, 26, 37, 42]) { r(x, 44, 2, 10, '#7a2a1e'); r(x, 44, 1, 10, '#5a1c14'); r(x, 44, 2, 1, KM_GOLD); }
+      r(28, 46, 8, 8, '#3f2713'); r(31, 47, 2, 2, KM_GOLD);
+      r(19, 43, 26, 1, KMC.main); r(19, 42, 26, 1, KM_GOLD);
+      kmTileRoof(P, 32, 34, 42, 5, 14);
+      kmBanner(P, 1, 38, 24); kmBanner(P, 56, 38, 24);
+    } else if (kind === 'baray') {
+      // Baray: 3/4 top view of a laterite-banked reservoir, stepped inner edges, an island shrine in the middle
+      kmLaterite(P, 0, 8, 64, 38); r(0, 8, 64, 1, KM_LAT_L);
+      r(0, 42, 64, 5, KM_LAT_D); kmLaterite(P, 0, 42, 64, 4); r(0, 46, 64, 1, '#5a2a16');        // front embankment face
+      for (let i = 0; i < 3; i++) { const c = i & 1 ? KM_SAND : KM_SAND_D; r(3 + i, 11 + i, 58 - i * 2, 1, KM_SAND_L); r(3 + i, 11 + i, 1, 29 - i * 2, c); r(60 - i, 11 + i, 1, 29 - i * 2, c); r(3 + i, 39 - i, 58 - i * 2, 1, c); }
+      r(6, 14, 52, 24, KM_WATER); r(6, 14, 52, 2, KM_WATER_D); r(6, 14, 2, 24, KM_WATER_D);
+      for (const [x, y, w] of [[10, 19, 5], [44, 18, 6], [14, 30, 6], [46, 31, 4], [36, 24, 3], [22, 34, 4], [50, 25, 3], [9, 25, 3]]) { r(x, y, w, 1, KM_WATER_L); r(x + 1, y + 1, w - 2, 1, '#6fbfd3'); }
+      // island with a tiny prasat
+      r(25, 26, 14, 6, KM_LAT_D); r(24, 25, 16, 5, KM_LAT); r(24, 25, 16, 1, KM_LAT_L); r(26, 30, 12, 1, KM_SAND_D);
+      r(22, 31, 20, 1, '#7fc3d6');
+      kmPrasat(P, 32, 27, 8, 6, 12, true);
+      for (const x of [2, 8]) { r(x + 1, 3, 1, 6, '#5e3b1c'); r(x - 1, 1, 5, 1, '#3f7a3a'); r(x, 0, 3, 1, '#5a9a4a'); r(x - 1, 2, 1, 1, '#3f7a3a'); r(x + 3, 2, 1, 1, '#3f7a3a'); }   // sugar palms on the bank
+      kmBanner(P, 56, 0, 10);
+    }
+  });
+}
+if (typeof window !== 'undefined') window.kmBuilding = kmBuilding;
+
+/* ---- economy and army buildings ---- */
+const KMX_DIMS = { barracks: [48, 58], port: [48, 54], granary: [32, 46], store: [32, 46], farm: [32, 32] };
+const BX_WATER = '#3f8fb0', BX_WATER_D = '#2c6f90', BX_WATER_L = '#8fd0e0', BX_MUD = '#8a6a3e', BX_MUD_L = '#a8885e', BX_MUD_D = '#5e4025';
+
+// rice paddy shared by both: water, bunds, rows of rice that grow with the level
+function bxPaddy(P, level, rice) {
+  const r = P.r;
+  r(0, 0, 32, 32, BX_MUD); r(2, 2, 28, 28, BX_WATER_D); r(2, 2, 28, 1, BX_WATER);
+  r(2, 15, 28, 2, BX_MUD); r(15, 2, 2, 28, BX_MUD); r(0, 0, 32, 1, BX_MUD_L); r(0, 31, 32, 1, BX_MUD_D);
+  const g = level === 2 ? 4 : level === 1 ? 3 : 2;
+  for (const [ox, oy] of [[3, 3], [18, 3], [3, 18], [18, 18]])
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 4; x++) {
+      const px = ox + x * 3 + (y & 1), py = oy + 2 + y * 4;
+      r(px, py - g + 1, 1, g, (x + y) & 1 ? rice[0] : rice[1]); r(px, py + 1, 1, 1, BX_WATER);
+    }
+}
+// a rack of spears (tassel colour per civ)
+function bxSpears(P, x, y, n, tassel, base) { for (let i = 0; i < n; i++) { P.r(x + i * 3, y, 1, 10, WOOD_D); P.r(x + i * 3, y - 1, 1, 1, STEEL); P.r(x + i * 3, y + 2, 1, 1, tassel); } P.r(x - 1, y + 5, n * 3 + 1, 1, base); }
+
+function kmBuildingX(kind, level) {
+  const d = KMX_DIMS[kind];
+  return sprite(`kmbx|${kind}|${level || 0}`, d[0], d[1], 2, (P) => {
+    const r = P.r;
+    if (kind === 'barracks') {
+      // a timber drill hall on a laterite terrace, steep tile roof with gold horns, tall Bayon shields and spears
+      kmLaterite(P, 2, 44, 44, 10); kmCoping(P, 2, 42, 44); r(2, 53, 44, 2, KM_LAT_D);
+      r(18, 46, 12, 9, '#2a1d14');                                                       // steps up
+      for (let y = 46; y < 55; y += 2) r(18, y, 12, 1, KM_SAND_D);
+      planks(P, 6, 28, 36, 14, '#b88a52', '#9a6f3a');
+      r(18, 30, 12, 12, '#3f2713'); r(17, 29, 14, 1, KMC.trim);
+      bxSpears(P, 20, 31, 3, KMC.main, '#5e3b1c');
+      for (const x of [9, 35]) { r(x, 30, 4, 10, KMC.main); r(x, 30, 1, 10, KMC.dark); r(x + 1, 33, 2, 1, KM_GOLD); r(x + 1, 36, 2, 1, KM_GOLD); }   // tall shields
+      kmTileRoof(P, 24, 12, 28, 4, 22); r(1, 28, 46, 1, KMC.main);
+      kmBanner(P, 42, 6, 36);
+    } else if (kind === 'port') {
+      // river landing: plank jetty on posts, an open sala with a tile roof, a war canoe with a naga prow tied up
+      r(0, 40, 48, 12, '#b08a56'); for (let x = 0; x < 48; x += 4) r(x, 40, 1, 12, '#7a5a34'); r(0, 40, 48, 1, '#cfa870'); r(0, 51, 48, 1, '#5a3a1e');
+      posts(P, [1, 14, 28, 44], 48, 54, 3);
+      for (const x of [4, 20]) { r(x, 28, 2, 12, '#6a3a1a'); r(x, 28, 1, 12, '#4a2810'); }
+      r(4, 37, 18, 3, '#8a5a34'); r(4, 37, 18, 1, '#a97a4a');
+      kmTileRoof(P, 13, 18, 28, 2, 11);
+      // canoe alongside, naga head at the prow
+      r(26, 36, 20, 3, '#6a4426'); r(27, 35, 18, 1, '#8a5a34'); r(45, 32, 2, 4, KM_GOLD); r(46, 31, 2, 2, KM_GOLD); r(47, 33, 1, 1, '#2a190a');
+      for (let x = 29; x < 44; x += 4) r(x, 34, 1, 2, WOOD_D);
+      r(24, 34, 4, 6, '#a8803c'); r(24, 34, 4, 1, '#c9a05a');                                              // rice jar
+      kmBanner(P, 8, 6, 22);
+    } else if (kind === 'granary') {
+      // rice store: a stilt barn with a steep tile roof, ladder and sacks, on a laterite footing against floods
+      kmLaterite(P, 3, 40, 26, 5);
+      posts(P, [5, 12, 19, 25], 32, 40, 2); r(3, 30, 26, 2, '#8f6232'); r(3, 32, 26, 1, '#5a3a1e');
+      planks(P, 5, 18, 22, 12, '#c99b5d', '#a97d45');
+      r(13, 21, 6, 9, '#3f2713'); r(12, 20, 8, 1, KMC.trim);
+      kmTileRoof(P, 16, 4, 18, 2, 15); r(1, 18, 30, 1, KMC.main);
+      for (let y = 33; y < 40; y += 2) r(18, y, 4, 1, WOOD); r(18, 32, 1, 8, WOOD); r(21, 32, 1, 8, WOOD);
+      r(4, 34, 5, 5, '#e6dcc4'); r(4, 34, 5, 1, '#fff6e0'); r(6, 33, 1, 1, '#b8ac90');
+    } else if (kind === 'store') {
+      // store shed: laterite walls with a sandstone door frame, tile roof, log pile and a chest
+      kmLaterite(P, 4, 24, 24, 16); kmCoping(P, 4, 22, 24);
+      r(12, 28, 8, 12, '#2a1d14'); r(11, 27, 1, 13, KM_SAND); r(20, 27, 1, 13, KM_SAND); r(11, 26, 10, 1, KM_SAND_L);
+      kmTileRoof(P, 16, 8, 21, 3, 15);
+      for (let i = 0; i < 3; i++) { r(22, 40 - i * 2, 9, 2, i % 2 ? '#a07a4a' : '#8a6438'); r(30, 40 - i * 2, 1, 2, '#cfa870'); }
+      r(1, 39, 8, 6, '#5e3b1c'); r(1, 38, 8, 2, KM_GOLD); r(3, 37, 3, 1, '#fff3a0'); r(4, 40, 2, 2, '#333');
+    } else if (kind === 'farm') {
+      // rice field with a sugar palm (thnot) at the corner, the tree of the Cambodian countryside
+      bxPaddy(P, level, ['#6bbf4f', '#8ed06a']);
+      r(26, 12, 1, 18, '#6a4a2a'); r(27, 12, 1, 18, '#5a3a1e');
+      disc(P, 27, 9, 4, '#3f7a34'); disc(P, 27, 8, 2, '#62a046'); r(22, 9, 2, 1, '#2b5a26'); r(31, 9, 2, 1, '#2b5a26'); r(26, 4, 2, 1, '#2b5a26');
+    }
+  });
+}
+
+const KM_GAME = { towncentre: 'towncentre', house: 'house', tower: 'tower', palace: 'palace', healer: 'healer', arogyasala: 'healer', baray: 'baray' };
+function building(kind, level) {
+  if (KMX_DIMS[kind]) return kmBuildingX(kind, level);
+  if (KM_GAME[kind]) return kmBuilding(KM_GAME[kind]);
+  return null;
+}
+
+return { building };
+})();
 // campaign missions and battles (they have setupObj) keep their own rosters: Khmer only joins Skirmish
 if (typeof setupObj !== 'function') {
 // ---------- Khmer roster (lore/khmer.md); Melaka's shared kinds carry Khmer names and looks ----------
@@ -10615,6 +10933,7 @@ const KM_BLD = { towncentre: 'towncentre', house: 'house', tower: 'tower', rumah
 const _kmBld = civBuildingSprite;
 civBuildingSprite = function (kind, team, level) {
   if (team === KHM_CIV && !(BD[kind] && BD[kind].wall)) {
+    const kb = KMBLD.building(kind === 'rumahtabib' ? 'healer' : kind, level); if (kb) return kb;
     if (KM_BLD[kind]) return KMART.kmBuilding(KM_BLD[kind]);
     if (kind === 'granary') return KMART.mainlandBuilding('km', 'granary');
     if (kind === 'tradepost') return KMART.mainlandBuilding('km', 'trade');

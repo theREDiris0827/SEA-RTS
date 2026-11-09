@@ -45,7 +45,7 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9145 to 9255 |
 | [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9256 to 9303 |
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9304 to 9370 |
-| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9371 to 10625 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9371 to 10944 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1074,7 +1074,7 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 
 ## EXTRA 8 · Khmer
 
-`src/js/extras/08-khmer.js` · lines 9371 to 10625
+`src/js/extras/08-khmer.js` · lines 9371 to 10944
 
 the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
 
@@ -1140,4 +1140,18 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 | `kmTileRoof` | 10403 | steep tile roof with ribbed tile channels and upswept gold gable horns |
 | `kmBuilding` | 10414 |  |
 | `cartBallistaSprite` | 10532 |  |
-| `kmShipFor` | 10611 |  |
+| `kmHash` | 10578 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10580 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10595 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10605 | sandstone coping / cornice band |
+| `kmPrasat` | 10607 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10631 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10653 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10663 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10665 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10676 |  |
+| `bxPaddy` | 10797 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
+| `bxSpears` | 10809 | a rack of spears (tassel colour per civ) |
+| `kmBuildingX` | 10811 |  |
+| `building` | 10864 |  |
+| `kmShipFor` | 10929 |  |
