@@ -15,10 +15,9 @@ const KHMER = {
     tabib: 'Khmer physician from the Arogyasala. Heals one wounded soldier at a time.',
     rumahtabib: 'The Arogyasala, a royal hospital as Jayavarman VII built them: trains the Vaidya.',
     palace: 'One only. The Prasat trains the Damrei Sna, the ballista elephant.',
-    bal: 'A war elephant carrying a twin-bow ballista. Long range, hits elephants, ships and siege hard. Trained at the Prasat from Age 2.',
-    kcart: 'A great crossbow on an ox cart. Very long range and heavy bolts, slow to move. Up to 3, from the Barracks in Age 2.',
-    baray: 'A stone-banked reservoir. Farms within 6 tiles gather 25% faster. Age 2.',
-    store: 'Khleang: drop-off for wood and gold.'
+    bal: 'A war elephant carrying a twin-bow ballista. Long range, hits elephants, ships and siege hard. Trained at the Prasat from the Kingdom Age.',
+    kcart: 'A great crossbow on an ox cart. Very long range and heavy bolts, slow to move. Up to 3, from the Barracks in the Kingdom Age.',
+    baray: 'A stone-banked reservoir. Farms within 6 tiles gather 25% faster. Kingdom Age.',
   }
 };
 (function khmerColumns() {
@@ -51,7 +50,7 @@ function crates(P, x, y) { P.r(x, y, 5, 4, '#a8773c'); P.r(x, y + 2, 5, 1, '#7d5
 function banner(P, x, y, h, T) { P.r(x, y, 1, h, WOOD_D); P.r(x + 1, y + 1, 6, 4, T.main); P.r(x + 1, y + 1, 6, 1, GOLD); P.r(x + 3, y + 3, 2, 1, GOLD); }
 
 function melakaBuilding(kind, team) {
-  const T = TEAMC[team] || TEAMC[0], d = MB_DIMS[kind];
+  const T = KTEAMC[team] || KTEAMC[0], d = MB_DIMS[kind];
   return sprite(`mb|${kind}|${team}`, d[0], d[1], 2, (P) => {
     const r = P.r;
     if (kind === 'jelapang') {
@@ -136,7 +135,7 @@ function surya(P, cx, cy) { P.r(cx - 1, cy - 1, 3, 3, GOLD); P.r(cx, cy - 3, 1, 
 function mjBanner(P, x, y, h, T) { P.r(x, y, 1, h, WOOD_D); P.r(x + 1, y + 1, 7, 5, T.main); P.r(x + 1, y + 1, 7, 1, GOLD); surya({ r: P.r }, x + 4, y + 3); }
 
 function majapahitBuilding(kind, team) {
-  const T = TEAMC[team] || TEAMC[1], d = MJ_DIMS[kind];
+  const T = KTEAMC[team] || KTEAMC[1], d = MJ_DIMS[kind];
   return sprite(`mj|${kind}|${team}`, d[0], d[1], 2, (P) => {
     const r = P.r;
     if (kind === 'lumbung') {
@@ -195,7 +194,7 @@ const MJBASE_DIMS = { towncentre: [48, 62], house: [32, 46], barracks: [48, 58],
 function ijukRoof(P, cx, y0, y1, hw0, hw1) { roofGable(P, cx, y0, y1, hw0, hw1, IJUK, IJUK_L, '#241c19'); }
 
 function majapahitBase(kind, team) {
-  const T = TEAMC[team == null ? 1 : team], d = MJBASE_DIMS[kind];
+  const T = KTEAMC[team == null ? 1 : team], d = MJBASE_DIMS[kind];
   return sprite(`mjbase|${kind}|${T.name}`, d[0], d[1], 2, (P) => {
     const r = P.r;
     if (kind === 'towncentre') {
@@ -285,7 +284,7 @@ const NAVAL_CLASS = [
 ];
 
 function navalSprite(kind, team) {
-  const T = TEAMC[team] || TEAMC[0], mel = team === 0;
+  const T = KTEAMC[team] || KTEAMC[0], mel = team === 0;
   const d = (kind === 'trade' && !mel) ? [24, 24] : NAVAL_DIMS[kind];
   return sprite('naval|' + kind + '|' + team, d[0], d[1], 2, (P) => {
     const r = P.r, S1 = mel ? SAIL : MAT, S2 = mel ? SAIL_D : MAT_D;
@@ -748,9 +747,10 @@ function mainlandShip(civ, kind) {
 
 // Team slots 3-5 for the mockups: roofA/roofB are the roof tones, roofR the eave edge.
 const CIV_TEAM = { ayu: 3, dv: 5, km: 4 };
-TEAMC[3] = { name: 'Ayutthaya', main: '#7a3f9e', dark: '#4e2468', trim: '#e8b830', roofA: '#d0702e', roofB: '#3f8a5a', roofR: '#7a3a18', ring: '#d3a8ff' };
-TEAMC[4] = { name: 'Dai Viet', main: '#e0b52c', dark: '#9a6e12', trim: '#c0392b', roofA: '#6f7f6a', roofB: '#55645a', roofR: '#3a4038', ring: '#ffe08a' };
-TEAMC[5] = { name: 'Khmer', main: '#3a5fc8', dark: '#25408c', trim: '#cfc6b0', roofA: '#b8ab92', roofB: '#9c8f78', roofR: '#6e6454', ring: '#8fb0ff' };
+// local copy so the art's own team slots never change the game's colours (Khmer = 4, Dai Viet = 5 here)
+const KTEAMC = TEAMC.slice();
+KTEAMC[4] = { name: 'Khmer', main: '#3a5fc8', dark: '#25408c', trim: '#cfc6b0', roofA: '#b8ab92', roofB: '#9c8f78', roofR: '#6e6454', ring: '#8fb0ff' };
+KTEAMC[5] = { name: 'Dai Viet', main: '#e0b52c', dark: '#9a6e12', trim: '#c0392b', roofA: '#6f7f6a', roofB: '#55645a', roofR: '#3a4038', ring: '#ffe08a' };
 function civTeam(civ) { return CIV_TEAM[civ]; }
 
 const MLB_DIMS = { granary: [32, 50], tower: [32, 64], palace: [64, 80], trade: [48, 54] };
@@ -776,7 +776,7 @@ function prasat(P, cx, yBase, h, w) {
 }
 
 function mainlandBuilding(civ, kind) {
-  const T = TEAMC[CIV_TEAM[civ]], d = MLB_DIMS[kind];
+  const T = KTEAMC[CIV_TEAM[civ]], d = MLB_DIMS[kind];
   return sprite(`mlb|${civ}|${kind}`, d[0], d[1], 2, (P) => {
     const r = P.r;
     if (civ === 'ayu') {
@@ -866,7 +866,7 @@ function pier(P) { P.r(0, 40, 48, 12, '#a47a45'); for (let x = 0; x < 48; x += 4
 function rack(P, x, y) { for (let i = 0; i < 4; i++) { P.r(x + i * 3, y, 1, 10, '#8a5a2b'); P.r(x + i * 3, y - 1, 1, 1, STEEL); } P.r(x - 1, y + 4, 12, 1, WOOD_D); }
 
 function mainlandBase(civ, kind) {
-  const T = TEAMC[CIV_TEAM[civ]], d = MLBASE_DIMS[kind];
+  const T = KTEAMC[CIV_TEAM[civ]], d = MLBASE_DIMS[kind];
   return sprite(`mlbase|${civ}|${kind}`, d[0], d[1], 2, (P) => {
     const r = P.r;
     if (civ === 'ayu') {

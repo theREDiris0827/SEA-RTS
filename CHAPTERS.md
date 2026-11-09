@@ -26,26 +26,26 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [ART 5 · Melaka and Majapahit buildings](#art-5--melaka-and-majapahit-buildings) | `src/js/art/05-melaka-majapahit-buildings.js` | 3968 to 4295 |
 | [ART 6 · Ayutthaya](#art-6--ayutthaya) | `src/js/art/06-ayutthaya.js` | 4296 to 5197 |
 | [ART 7 · Soldiers through the ages](#art-7--soldiers-through-the-ages) | `src/js/art/07-age-looks.js` | 5198 to 5542 |
-| [ART 8 · Shared buildings and walls](#art-8--shared-buildings-and-walls) | `src/js/art/08-shared-buildings.js` | 5543 to 5750 |
-| [ART 9 · Icons](#art-9--icons) | `src/js/art/09-icons.js` | 5751 to 5794 |
-| [ART 10 · Ground](#art-10--ground) | `src/js/art/10-terrain.js` | 5795 to 5886 |
-| [SCREEN 1 · Screen, camera, fog](#screen-1--screen-camera-fog) | `src/js/ui/01-screen-camera-fog.js` | 5887 to 6007 |
-| [SCREEN 2 · Drawing the battlefield](#screen-2--drawing-the-battlefield) | `src/js/ui/02-drawing.js` | 6008 to 6508 |
-| [SCREEN 3 · Selecting and giving orders](#screen-3--selecting-and-giving-orders) | `src/js/ui/03-selecting.js` | 6509 to 6710 |
-| [SCREEN 4 · Touch, mouse and keys](#screen-4--touch-mouse-and-keys) | `src/js/ui/04-touch-mouse-keys.js` | 6711 to 6841 |
-| [SCREEN 5 · Action panel](#screen-5--action-panel) | `src/js/ui/05-action-panel.js` | 6842 to 7078 |
-| [SCREEN 6 · Top bar, game flow and saves](#screen-6--top-bar-game-flow-and-saves) | `src/js/ui/06-hud-saves.js` | 7079 to 7215 |
-| [SCREEN 7 · Menus and encyclopedia](#screen-7--menus-and-encyclopedia) | `src/js/ui/07-menus-encyclopedia.js` | 7216 to 7550 |
-| [SCREEN 8 · Sound](#screen-8--sound) | `src/js/ui/08-sound.js` | 7551 to 7807 |
-| [SCREEN 9 · Main loop](#screen-9--main-loop) | `src/js/ui/09-main-loop.js` | 7808 to 7848 |
-| [EXTRA 1 · Calm map look and new maps](#extra-1--calm-map-look-and-new-maps) | `src/js/extras/01-maps.js` | 7849 to 8376 |
-| [EXTRA 2 · Animals and kerbau](#extra-2--animals-and-kerbau) | `src/js/extras/02-animals-kerbau.js` | 8377 to 8861 |
-| [EXTRA 3 · Smarter AI](#extra-3--smarter-ai) | `src/js/extras/03-ai-plus.js` | 8862 to 8909 |
-| [EXTRA 4 · Groups, facing and taps](#extra-4--groups-facing-and-taps) | `src/js/extras/04-groups-facing-taps.js` | 8910 to 9144 |
-| [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9145 to 9255 |
-| [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9256 to 9303 |
-| [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9304 to 9370 |
-| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9371 to 10957 |
+| [ART 8 · Shared buildings and walls](#art-8--shared-buildings-and-walls) | `src/js/art/08-shared-buildings.js` | 5543 to 5764 |
+| [ART 9 · Icons](#art-9--icons) | `src/js/art/09-icons.js` | 5765 to 5808 |
+| [ART 10 · Ground](#art-10--ground) | `src/js/art/10-terrain.js` | 5809 to 5900 |
+| [SCREEN 1 · Screen, camera, fog](#screen-1--screen-camera-fog) | `src/js/ui/01-screen-camera-fog.js` | 5901 to 6021 |
+| [SCREEN 2 · Drawing the battlefield](#screen-2--drawing-the-battlefield) | `src/js/ui/02-drawing.js` | 6022 to 6522 |
+| [SCREEN 3 · Selecting and giving orders](#screen-3--selecting-and-giving-orders) | `src/js/ui/03-selecting.js` | 6523 to 6724 |
+| [SCREEN 4 · Touch, mouse and keys](#screen-4--touch-mouse-and-keys) | `src/js/ui/04-touch-mouse-keys.js` | 6725 to 6855 |
+| [SCREEN 5 · Action panel](#screen-5--action-panel) | `src/js/ui/05-action-panel.js` | 6856 to 7092 |
+| [SCREEN 6 · Top bar, game flow and saves](#screen-6--top-bar-game-flow-and-saves) | `src/js/ui/06-hud-saves.js` | 7093 to 7229 |
+| [SCREEN 7 · Menus and encyclopedia](#screen-7--menus-and-encyclopedia) | `src/js/ui/07-menus-encyclopedia.js` | 7230 to 7592 |
+| [SCREEN 8 · Sound](#screen-8--sound) | `src/js/ui/08-sound.js` | 7593 to 7849 |
+| [SCREEN 9 · Main loop](#screen-9--main-loop) | `src/js/ui/09-main-loop.js` | 7850 to 7890 |
+| [EXTRA 1 · Calm map look and new maps](#extra-1--calm-map-look-and-new-maps) | `src/js/extras/01-maps.js` | 7891 to 8418 |
+| [EXTRA 2 · Animals and kerbau](#extra-2--animals-and-kerbau) | `src/js/extras/02-animals-kerbau.js` | 8419 to 8903 |
+| [EXTRA 3 · Smarter AI](#extra-3--smarter-ai) | `src/js/extras/03-ai-plus.js` | 8904 to 8951 |
+| [EXTRA 4 · Groups, facing and taps](#extra-4--groups-facing-and-taps) | `src/js/extras/04-groups-facing-taps.js` | 8952 to 9186 |
+| [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9187 to 9297 |
+| [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9298 to 9345 |
+| [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9346 to 9412 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9413 to 11000 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -600,7 +600,7 @@ How soldiers' dress changes each age (AGEART), plus guns and armour (XU).
 
 ## ART 8 · Shared buildings and walls
 
-`src/js/art/08-shared-buildings.js` · lines 5543 to 5750
+`src/js/art/08-shared-buildings.js` · lines 5543 to 5764
 
 Walls, gates, farms, ports and other buildings every civ shares, and wall styles by age.
 
@@ -609,13 +609,13 @@ Walls, gates, farms, ports and other buildings every civ shares, and wall styles
 | Name | Line | What it does |
 |---|---|---|
 | `wallSprite` | 5551 | one wall tile. mask: 1 N, 2 E, 4 S, 8 W neighbours of the same side; open: a gate with friends close by. Palisade: sharpened logs. Melaka Kubu: planked... |
-| `sawahSprite` | 5663 | Sawah: stepped rice terraces with water between the rows, earth bunds and a dangau hut (lore/scenes/bld-extra.js, fitted to 3 tiles) |
-| `buildingSprite` | 5687 | the picture for a building |
-| `civBuildingSprite` | 5689 | the picture for a building by civ |
+| `sawahSprite` | 5677 | Sawah: stepped rice terraces with water between the rows, earth bunds and a dangau hut (lore/scenes/bld-extra.js, fitted to 3 tiles) |
+| `buildingSprite` | 5701 | the picture for a building |
+| `civBuildingSprite` | 5703 | the picture for a building by civ |
 
 ## ART 9 · Icons
 
-`src/js/art/09-icons.js` · lines 5751 to 5794
+`src/js/art/09-icons.js` · lines 5765 to 5808
 
 Small pictures for buttons, and marks on the ground.
 
@@ -623,12 +623,12 @@ Small pictures for buttons, and marks on the ground.
 
 | Name | Line | What it does |
 |---|---|---|
-| `iconSprite` | 5756 | ------------------------------ icons & decals ------------------------------ |
-| `rubbleSprite` | 5785 | rubble left by a destroyed building |
+| `iconSprite` | 5770 | ------------------------------ icons & decals ------------------------------ |
+| `rubbleSprite` | 5799 | rubble left by a destroyed building |
 
 ## ART 10 · Ground
 
-`src/js/art/10-terrain.js` · lines 5795 to 5886
+`src/js/art/10-terrain.js` · lines 5809 to 5900
 
 Grass, sand, water and cliffs (PAL is the ground palette).
 
@@ -640,12 +640,12 @@ Grass, sand, water and cliffs (PAL is the ground palette).
 
 | Name | Line | What it does |
 |---|---|---|
-| `buildTerrain` | 5808 | paint the whole ground map once at the start |
-| `buildMiniBase` | 5879 | paint the minimap ground |
+| `buildTerrain` | 5822 | paint the whole ground map once at the start |
+| `buildMiniBase` | 5893 | paint the minimap ground |
 
 ## SCREEN 1 · Screen, camera, fog
 
-`src/js/ui/01-screen-camera-fog.js` · lines 5887 to 6007
+`src/js/ui/01-screen-camera-fog.js` · lines 5901 to 6021
 
 Everything the player sees and touches starts here: the canvas, the camera, the fog of war and the build list.
 
@@ -660,28 +660,28 @@ Everything the player sees and touches starts here: the canvas, the camera, the 
 
 | Name | Line | What it does |
 |---|---|---|
-| `clamp` | 5921 | ---------------- helpers ---------------- |
-| `s2w` | 5923 | screen point to map point |
-| `w2s` | 5925 | map point to screen point |
-| `fmtTime` | 5927 | seconds as m:ss |
-| `dataURL` | 5930 | picture as an image link (cached) |
-| `fitIcon` | 5935 | shrink a sprite into an icon |
-| `unitIcon` | 5944 | button icon for a unit |
-| `bldIcon` | 5946 | button icon for a building |
-| `resIcon` | 5952 | icon for food, wood or gold |
-| `nodeIcon` | 5954 | icon for a resource on the map |
-| `toast` | 5959 | pop-up message on screen |
-| `resize` | 5967 | ---------------- view and camera ---------------- |
-| `clampCam` | 5975 | the camera may run a little past each edge, so the corners can be brought out from under the HUD |
-| `setZoom` | 5981 | zoom the camera, kept between 0.38 (far) and 2.6 (close) |
-| `centerOn` | 5988 | move the camera to a tile |
-| `inView` | 5990 | is this on screen? |
-| `initFog` | 5993 | ---------------- fog ---------------- |
-| `refreshFog` | 5998 | repaint the fog layer |
+| `clamp` | 5935 | ---------------- helpers ---------------- |
+| `s2w` | 5937 | screen point to map point |
+| `w2s` | 5939 | map point to screen point |
+| `fmtTime` | 5941 | seconds as m:ss |
+| `dataURL` | 5944 | picture as an image link (cached) |
+| `fitIcon` | 5949 | shrink a sprite into an icon |
+| `unitIcon` | 5958 | button icon for a unit |
+| `bldIcon` | 5960 | button icon for a building |
+| `resIcon` | 5966 | icon for food, wood or gold |
+| `nodeIcon` | 5968 | icon for a resource on the map |
+| `toast` | 5973 | pop-up message on screen |
+| `resize` | 5981 | ---------------- view and camera ---------------- |
+| `clampCam` | 5989 | the camera may run a little past each edge, so the corners can be brought out from under the HUD |
+| `setZoom` | 5995 | zoom the camera, kept between 0.38 (far) and 2.6 (close) |
+| `centerOn` | 6002 | move the camera to a tile |
+| `inView` | 6004 | is this on screen? |
+| `initFog` | 6007 | ---------------- fog ---------------- |
+| `refreshFog` | 6012 | repaint the fog layer |
 
 ## SCREEN 2 · Drawing the battlefield
 
-`src/js/ui/02-drawing.js` · lines 6008 to 6508
+`src/js/ui/02-drawing.js` · lines 6022 to 6522
 
 Draws ground, buildings, units, health bars, fire, arrows and the minimap every frame, sorted so nearer things cover farther ones.
 
@@ -689,38 +689,38 @@ Draws ground, buildings, units, health bars, fire, arrows and the minimap every 
 
 | Name | Line | What it does |
 |---|---|---|
-| `ell` | 6014 | ---------------- drawing ---------------- |
-| `shadow` | 6016 | soft shadow under a unit |
-| `hpBar` | 6018 | health bar |
-| `isSel` | 6023 | is this selected? |
-| `toolFor` | 6026 | which tool a villager holds for its job |
-| `paintUnit` | 6033 | draw one unit |
-| `torchFor` | 6081 | foot soldiers burn buildings with an obor (torch) rather than hacking at them with their weapons (lore/siege.md) |
-| `paintTorch` | 6087 | draw the obor torch pose |
-| `paintNode` | 6104 | draw a resource |
-| `buildWallGrid` | 6128 | map of where wall pieces are |
-| `wallMask` | 6134 | which neighbours a wall piece joins |
-| `raftSide` | 6141 | which way a raft house leans to the water |
-| `paintRaftHouse` | 6148 | draw a raft house |
-| `paintFisher` | 6175 | draw the woman fishing from a raft house |
-| `paintBuilding` | 6188 | draw one building with fire, flags and bars |
-| `paintFx` | 6218 | draw effects (corpses, sparks) |
-| `paintTop` | 6236 | draw top-layer effects (gun flashes) |
-| `drawArrow` | 6280 | draw arrows and bullets in flight |
-| `jobTarget` | 6309 | where a unit is headed for its job (gather / build / hunt target), if anywhere |
-| `targetRing` | 6315 | ring around a target |
-| `paintJobs` | 6321 | dashed trail from selected workers to their job |
-| `paintMarkers` | 6336 | tap markers on the ground |
-| `paintPlacement` | 6355 | the building ghost while placing |
-| `paintLinePlacement` | 6375 | a wall line: every tile green (new), grey (already walled) or red (blocked), with the count and cost by its end |
-| `placeButtons` | 6399 | touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests |
-| `paintPlaceButtons` | 6406 | the Place/Cancel buttons on the ghost |
-| `render` | 6418 | draw the whole frame |
-| `drawMini` | 6484 | draw the minimap |
+| `ell` | 6028 | ---------------- drawing ---------------- |
+| `shadow` | 6030 | soft shadow under a unit |
+| `hpBar` | 6032 | health bar |
+| `isSel` | 6037 | is this selected? |
+| `toolFor` | 6040 | which tool a villager holds for its job |
+| `paintUnit` | 6047 | draw one unit |
+| `torchFor` | 6095 | foot soldiers burn buildings with an obor (torch) rather than hacking at them with their weapons (lore/siege.md) |
+| `paintTorch` | 6101 | draw the obor torch pose |
+| `paintNode` | 6118 | draw a resource |
+| `buildWallGrid` | 6142 | map of where wall pieces are |
+| `wallMask` | 6148 | which neighbours a wall piece joins |
+| `raftSide` | 6155 | which way a raft house leans to the water |
+| `paintRaftHouse` | 6162 | draw a raft house |
+| `paintFisher` | 6189 | draw the woman fishing from a raft house |
+| `paintBuilding` | 6202 | draw one building with fire, flags and bars |
+| `paintFx` | 6232 | draw effects (corpses, sparks) |
+| `paintTop` | 6250 | draw top-layer effects (gun flashes) |
+| `drawArrow` | 6294 | draw arrows and bullets in flight |
+| `jobTarget` | 6323 | where a unit is headed for its job (gather / build / hunt target), if anywhere |
+| `targetRing` | 6329 | ring around a target |
+| `paintJobs` | 6335 | dashed trail from selected workers to their job |
+| `paintMarkers` | 6350 | tap markers on the ground |
+| `paintPlacement` | 6369 | the building ghost while placing |
+| `paintLinePlacement` | 6389 | a wall line: every tile green (new), grey (already walled) or red (blocked), with the count and cost by its end |
+| `placeButtons` | 6413 | touch placement: a ✓ (build) and ✗ (cancel) button under the ghost; their screen spots are kept for hit tests |
+| `paintPlaceButtons` | 6420 | the Place/Cancel buttons on the ghost |
+| `render` | 6432 | draw the whole frame |
+| `drawMini` | 6498 | draw the minimap |
 
 ## SCREEN 3 · Selecting and giving orders
 
-`src/js/ui/03-selecting.js` · lines 6509 to 6710
+`src/js/ui/03-selecting.js` · lines 6523 to 6724
 
 Turns taps into selections and orders (tap a unit, box select, double tap for all of a kind).
 
@@ -728,31 +728,31 @@ Turns taps into selections and orders (tap a unit, box select, double tap for al
 
 | Name | Line | What it does |
 |---|---|---|
-| `selUnits` | 6514 | ---------------- selection and orders ---------------- |
-| `select` | 6516 | change the selection |
-| `addMarker` | 6518 | show where you tapped |
-| `issue` | 6520 | give the selected units an order at a spot |
-| `canRally` | 6536 | can this building have a rally point? |
-| `setRallyFor` | 6538 | set a rally point from a tap |
-| `contextCommand` | 6544 | the right order for what you tapped (gather, attack, repair...) |
-| `selectSameKind` | 6550 | select all units of this kind on screen |
-| `placeAt` | 6555 | move the building ghost |
-| `nearestSite` | 6561 | nearest free village landing (trading post) |
-| `tryPlace` | 6570 | place the building if the spot is OK |
-| `startPlace` | 6587 | start placing a building |
-| `nearWallPiece` | 6613 | nearest wall piece (for gates) |
-| `findSpot` | 6619 | a good free spot for a building |
-| `clearRallyTap` | 6630 | cancel a pending rally tap |
-| `handleTap` | 6632 | what one tap does |
-| `boxSelect` | 6680 | select everything inside a dragged box |
-| `idleVillagers` | 6691 | list idle villagers |
-| `cycleIdle` | 6694 | jump to the next idle villager |
-| `selectArmy` | 6699 | select all soldiers |
-| `selectNavy` | 6705 | every warship (fishing boats and trade ships keep working) |
+| `selUnits` | 6528 | ---------------- selection and orders ---------------- |
+| `select` | 6530 | change the selection |
+| `addMarker` | 6532 | show where you tapped |
+| `issue` | 6534 | give the selected units an order at a spot |
+| `canRally` | 6550 | can this building have a rally point? |
+| `setRallyFor` | 6552 | set a rally point from a tap |
+| `contextCommand` | 6558 | the right order for what you tapped (gather, attack, repair...) |
+| `selectSameKind` | 6564 | select all units of this kind on screen |
+| `placeAt` | 6569 | move the building ghost |
+| `nearestSite` | 6575 | nearest free village landing (trading post) |
+| `tryPlace` | 6584 | place the building if the spot is OK |
+| `startPlace` | 6601 | start placing a building |
+| `nearWallPiece` | 6627 | nearest wall piece (for gates) |
+| `findSpot` | 6633 | a good free spot for a building |
+| `clearRallyTap` | 6644 | cancel a pending rally tap |
+| `handleTap` | 6646 | what one tap does |
+| `boxSelect` | 6694 | select everything inside a dragged box |
+| `idleVillagers` | 6705 | list idle villagers |
+| `cycleIdle` | 6708 | jump to the next idle villager |
+| `selectArmy` | 6713 | select all soldiers |
+| `selectNavy` | 6719 | every warship (fishing boats and trade ships keep working) |
 
 ## SCREEN 4 · Touch, mouse and keys
 
-`src/js/ui/04-touch-mouse-keys.js` · lines 6711 to 6841
+`src/js/ui/04-touch-mouse-keys.js` · lines 6725 to 6855
 
 Finger drag to scroll, pinch to zoom, hold-drag to box select, mouse wheel, keyboard keys.
 
@@ -764,13 +764,13 @@ Finger drag to scroll, pinch to zoom, hold-drag to box select, mouse wheel, keyb
 
 | Name | Line | What it does |
 |---|---|---|
-| `pos` | 6718 | ---------------- pointer input ---------------- |
-| `endPointer` | 6783 | finger or mouse lifted: tap, drag or box |
-| `miniGo` | 6807 | tap the minimap to move the camera |
+| `pos` | 6732 | ---------------- pointer input ---------------- |
+| `endPointer` | 6797 | finger or mouse lifted: tap, drag or box |
+| `miniGo` | 6821 | tap the minimap to move the camera |
 
 ## SCREEN 5 · Action panel
 
-`src/js/ui/05-action-panel.js` · lines 6842 to 7078
+`src/js/ui/05-action-panel.js` · lines 6856 to 7092
 
 The panel at the bottom: build tabs, train buttons, stance, bell, repair, demolish.
 
@@ -782,25 +782,25 @@ The panel at the bottom: build tabs, train buttons, stance, bell, repair, demoli
 
 | Name | Line | What it does |
 |---|---|---|
-| `costHTML` | 6851 | cost shown with icons |
-| `costTitle` | 6856 | cost as text |
-| `cmdBtn` | 6858 | make one panel button |
-| `lockBtn` | 6862 | a button for something a later age brings: greyed out, tapping it says which age |
-| `ageBtn` | 6867 | the Town Centre's age-up button: the next age and its cost, or the work under way (tap to call it off) |
-| `describeOrder` | 6874 | what a unit is doing, as text |
-| `bldNote` | 6897 | help line for a selected building |
-| `pName` | 6911 | name line in the panel |
-| `buildPanel` | 6913 | build the bottom panel for the selection |
-| `structKey` | 7005 | panel layout key (rebuild only when it changes) |
-| `updatePanel` | 7012 | refresh numbers on the panel |
-| `stanceOfSel` | 7028 | stance of the selected soldiers |
-| `cycleStance` | 7030 | Stance button |
-| `cycleFormation` | 7038 | Formation button |
-| `stopSel` | 7040 | Stop button |
+| `costHTML` | 6865 | cost shown with icons |
+| `costTitle` | 6870 | cost as text |
+| `cmdBtn` | 6872 | make one panel button |
+| `lockBtn` | 6876 | a button for something a later age brings: greyed out, tapping it says which age |
+| `ageBtn` | 6881 | the Town Centre's age-up button: the next age and its cost, or the work under way (tap to call it off) |
+| `describeOrder` | 6888 | what a unit is doing, as text |
+| `bldNote` | 6911 | help line for a selected building |
+| `pName` | 6925 | name line in the panel |
+| `buildPanel` | 6927 | build the bottom panel for the selection |
+| `structKey` | 7019 | panel layout key (rebuild only when it changes) |
+| `updatePanel` | 7026 | refresh numbers on the panel |
+| `stanceOfSel` | 7042 | stance of the selected soldiers |
+| `cycleStance` | 7044 | Stance button |
+| `cycleFormation` | 7052 | Formation button |
+| `stopSel` | 7054 | Stop button |
 
 ## SCREEN 6 · Top bar, game flow and saves
 
-`src/js/ui/06-hud-saves.js` · lines 7079 to 7215
+`src/js/ui/06-hud-saves.js` · lines 7093 to 7229
 
 Resource bar, messages, pause, win/lose screens, autosave and the 3 save slots.
 
@@ -812,33 +812,33 @@ Resource bar, messages, pause, win/lose screens, autosave and the 3 save slots.
 
 | Name | Line | What it does |
 |---|---|---|
-| `hintText` | 7088 | the hint line at the top |
-| `updateHud` | 7097 | refresh the top bar |
-| `showOv` | 7114 | ---------------- game flow ---------------- |
-| `startGame` | 7119 | start a skirmish |
-| `enterGame` | 7128 | shared by a new game and a resumed one: rebuild the view state around G |
-| `syncSpeedButtons` | 7136 | show which game speed is on |
-| `lsGet` | 7141 | storage can be missing (private windows, previews): the game still runs, it just can't resume |
-| `lsSet` | 7143 | save to the phone's storage |
-| `lsDel` | 7145 | delete from the phone's storage |
-| `saveSettings` | 7149 | save settings |
-| `slotMetas` | 7156 | what is in the 3 save slots |
-| `slotPick` | 7158 | which slot a new game uses |
-| `slotWrite` | 7160 | write a save slot |
-| `slotRead` | 7162 | read a save slot |
-| `slotDel` | 7164 | delete a save slot |
-| `slotNewest` | 7166 | most recent save |
-| `slotLine` | 7168 | save slot label text |
-| `saveGame` | 7172 | save the current game |
-| `openSlot` | 7179 | a mission save opens its own page, which loads it |
-| `continueGame` | 7186 | load a saved game |
-| `quitToMenu` | 7195 | save and go to the menu |
-| `discardGame` | 7197 | leave without keeping anything from this game: every slot it wrote goes back to what it held before |
-| `confirmBox` | 7205 | a yes/no box over whatever is on screen |
+| `hintText` | 7102 | the hint line at the top |
+| `updateHud` | 7111 | refresh the top bar |
+| `showOv` | 7128 | ---------------- game flow ---------------- |
+| `startGame` | 7133 | start a skirmish |
+| `enterGame` | 7142 | shared by a new game and a resumed one: rebuild the view state around G |
+| `syncSpeedButtons` | 7150 | show which game speed is on |
+| `lsGet` | 7155 | storage can be missing (private windows, previews): the game still runs, it just can't resume |
+| `lsSet` | 7157 | save to the phone's storage |
+| `lsDel` | 7159 | delete from the phone's storage |
+| `saveSettings` | 7163 | save settings |
+| `slotMetas` | 7170 | what is in the 3 save slots |
+| `slotPick` | 7172 | which slot a new game uses |
+| `slotWrite` | 7174 | write a save slot |
+| `slotRead` | 7176 | read a save slot |
+| `slotDel` | 7178 | delete a save slot |
+| `slotNewest` | 7180 | most recent save |
+| `slotLine` | 7182 | save slot label text |
+| `saveGame` | 7186 | save the current game |
+| `openSlot` | 7193 | a mission save opens its own page, which loads it |
+| `continueGame` | 7200 | load a saved game |
+| `quitToMenu` | 7209 | save and go to the menu |
+| `discardGame` | 7211 | leave without keeping anything from this game: every slot it wrote goes back to what it held before |
+| `confirmBox` | 7219 | a yes/no box over whatever is on screen |
 
 ## SCREEN 7 · Menus and encyclopedia
 
-`src/js/ui/07-menus-encyclopedia.js` · lines 7216 to 7550
+`src/js/ui/07-menus-encyclopedia.js` · lines 7230 to 7592
 
 Home screen, Skirmish setup, Campaign and Battles lists, mission briefings, Encyclopedia text, Settings.
 
@@ -852,28 +852,28 @@ Home screen, Skirmish setup, Campaign and Battles lists, mission briefings, Ency
 
 | Name | Line | What it does |
 |---|---|---|
-| `showMenu` | 7231 | show a menu screen |
-| `delAsk` | 7246 | two-tap Delete on the home screen |
-| `refreshHome` | 7252 | update the home screen |
-| `renderSlots` | 7261 | Load game screen |
-| `setVerNote` | 7269 | version, updates and exit (the installed app has no browser bar to reload or close it) |
-| `checkForUpdate` | 7271 | Settings > Check for updates |
-| `showUpdateReady` | 7285 | bar saying a new version is ready |
-| `exitApp` | 7293 | Exit button |
-| `toastMenu` | 7299 | pop-up message on the menu |
-| `syncMenuSegs` | 7304 | highlight the chosen Skirmish options |
-| `portraitImg` | 7428 | hero portrait picture |
-| `renderCampaign` | 7430 | Campaign screen |
-| `showBrief` | 7443 | mission briefing screen |
-| `renderHeroes` | 7457 | Encyclopedia heroes tab |
-| `paintMenuArt` | 7469 | menu background art |
-| `renderEncy` | 7476 | Encyclopedia screen |
-| `renderEncyList` | 7481 | Encyclopedia list for the chosen tab |
-| `togglePause` | 7546 | pause or resume |
+| `showMenu` | 7245 | show a menu screen |
+| `delAsk` | 7260 | two-tap Delete on the home screen |
+| `refreshHome` | 7266 | update the home screen |
+| `renderSlots` | 7275 | Load game screen |
+| `setVerNote` | 7283 | version, updates and exit (the installed app has no browser bar to reload or close it) |
+| `checkForUpdate` | 7285 | Settings > Check for updates |
+| `showUpdateReady` | 7299 | bar saying a new version is ready |
+| `exitApp` | 7307 | Exit button |
+| `toastMenu` | 7313 | pop-up message on the menu |
+| `syncMenuSegs` | 7318 | highlight the chosen Skirmish options |
+| `portraitImg` | 7470 | hero portrait picture |
+| `renderCampaign` | 7472 | Campaign screen |
+| `showBrief` | 7485 | mission briefing screen |
+| `renderHeroes` | 7499 | Encyclopedia heroes tab |
+| `paintMenuArt` | 7511 | menu background art |
+| `renderEncy` | 7518 | Encyclopedia screen |
+| `renderEncyList` | 7523 | Encyclopedia list for the chosen tab |
+| `togglePause` | 7588 | pause or resume |
 
 ## SCREEN 8 · Sound
 
-`src/js/ui/08-sound.js` · lines 7551 to 7807
+`src/js/ui/08-sound.js` · lines 7593 to 7849
 
 All sounds and music are made by code (SFX).
 
@@ -885,21 +885,21 @@ All sounds and music are made by code (SFX).
 
 | Name | Line | What it does |
 |---|---|---|
-| `unlock` | 7564 | start the sound system after the first tap (phones need a tap first) |
-| `note` | 7578 | play one music note |
-| `noiseAt` | 7589 | drum and splash noise |
-| `play` | 7635 | play a named sound effect |
-| `schedule` | 7659 | keep the music playing ahead of time |
-| `menuTheme` | 7688 | the menus: the asli melody slowed right down on a soft triangle, a gambus pluck under it, the sea washing in every two bars and a gong every four |
-| `setMood` | 7703 | switch music between calm and battle |
-| `apply` | 7705 | fade to the new music mood |
-| `sfxForMsg` | 7710 | which sound goes with which game message |
-| `sfxTick` | 7765 | play sounds for what happened this frame |
-| `endGame` | 7777 | game over: show the result |
+| `unlock` | 7606 | start the sound system after the first tap (phones need a tap first) |
+| `note` | 7620 | play one music note |
+| `noiseAt` | 7631 | drum and splash noise |
+| `play` | 7677 | play a named sound effect |
+| `schedule` | 7701 | keep the music playing ahead of time |
+| `menuTheme` | 7730 | the menus: the asli melody slowed right down on a soft triangle, a gambus pluck under it, the sea washing in every two bars and a gong every four |
+| `setMood` | 7745 | switch music between calm and battle |
+| `apply` | 7747 | fade to the new music mood |
+| `sfxForMsg` | 7752 | which sound goes with which game message |
+| `sfxTick` | 7807 | play sounds for what happened this frame |
+| `endGame` | 7819 | game over: show the result |
 
 ## SCREEN 9 · Main loop
 
-`src/js/ui/09-main-loop.js` · lines 7808 to 7848
+`src/js/ui/09-main-loop.js` · lines 7850 to 7890
 
 Starts the game and keeps it ticking: 30 rule steps a second, drawing every frame.
 
@@ -907,11 +907,11 @@ Starts the game and keeps it ticking: 30 rule steps a second, drawing every fram
 
 | Name | Line | What it does |
 |---|---|---|
-| `frame` | 7813 | ---------------- main loop ---------------- |
+| `frame` | 7855 | ---------------- main loop ---------------- |
 
 ## EXTRA 1 · Calm map look and new maps
 
-`src/js/extras/01-maps.js` · lines 7849 to 8376
+`src/js/extras/01-maps.js` · lines 7891 to 8418
 
 Add-on: the quieter ground painting and the newer skirmish maps (Highlands, Deep Jungle, Mangrove Delta...).
 
@@ -923,23 +923,23 @@ Add-on: the quieter ground painting and the newer skirmish maps (Highlands, Deep
 
 | Name | Line | What it does |
 |---|---|---|
-| `paint` | 7884 | paint the calm ground look |
-| `tree` | 7931 | paint a regional tree (palm, broadleaf...) |
-| `plant` | 7951 | biome plants, same palette and outline as the game's trees |
-| `wildSprite` | 8035 | ---------- sprites (game pixel style: 2x bake, auto outline) ---------- |
-| `foodSprite` | 8053 | durian and wild banana pictures |
-| `treeFor` | 8065 | which tree type grows at a spot |
-| `fields` | 8075 | ---------- the three maps: terrain fields worked out from the seed only ---------- |
-| `lookOf` | 8092 | which ground look a map uses |
-| `clearStarts` | 8108 | clear space around the start bases |
-| `linkStarts` | 8113 | make sure both bases can reach each other |
-| `genHighlands` | 8122 | make the Highlands map |
-| `genJungle` | 8149 | make the Deep Jungle map |
-| `genDelta` | 8165 | make the Mangrove Delta map |
+| `paint` | 7926 | paint the calm ground look |
+| `tree` | 7973 | paint a regional tree (palm, broadleaf...) |
+| `plant` | 7993 | biome plants, same palette and outline as the game's trees |
+| `wildSprite` | 8077 | ---------- sprites (game pixel style: 2x bake, auto outline) ---------- |
+| `foodSprite` | 8095 | durian and wild banana pictures |
+| `treeFor` | 8107 | which tree type grows at a spot |
+| `fields` | 8117 | ---------- the three maps: terrain fields worked out from the seed only ---------- |
+| `lookOf` | 8134 | which ground look a map uses |
+| `clearStarts` | 8150 | clear space around the start bases |
+| `linkStarts` | 8155 | make sure both bases can reach each other |
+| `genHighlands` | 8164 | make the Highlands map |
+| `genJungle` | 8191 | make the Deep Jungle map |
+| `genDelta` | 8207 | make the Mangrove Delta map |
 
 ## EXTRA 2 · Animals and kerbau
 
-`src/js/extras/02-animals-kerbau.js` · lines 8377 to 8861
+`src/js/extras/02-animals-kerbau.js` · lines 8419 to 8903
 
 Add-on: fruit groves, hunt animals (kancil, boar, seladang) and kerbau herding, fattening and ploughing.
 
@@ -953,21 +953,21 @@ Add-on: fruit groves, hunt animals (kancil, boar, seladang) and kerbau herding, 
 
 | Name | Line | What it does |
 |---|---|---|
-| `bananaSprite` | 8405 | ---------- art ---------- |
-| `berryArt` | 8422 | banana grove or mango tree picture |
-| `kerbauSprite` | 8425 | kerbau picture: standing, grazing (head down) or ploughing (yoke and plough) |
-| `haySprite` | 8469 | hay pile at the granary |
-| `syahbandarSprite` | 8475 | Syahbandar Port (Melaka, Kingdom Age on): the lore hall, same size and footing as the port |
-| `homeFor` | 8517 | where an owned kerbau should stand (granary, Town Centre or farm) |
-| `sendHome` | 8530 | walk a kerbau to its spot |
-| `kbSide` | 8594 | the quietest side of a building for kerbau spots |
-| `slotIndex` | 8611 | which standing spot a kerbau gets (by arrival time) |
-| `slotPoint` | 8621 | map position of a standing spot |
-| `kbTick` | 8635 | kerbau each tick: claim, fatten, plough, follow |
+| `bananaSprite` | 8447 | ---------- art ---------- |
+| `berryArt` | 8464 | banana grove or mango tree picture |
+| `kerbauSprite` | 8467 | kerbau picture: standing, grazing (head down) or ploughing (yoke and plough) |
+| `haySprite` | 8511 | hay pile at the granary |
+| `syahbandarSprite` | 8517 | Syahbandar Port (Melaka, Kingdom Age on): the lore hall, same size and footing as the port |
+| `homeFor` | 8559 | where an owned kerbau should stand (granary, Town Centre or farm) |
+| `sendHome` | 8572 | walk a kerbau to its spot |
+| `kbSide` | 8636 | the quietest side of a building for kerbau spots |
+| `slotIndex` | 8653 | which standing spot a kerbau gets (by arrival time) |
+| `slotPoint` | 8663 | map position of a standing spot |
+| `kbTick` | 8677 | kerbau each tick: claim, fatten, plough, follow |
 
 ## EXTRA 3 · Smarter AI
 
-`src/js/extras/03-ai-plus.js` · lines 8862 to 8909
+`src/js/extras/03-ai-plus.js` · lines 8904 to 8951
 
 Add-on: the computer runs trade ships, claims wild kerbau, and Melaka's AI ploughs with them.
 
@@ -980,11 +980,11 @@ Add-on: the computer runs trade ships, claims wild kerbau, and Melaka's AI ploug
 
 | Name | Line | What it does |
 |---|---|---|
-| `aiPlus` | 8879 | the AI's extra jobs: trade ships, claim kerbau, plough |
+| `aiPlus` | 8921 | the AI's extra jobs: trade ships, claim kerbau, plough |
 
 ## EXTRA 4 · Groups, facing and taps
 
-`src/js/extras/04-groups-facing-taps.js` · lines 8910 to 9144
+`src/js/extras/04-groups-facing-taps.js` · lines 8952 to 9186
 
 group tabs 1-4 and Make group, the Face button, soldiers facing their move direction, one-tap orders with two-finger deselect (or double-tap orders).
 
@@ -996,31 +996,31 @@ group tabs 1-4 and Make group, the Face button, soldiers facing their move direc
 
 | Name | Line | What it does |
 |---|---|---|
-| `aimable` | 8932 |  |
-| `startAim` | 8937 |  |
-| `setTapMode` | 8951 |  |
-| `twoFingerTap` | 8952 |  |
-| `faceSoldiers` | 8978 | the Face button: press where the soldiers should stand, drag to face, let go |
-| `toggleFace` | 8979 |  |
-| `faceAim` | 8984 |  |
-| `faceIcon` | 8993 | pixel icon: a turning arrow around the spot where the soldiers stand |
-| `aimMove` | 9016 |  |
-| `aimDir` | 9017 |  |
-| `aimEnd` | 9018 |  |
-| `paintAim` | 9030 |  |
-| `groupUnits` | 9062 |  |
-| `soldiersSel` | 9063 |  |
-| `grpPanelButtons` | 9064 |  |
-| `saveGroup` | 9070 |  |
-| `makeGroup` | 9077 |  |
-| `pickGroup` | 9082 |  |
-| `updateGroupBar` | 9103 |  |
-| `closeGrpMenu` | 9117 |  |
-| `openGrpMenu` | 9118 |  |
+| `aimable` | 8974 |  |
+| `startAim` | 8979 |  |
+| `setTapMode` | 8993 |  |
+| `twoFingerTap` | 8994 |  |
+| `faceSoldiers` | 9020 | the Face button: press where the soldiers should stand, drag to face, let go |
+| `toggleFace` | 9021 |  |
+| `faceAim` | 9026 |  |
+| `faceIcon` | 9035 | pixel icon: a turning arrow around the spot where the soldiers stand |
+| `aimMove` | 9058 |  |
+| `aimDir` | 9059 |  |
+| `aimEnd` | 9060 |  |
+| `paintAim` | 9072 |  |
+| `groupUnits` | 9104 |  |
+| `soldiersSel` | 9105 |  |
+| `grpPanelButtons` | 9106 |  |
+| `saveGroup` | 9112 |  |
+| `makeGroup` | 9119 |  |
+| `pickGroup` | 9124 |  |
+| `updateGroupBar` | 9145 |  |
+| `closeGrpMenu` | 9159 |  |
+| `openGrpMenu` | 9160 |  |
 
 ## EXTRA 5 · Compact screen
 
-`src/js/extras/05-compact-hud.js` · lines 9145 to 9255
+`src/js/extras/05-compact-hud.js` · lines 9187 to 9297
 
 a bigger play area: no hint strip (small clock, tips pop up then fade), slim one-row panel, icon-only command buttons, smaller foldable minimap.
 
@@ -1032,13 +1032,13 @@ a bigger play area: no hint strip (small clock, tips pop up then fade), slim one
 
 | Name | Line | What it does |
 |---|---|---|
-| `nameOf` | 9203 |  |
-| `boot` | 9217 |  |
-| `compactRest` | 9237 | the parts every page gets: the minimap fold button and group tabs that appear once a group exists |
+| `nameOf` | 9245 |  |
+| `boot` | 9259 |  |
+| `compactRest` | 9279 | the parts every page gets: the minimap fold button and group tabs that appear once a group exists |
 
 ## EXTRA 6 · Base footprints, wading, wet ports, house drop-off
 
-`src/js/extras/06-footprint-wading.js` · lines 9256 to 9303
+`src/js/extras/06-footprint-wading.js` · lines 9298 to 9345
 
 buildings stand on their base only (the roof hangs over the tiles behind), land units wade through shallow water in Skirmish, a Port's deck may sit on shallow water, Ayutthaya paddy farmers drop rice at their paired house, and the panel button tidy-ups (centred icons, red Demolish, one-row queue).
 
@@ -1052,11 +1052,11 @@ buildings stand on their base only (the roof hangs over the tiles behind), land 
 
 | Name | Line | What it does |
 |---|---|---|
-| `wadeOn` | 9271 | wading is for Skirmish; campaign missions and battles (they have setupObj) keep their own water rules |
+| `wadeOn` | 9313 | wading is for Skirmish; campaign missions and battles (they have setupObj) keep their own water rules |
 
 ## EXTRA 7 · Fire Arrows research
 
-`src/js/extras/07-fire-arrows.js` · lines 9304 to 9370
+`src/js/extras/07-fire-arrows.js` · lines 9346 to 9412
 
 Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once. Archers then do extra damage to buildings and set them alight more often. Torches on melee hits stay automatic.
 
@@ -1070,11 +1070,11 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 
 | Name | Line | What it does |
 |---|---|---|
-| `fireArrowBtn` | 9364 | the Barracks button: research, progress, or done |
+| `fireArrowBtn` | 9406 | the Barracks button: research, progress, or done |
 
 ## EXTRA 8 · Khmer
 
-`src/js/extras/08-khmer.js` · lines 9371 to 10957
+`src/js/extras/08-khmer.js` · lines 9413 to 11000
 
 the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
 
@@ -1086,72 +1086,72 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 
 | Name | Line | What it does |
 |---|---|---|
-| `weave` | 9417 |  |
-| `sacks` | 9418 |  |
-| `crates` | 9419 |  |
-| `banner` | 9420 |  |
-| `melakaBuilding` | 9422 |  |
-| `neutralSite` | 9472 | Neutral map sites. Pangkalan can only be built on a landing next to a settlement. |
-| `brick` | 9500 |  |
-| `meru` | 9502 | meru: stacked black thatch tiers, each narrower than the one below |
-| `surya` | 9504 | sun of Majapahit (Surya Majapahit) emblem |
-| `mjBanner` | 9505 |  |
-| `majapahitBuilding` | 9507 |  |
-| `ijukRoof` | 9564 | black ijuk gable roof with a thick dark edge |
-| `majapahitBase` | 9566 |  |
-| `hull` | 9614 | Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line. |
-| `tanja` | 9622 | Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig. |
-| `fan` | 9630 | Junk-style battened fan sail (the green sails of the great Jong). |
-| `sq` | 9638 | Square sail with a darker belly edge (European-influenced late ships). |
-| `mast` | 9639 |  |
-| `flag` | 9640 |  |
-| `oars` | 9641 |  |
-| `crew` | 9642 |  |
-| `flames` | 9643 |  |
-| `navalSprite` | 9656 |  |
-| `drawCivUnit` | 9761 |  |
-| `civUnitSprite` | 9847 |  |
-| `elephantSprite` | 9852 | Chang Suek: Ayutthaya war elephant with a mahout and a spearman in a gilded howdah. 28x26 logical. |
-| `drawKhmerUnit` | 9888 |  |
-| `khmerUnitSprite` | 9925 |  |
-| `ballistaElephantSprite` | 9930 | Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical. |
-| `khmerCanoeSprite` | 9956 | River war canoe from the Bayon naval relief: long, low, many paddlers, a carved prow. 32x18 logical. |
-| `junk` | 9984 | Battened junk sail: a tall rectangle with battens and a rounded top-front corner. |
-| `prow` | 9989 | Tall curving prow (Thai and Khmer barges). |
-| `eye` | 9991 | Painted bow eye, the mark of Vietnamese boats. |
-| `pavilion` | 9993 | Pavilion with a tiered pointed roof. |
-| `mainlandShip` | 9998 |  |
-| `civTeam` | 10123 |  |
-| `thaiRoof` | 10129 | Thai roof: steep layered gable with chofa horns at the ridge ends |
-| `vietRoof` | 10135 | Vietnamese roof: low tiled hip roof with upturned corners |
-| `prasat` | 10142 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
-| `mainlandBuilding` | 10147 |  |
-| `pier` | 10234 |  |
-| `rack` | 10235 |  |
-| `mainlandBase` | 10237 |  |
-| `kmHash` | 10325 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10327 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10342 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10352 | sandstone coping / cornice band |
-| `kmPrasat` | 10354 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10378 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10400 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10410 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10412 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10423 |  |
-| `cartBallistaSprite` | 10541 |  |
-| `kmHash` | 10589 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10591 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10606 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10616 | sandstone coping / cornice band |
-| `kmPrasat` | 10618 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10642 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10664 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10674 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10676 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10687 |  |
-| `bxPaddy` | 10808 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
-| `bxSpears` | 10820 | a rack of spears (tassel colour per civ) |
-| `kmBuildingX` | 10822 |  |
-| `building` | 10875 |  |
-| `kmShipFor` | 10942 |  |
+| `weave` | 9459 |  |
+| `sacks` | 9460 |  |
+| `crates` | 9461 |  |
+| `banner` | 9462 |  |
+| `melakaBuilding` | 9464 |  |
+| `neutralSite` | 9514 | Neutral map sites. Pangkalan can only be built on a landing next to a settlement. |
+| `brick` | 9542 |  |
+| `meru` | 9544 | meru: stacked black thatch tiers, each narrower than the one below |
+| `surya` | 9546 | sun of Majapahit (Surya Majapahit) emblem |
+| `mjBanner` | 9547 |  |
+| `majapahitBuilding` | 9549 |  |
+| `ijukRoof` | 9606 | black ijuk gable roof with a thick dark edge |
+| `majapahitBase` | 9608 |  |
+| `hull` | 9656 | Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line. |
+| `tanja` | 9664 | Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig. |
+| `fan` | 9672 | Junk-style battened fan sail (the green sails of the great Jong). |
+| `sq` | 9680 | Square sail with a darker belly edge (European-influenced late ships). |
+| `mast` | 9681 |  |
+| `flag` | 9682 |  |
+| `oars` | 9683 |  |
+| `crew` | 9684 |  |
+| `flames` | 9685 |  |
+| `navalSprite` | 9698 |  |
+| `drawCivUnit` | 9803 |  |
+| `civUnitSprite` | 9889 |  |
+| `elephantSprite` | 9894 | Chang Suek: Ayutthaya war elephant with a mahout and a spearman in a gilded howdah. 28x26 logical. |
+| `drawKhmerUnit` | 9930 |  |
+| `khmerUnitSprite` | 9967 |  |
+| `ballistaElephantSprite` | 9972 | Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical. |
+| `khmerCanoeSprite` | 9998 | River war canoe from the Bayon naval relief: long, low, many paddlers, a carved prow. 32x18 logical. |
+| `junk` | 10026 | Battened junk sail: a tall rectangle with battens and a rounded top-front corner. |
+| `prow` | 10031 | Tall curving prow (Thai and Khmer barges). |
+| `eye` | 10033 | Painted bow eye, the mark of Vietnamese boats. |
+| `pavilion` | 10035 | Pavilion with a tiered pointed roof. |
+| `mainlandShip` | 10040 |  |
+| `civTeam` | 10166 |  |
+| `thaiRoof` | 10172 | Thai roof: steep layered gable with chofa horns at the ridge ends |
+| `vietRoof` | 10178 | Vietnamese roof: low tiled hip roof with upturned corners |
+| `prasat` | 10185 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
+| `mainlandBuilding` | 10190 |  |
+| `pier` | 10277 |  |
+| `rack` | 10278 |  |
+| `mainlandBase` | 10280 |  |
+| `kmHash` | 10368 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10370 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10385 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10395 | sandstone coping / cornice band |
+| `kmPrasat` | 10397 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10421 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10443 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10453 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10455 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10466 |  |
+| `cartBallistaSprite` | 10584 |  |
+| `kmHash` | 10632 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10634 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10649 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10659 | sandstone coping / cornice band |
+| `kmPrasat` | 10661 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10685 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10707 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10717 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10719 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10730 |  |
+| `bxPaddy` | 10851 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
+| `bxSpears` | 10863 | a rack of spears (tassel colour per civ) |
+| `kmBuildingX` | 10865 |  |
+| `building` | 10918 |  |
+| `kmShipFor` | 10985 |  |

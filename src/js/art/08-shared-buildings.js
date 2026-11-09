@@ -9,15 +9,16 @@
 function wallSprite(kind, team, mask, open, fine, locked) {
   // team here is the civ id: 0 Melaka, 1 Majapahit, AYU_CIV Ayutthaya. Walls and gates are plain timber until the
   // Age of Commerce (fine), then each civ builds its own; palisades keep the civ's own material from the start.
-  const T = TEAMC[team] || TEAMC[0], maj = team === 1 && (fine || kind === 'palisade'), ayu = team === AYU_CIV && fine, mel = fine && !maj && !ayu;
+  const T = TEAMC[team] || TEAMC[0], maj = team === 1 && (fine || kind === 'palisade'), ayu = team === AYU_CIV && fine, km = team === 4 && fine && typeof setupObj !== 'function', mel = fine && !maj && !ayu && !km;
   return sprite(`w|${kind}|${team}|${mask}|${open ? 1 : 0}|${fine ? 1 : 0}|${locked ? 1 : 0}`, 16, 34, 2, (P) => {
     const r = P.r, yc = 25, N = mask & 1, E = mask & 2, S = mask & 4, Wn = mask & 8;
-    const mat = kind === 'palisade' ? (maj ? 'bamboo' : 'log') : maj ? 'brick' : ayu ? 'white' : mel ? 'timber' : 'plain';
+    const mat = kind === 'palisade' ? (maj ? 'bamboo' : 'log') : maj ? 'brick' : ayu ? 'white' : km ? 'laterite' : mel ? 'timber' : 'plain';
     const hF = 11, top = yc - hF + 1;
     const C = mat === 'log' ? { face: '#9a6a3a', faceD: '#7a5030', cap: '#b4824a', capD: '#8a5a2b' }
       : mat === 'bamboo' ? { face: '#9c9a4a', faceD: '#6e7430', cap: '#b8b25c', capD: '#7a8034' }
       : mat === 'brick' ? { face: '#b5503a', faceD: '#7d2f22', cap: '#cf7050', capD: '#9a3e2a' }
       : mat === 'white' ? { face: '#e6dfcc', faceD: '#b2a88e', cap: '#f7f3e8', capD: '#c4bba2' }
+      : mat === 'laterite' ? { face: '#a0522d', faceD: '#7a3c22', cap: '#b8ad8f', capD: '#8f866c' }
       : { face: '#8a5a2b', faceD: '#5e3b1c', cap: '#b08050', capD: '#7a5030' };
     // a stretch of face (with its top) from x0 to x1
     const face = (x0, x1) => {
@@ -47,6 +48,7 @@ function wallSprite(kind, team, mask, open, fine, locked) {
           r(x, top, 1, 3, C.cap); r(x, top + 3, 1, hF + 1, C.face);
           if (mat === 'brick') { for (let y = top + 4; y < top + hF + 4; y += 2) r(x, y, 1, 1, ((x + (y >> 1)) % 4 === 0) ? C.faceD : '#a6452f'); }
           else if (mat === 'white') { for (let y = top + 5; y < top + hF + 3; y += 3) if ((x + y) % 5 === 0) r(x, y, 1, 1, C.faceD); r(x, top + hF + 2, 1, 2, '#a89a80'); }
+          else if (mat === 'laterite') { for (let y = top + 3; y < top + hF + 4; y++) { const row = (y - top - 3) >> 1; if ((y - top) % 2 === 0) r(x, y, 1, 1, C.faceD); else if ((x + (row & 1) * 2) % 4 === 0) r(x, y, 1, 1, C.faceD); else if ((x * 7 + y * 3) % 11 === 0) r(x, y, 1, 1, '#4e2414'); } }
           else {
             for (let y = top + 5; y < top + hF; y += 3) r(x, y, 1, 1, C.faceD);
             r(x, top + hF, 1, 4, (x * 7) % 5 === 0 ? '#6e5230' : '#8a6a3a');   // packed earth at the foot
@@ -54,6 +56,7 @@ function wallSprite(kind, team, mask, open, fine, locked) {
           // crenels: brick merlons, white bai sema points, sharpened timber tips
           if (mat === 'brick' && x % 4 < 2) { r(x, top - 3, 1, 2, C.cap); r(x, top - 4, 1, 1, '#2a1a10'); }
           else if (mat === 'white' && x % 4 === 1) { r(x, top - 3, 2, 2, C.cap); r(x + 1, top - 3, 1, 2, '#c9b6e0'); r(x, top - 4, 2, 1, '#2a1a10'); }
+          else if (mat === 'laterite' && x % 4 === 1) { r(x, top - 2, 2, 2, C.cap); r(x, top - 3, 2, 1, '#2a1a10'); r(x + 1, top - 2, 1, 2, C.capD); }
           else if (mat === 'timber' && x % 2 === 0) { r(x, top - 2, 1, 1, C.cap); r(x, top - 3, 1, 1, '#2a1a10'); }
           else if (x % 3 === 0) r(x, top - 1, 1, 1, C.capD);
         }
@@ -62,6 +65,7 @@ function wallSprite(kind, team, mask, open, fine, locked) {
       if (mat === 'log') r(x0, top + 5, x1 - x0, 1, '#5e3b1c');
       if (mat === 'bamboo') { r(x0, top + 2, x1 - x0, 1, '#6e4626'); r(x0, top + hF, x1 - x0, 1, '#6e4626'); }
       if (mat === 'brick') r(x0, top + 3, x1 - x0, 1, '#e0b070');
+      if (mat === 'laterite') { r(x0, top + 2, x1 - x0, 1, '#d4cbab'); r(x0, top + hF + 3, x1 - x0, 1, '#6f6852'); }
       if (mat === 'white') { r(x0, top + 2, x1 - x0, 1, '#d8cce8'); r(x0, top + 3, x1 - x0, 1, T.main); r(x0, top + hF + 1, x1 - x0, 1, '#8a6ab0'); }
     };
     // a north-south stretch seen from above: just the top surface
@@ -91,6 +95,16 @@ function wallSprite(kind, team, mask, open, fine, locked) {
       }
       if (!open) { r(6, gt + 7, 4, 11, '#5e3b1c'); r(6, gt + 7, 4, 1, T.main); r(7, gt + 10, 1, 1, '#f2c94c'); r(8, gt + 13, 1, 1, '#f2c94c'); r(7, gt + 8, 2, 9, '#6e4626'); }
       else { r(6, gt + 7, 1, 11, '#6e4626'); r(9, gt + 7, 1, 11, '#6e4626'); }
+    } else if (km) {
+      // Khmer gopura: laterite towers either side, a sandstone arched gateway and a corncob tower above
+      r(1, gt + 4, 14, 14, '#a0522d'); for (let y = gt + 6; y < gt + 18; y += 2) r(1, y, 14, 1, '#7a3c22');
+      for (let y = gt + 5; y < gt + 18; y += 4) for (let x = 2 + ((y >> 2) & 1) * 2; x < 15; x += 4) r(x, y, 1, 1, '#7a3c22');
+      r(1, gt + 3, 14, 1, '#d4cbab'); r(1, gt + 4, 14, 1, T.main);
+      r(4, gt - 1, 8, 4, '#b8ad8f'); r(4, gt - 1, 8, 1, '#d4cbab'); r(5, gt - 4, 6, 3, '#b8ad8f'); r(6, gt - 7, 4, 3, '#d4cbab'); r(7, gt - 9, 2, 2, '#b8ad8f'); r(7, gt - 10, 2, 1, '#e8b830');
+      for (const y of [gt - 3, gt]) r(5, y, 6, 1, '#8f866c');
+      r(4, gt + 7, 8, 11, '#b8ad8f'); r(5, gt + 6, 6, 1, '#b8ad8f'); r(4, gt + 7, 1, 11, '#d4cbab'); r(11, gt + 7, 1, 11, '#8f866c');
+      r(6, gt + 8, 4, 10, open ? '#1a120c' : '#6e4626'); r(7, gt + 7, 2, 1, open ? '#1a120c' : '#6e4626');
+      if (!open) { r(7, gt + 8, 1, 10, '#4a2e16'); r(6, gt + 12, 1, 1, '#f2c94c'); r(9, gt + 12, 1, 1, '#f2c94c'); }
     } else if (ayu) {
       // pratu: whitewashed gate tower, an arched doorway and a stepped red roof with a gilt spire
       r(1, gt + 4, 14, 14, '#e6dfcc'); r(1, gt + 4, 1, 14, '#c4bba2'); r(14, gt + 4, 1, 14, '#b2a88e'); r(1, gt + 16, 14, 2, '#a89a80');

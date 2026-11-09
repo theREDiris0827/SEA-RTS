@@ -57,9 +57,9 @@ const MINIC = [['#7dffa8', '#c8ffd9'], ['#ff5a4a', '#ff8a7a'], ['#d8d0b8', '#e8e
 // button icon for a unit
 function unitIcon(kind, team) { return dataURL('ui|' + kind + CV(team) + '|a' + unitAge(team), () => fitIcon(UD[kind].layer ? shipSprite({ kind, team }) : kind === 'deer' ? deerSprite(0) : unitSprite(kind, team, 'idle', 1, ''), 44)); }
 // button icon for a building
-function bldIcon(kind, team) {
+function bldIcon(kind, team, fine) {
   // wall and gate buttons show the civ's own style once the owner reaches the Age of Commerce
-  if (BD[kind] && BD[kind].wall && kind !== 'palisade' && typeof G !== 'undefined' && G && G.teamAge && G.teamAge(team) >= 3) return dataURL('bi|' + kind + CV(team) + 'f', () => fitIcon(buildingSprite(kind, team, 100 + 10 + 32), 44));
+  if (BD[kind] && BD[kind].wall && kind !== 'palisade' && (fine || (typeof G !== 'undefined' && G && G.teamAge && G.teamAge(team) >= 3))) return dataURL('bi|' + kind + CV(team) + 'f', () => fitIcon(buildingSprite(kind, team, 100 + 10 + 32), 44));
   return dataURL('bi|' + kind + CV(team), () => fitIcon(buildingSprite(kind, team, 2), 44));
 }
 // icon for food, wood or gold
