@@ -243,7 +243,7 @@
   }
   // map position of a standing spot
   function slotPoint(g, u, b) {
-    if (b.kind === 'baray') { const i = slotIndex(g, u, b); return { x: b.tx + BARAY.wallow[i % 3][0], y: b.ty + BARAY.wallow[i % 3][1], face: i % 2 ? 1 : -1 }; }
+    if (b.kind === 'baray') { const i = slotIndex(g, u, b); return { x: b.tx + KBARAY.wallow[i % 3][0], y: b.ty + KBARAY.wallow[i % 3][1], face: i % 2 ? 1 : -1 }; }
     const i = slotIndex(g, u, b), side = kbSide(g, b), [sx, sy] = SIDES[side];
     const bw = b.size || 2, bh = b.h || bw, cx = b.tx + bw / 2, cy = b.ty + bh / 2;
     const row = Math.floor(i / 3), col = (i % 3) - 1;
@@ -317,7 +317,7 @@
         u.wallow = b.kind === 'baray' ? (b.ty + (b.h || b.size)) * TILE + 1 : 0;
         if (u.job === 'granary') { u.pose = u.fat < KB.fatMax ? 1 : (((g.t + u.id * 3.7) % 9) < 3 ? 1 : 0); }
         else u.pose = ((g.t + u.id * 3.7) % 9) < 4 ? 1 : 0;
-        if (u.job === 'granary' && u.fat < KB.fatMax) u.fat = Math.min(KB.fatMax, u.fat + (KB.fatMax - KB.fat0) / KB.fatTime * dt * (b.kind === 'baray' ? BARAY.fatten : 1));
+        if (u.job === 'granary' && u.fat < KB.fatMax) u.fat = Math.min(KB.fatMax, u.fat + (KB.fatMax - KB.fat0) / KB.fatTime * dt * (b.kind === 'baray' ? KBARAY.fatten : 1));
         // the computer player eats its kerbau once they are fat
         if (u.own === 1 && u.job !== 'plough' && u.fat >= KB.fatMax) { g.butcherKerbau(u); }
       }

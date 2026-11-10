@@ -23,7 +23,7 @@ const KHMER = {
 /* the Baray (Iylia, 2026-11-10): a 6 x 4 reservoir. 8 farm plots ring it (3 above, 3 below, 1 at each end) and only
    farms on them gather 25% faster; villagers drop food at its landing, fish from its banks, and kerbau wallow in it.
    Engine hooks for it (fishing, kerbau, drop-off) are marked with b.kind === 'baray'. */
-const BARAY = {
+const KBARAY = {
   fishers: 4, fishRate: 0.5,        // 0.5 x a raft-house deck = about 15 food a minute each
   fatten: 1.5,                      // kerbau fatten 50% faster than at a granary
   wallow: [[1.3, 1.5], [2.0, 2.2], [4.9, 1.7]],   // where the 3 kerbau stand in the water (tiles from the top-left corner)
@@ -2068,7 +2068,7 @@ ENCY_BLDS.baray = KHMER.ency.baray = 'A great stone-banked reservoir, 6 by 4 til
   bldNote = function (b) {
     if (b && b.kind === 'baray' && b.team === 0) {
       const n = barayPlots(b).filter(([x, y]) => { const f = plotFarm(b, x, y); return f && f.team === 0; }).length;
-      return 'Farms ' + n + '/' + BARAY.plots + ' on its plots gather 25% faster. Villagers drop food here; tap it with villagers to fish, or with kerbau to let them wallow.';
+      return 'Farms ' + n + '/' + KBARAY.plots + ' on its plots gather 25% faster. Villagers drop food here; tap it with villagers to fish, or with kerbau to let them wallow.';
     }
     return _bh.apply(this, arguments);
   }; }
@@ -2121,7 +2121,7 @@ ENCY_BLDS.baray = KHMER.ency.baray = 'A great stone-banked reservoir, 6 by 4 til
     }
     if (b.team === 0 && (b.done || b.progress > 0)) {
       const n = barayPlots(b).filter(([x, y]) => { const f = plotFarm(b, x, y); return f && f.team === 0; }).length;
-      const t = 'Farms ' + n + '/' + BARAY.plots;
+      const t = 'Farms ' + n + '/' + KBARAY.plots;
       ctx.save(); ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       const tw = ctx.measureText(t).width, tx = b.tx * TILE + w / 2 - tw / 2, ty = (b.ty - 2) * TILE - 6;
       ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(tx - 5, ty - 13, tw + 10, 17); ctx.fillStyle = '#f2c94c'; ctx.fillText(t, tx, ty);
