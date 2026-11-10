@@ -512,7 +512,8 @@
     if (done) return; done = true;
     ALL.forEach(([k], i) => setTimeout(() => {
       try {
-        const g = new Game({ seed: 7, diff: 'normal', map: k, civs: [0, 1] }), base = buildMiniBase(g);
+        // a thumbnail game must not change the civs of the game being played (Game sets CIVMAP)
+        const keep = CIVMAP.slice(), g = new Game({ seed: 7, diff: 'normal', map: k, civs: [0, 1] }); CIVMAP = keep; const base = buildMiniBase(g);
         const c = cv(W * 2, H * 2), x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(base, 0, 0, W * 2, H * 2);
         x.fillStyle = 'rgba(30,70,35,.75)'; for (const n of g.nodes) if (n.kind === 'tree') x.fillRect(n.tx * 2, n.ty * 2, 2, 2);
         for (const b of g.buildings) if (b.kind === 'towncentre') { x.fillStyle = b.team === 0 ? '#f2c94c' : b.team === 1 ? '#e8463a' : '#ddd'; x.fillRect(b.tx * 2 - 1, b.ty * 2 - 1, 8, 8); }
