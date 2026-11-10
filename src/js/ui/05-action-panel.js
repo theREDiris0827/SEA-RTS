@@ -109,7 +109,7 @@ function buildPanel() {
         cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
       tabs = '<div class="p-tabs">' + [['eco', 'Economy'], ['mil', 'Military']].map(([t, l]) => '<button class="tab' + (buildTab === t ? ' on' : '') + '" data-a="btab" data-k="' + t + '">' + l + '</button>').join('') +
-        '<button class="tab" data-a="stop" title="Stop (S)">Stop</button><button class="tab" data-a="desel" title="Deselect">Back</button></div>';
+        '<button class="tab ico" data-a="stop" title="Stop (S)" aria-label="Stop"><img alt="" src="' + resIcon('stop') + '"></button><button class="tab ico" data-a="desel" title="Deselect" aria-label="Back"><img alt="" src="' + resIcon('back') + '"></button></div>';
       const ln = Object.keys(later).map(A => A + ': ' + later[A].join(', ')).join(' \u00b7 ');
       if (ln) extra2 = '<div class="p-later">' + ln + '</div>';
     }
@@ -126,7 +126,7 @@ function buildPanel() {
     }
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + pName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + pName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : own ? civRole(b.kind, b.team) + ' \u00b7 tap for more' : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';

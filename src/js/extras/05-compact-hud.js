@@ -28,12 +28,15 @@ body.cmp.nogrp #grps { display: none; }
 body.cmp #panel { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px 8px; padding: 5px; }
 body.cmp .p-info { min-width: 0; max-width: 46vw; gap: 2px; }
 body.cmp .p-head { gap: 6px; }
-body.cmp .p-head > div { min-width: 0; overflow: hidden; }
+body.cmp .p-head > div { min-width: 0; overflow: hidden; flex: 1 1 auto; }
 body.cmp .p-info:has(.chips) { grid-column: 1 / -1; max-width: none; }
+body.cmp #panel:not(:has(.p-tabs)) .p-info { max-width: none; width: auto; grid-column: 1 / -1; }   /* no tabs beside it: the title gets the full width */
 body.cmp .p-head .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; }
 body.cmp .p-head .chip { padding: 1px 6px 1px 1px; flex: none; }
 body.cmp .p-head > img { width: 28px; height: 28px; }
 body.cmp .p-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.cmp .p-name .en { display: none; }   /* the title shows the local name; tap the header for the English name and what it does */
+body.cmp .p-head { cursor: pointer; }
 body.cmp .p-sub { font-size: 12px; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.cmp .p-line, body.cmp .p-later { display: none; }
 body.cmp .bar { height: 5px; }
@@ -50,11 +53,21 @@ body.cmp .cmd .nm, body.cmp .cmd .en { display: none; }
 body.cmp .cmd[data-a="build"] .nm, body.cmp .cmd[data-a="build"] .en, body.cmp .cmd[data-a="train"] .nm, body.cmp .cmd[data-a="train"] .en, body.cmp .cmd.lock .nm, body.cmp .cmd.lock .en { display: block; }
 body.cmp .p-cmds.bld, body.cmp .p-cmds:has([data-a="train"]) { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 body.cmp .cmd[data-a="build"] .nm, body.cmp .cmd[data-a="train"] .nm { font-size: 11px; line-height: 1.1; text-align: center; }
+/* building actions keep a short name too (Iylia, 2026-11-10): age up, bell, research, gate */
+body.cmp .cmd[data-a="ageup"] .nm, body.cmp .cmd[data-a="ageup"] .en, body.cmp .cmd[data-a="agecancel"] .nm, body.cmp .cmd[data-a="agecancel"] .en, body.cmp .cmd[data-a="bell"] .nm, body.cmp .cmd[data-a="bell"] .en, body.cmp .cmd[data-a="allclear"] .nm, body.cmp .cmd[data-a="allclear"] .en, body.cmp .cmd[data-a="release"] .nm, body.cmp .cmd[data-a="release"] .en, body.cmp .cmd[data-a="firearrow"] .nm, body.cmp .cmd[data-a="firearrow"] .en, body.cmp .cmd[data-a="raft"] .nm, body.cmp .cmd[data-a="raft"] .en, body.cmp .cmd[data-a="gatelock"] .nm, body.cmp .cmd[data-a="gatelock"] .en, body.cmp .cmd[data-a="unload"] .nm, body.cmp .cmd[data-a="unload"] .en { display: block; }
+body.cmp .cmd[data-a="ageup"] .nm, body.cmp .cmd[data-a="agecancel"] .nm, body.cmp .cmd[data-a="bell"] .nm, body.cmp .cmd[data-a="allclear"] .nm, body.cmp .cmd[data-a="release"] .nm, body.cmp .cmd[data-a="firearrow"] .nm, body.cmp .cmd[data-a="raft"] .nm, body.cmp .cmd[data-a="gatelock"] .nm, body.cmp .cmd[data-a="unload"] .nm { font-size: 11px; line-height: 1.1; text-align: center; }
 body.cmp .cmd[data-a="build"] .en, body.cmp .cmd[data-a="train"] .en { font-size: 9px; }
 body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
 `;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
+  // tap the panel header: the full name and what it does (the title only has room for the local name)
+  document.addEventListener('click', (e) => {
+    const h = e.target.closest && e.target.closest('#panel .p-head'); if (!h || (e.target.closest && e.target.closest('.chip'))) return;
+    const o = sel.length === 1 ? sel[0] : null; if (!o || !o.kind || (!o.isUnit && !o.isBld)) return;
+    const e2 = enName(o.kind, o.team), br = BRIEF[o.kind];
+    toast(civName(o.kind, o.team) + (e2 ? ' (' + e2 + ')' : '') + (br ? ': ' + br : ''));
+  });
   // hold a button for its name (the labels are hidden)
   let holdT = 0, held = false;
   function nameOf(b) {
@@ -80,12 +93,15 @@ body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
     // tips: show when the advice changes (numbers ignored), fade after 5 s, tap to close
     const pop = document.createElement('div'); pop.id = 'hintpop'; if (mid) mid.appendChild(pop);
     pop.addEventListener('click', () => pop.classList.remove('on'));
-    let lastKey = '', hideT = 0;
+    let lastKey = '', hideT = 0, popG = null; const seenTips = new Set();
     setInterval(() => {
       const t = hint ? hint.textContent.trim() : '', key = t.replace(/[0-9:]+/g, '#');
       if (t) pop.textContent = t;
+      if (G !== popG) { popG = G; seenTips.clear(); }
       if (key === lastKey) return; lastKey = key;
       if (!t) { pop.classList.remove('on'); return; }
+      // each tutorial tip pops up once a game; Face instructions every time
+      if (!(mode && mode.kind === 'face')) { if (seenTips.has(key)) return; seenTips.add(key); }
       pop.classList.add('on'); clearTimeout(hideT); hideT = setTimeout(() => pop.classList.remove('on'), 5000);
     }, 250);
     compactRest(mid);

@@ -132,7 +132,8 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 .p-cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
 /* villager build tabs */
 .p-bld { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
-.p-tabs { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr 1fr; gap: 5px; }
+.p-tabs { display: grid; grid-template-columns: 1fr 1fr 44px 44px; gap: 5px; }
+.p-tabs .tab.ico { padding: 0; display: grid; place-items: center; } .p-tabs .tab.ico img { width: 20px; height: 20px; image-rendering: pixelated; }
 .tab { font: inherit; font-size: 13px; padding: 6px 2px; color: var(--muted); background: var(--panel-2); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge), 0 2px 0 rgba(0, 0, 0, .45); }
 .tab.on { color: var(--text); background: var(--jade-deep); box-shadow: inset 0 0 0 1px var(--jade), 0 2px 0 rgba(0, 0, 0, .45); }
 .p-cmds.bld { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
@@ -365,6 +366,10 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-pick.sel { outline: 2px solid var(--p-trim); }
 .m-map { padding: 4px 4px 6px; text-align: left; min-width: 0; display: flex; flex-direction: column; }
 #m-mapk { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* maps slide sideways in one row, and Start battle stays at the bottom of the screen (Iylia, 2026-11-10) */
+#m-skirmish #m-mapk { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: thin; }
+#m-skirmish #m-mapk .m-map { flex: 0 0 30%; scroll-snap-align: start; }
+#m-skirmish .m-start { position: sticky; bottom: 10px; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
 .m-map img, .m-map .q { display: block; width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; background: var(--sea); }
 .m-map .q { display: grid; place-items: center; font-size: 30px; color: var(--foot); }
 .m-map b { font-size: 18px; line-height: 20px; margin: 6px 4px 0; min-height: 40px; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; }
@@ -378,8 +383,11 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-bat b small { background: var(--p-trim); color: #2a1a08; padding: 0 4px; margin: 0; }
 .m-bat span { display: block; font-size: 18px; line-height: 20px; margin: 0 8px; color: var(--sub); }
 /* encyclopedia */
-.m-tabs { display: flex; flex-wrap: wrap; gap: 8px 10px; }
-.m-tabs button { padding: 4px 12px; font-size: 20px; line-height: 22px; text-align: center; }
+.m-tabs { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+.m-tabs button { padding: 4px 10px; font-size: 18px; line-height: 22px; text-align: center; flex: none; }
+.m-cfilt { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 0 8px; }
+.m-cfilt button { flex: none; padding: 3px 10px; font-size: 15px; line-height: 18px; }
+.m-cfilt button[aria-pressed="true"] { outline: 2px solid var(--p-trim, #f0c060); outline-offset: 1px; }
 .m-tabs button[aria-pressed="true"] { --face: var(--p-face); --hi: var(--p-hi); --lo: var(--p-lo); --trim: var(--p-trim); --text: var(--p-text); }
 .m-hero-c { display: flex; gap: 14px; align-items: flex-start; padding: 12px; }
 .m-hero-c b { font-size: 26px; line-height: 28px; }
@@ -6979,7 +6987,7 @@ function buildPanel() {
         cmds += cmdBtn('build', k, bldIcon(k, 0), btnName(k, 0), d.cost, civName(k, 0) + ', ' + civRole(k, 0) + ' (' + costTitle(d.cost) + ')', 'data-bk="' + k + '"');
       }
       tabs = '<div class="p-tabs">' + [['eco', 'Economy'], ['mil', 'Military']].map(([t, l]) => '<button class="tab' + (buildTab === t ? ' on' : '') + '" data-a="btab" data-k="' + t + '">' + l + '</button>').join('') +
-        '<button class="tab" data-a="stop" title="Stop (S)">Stop</button><button class="tab" data-a="desel" title="Deselect">Back</button></div>';
+        '<button class="tab ico" data-a="stop" title="Stop (S)" aria-label="Stop"><img alt="" src="' + resIcon('stop') + '"></button><button class="tab ico" data-a="desel" title="Deselect" aria-label="Back"><img alt="" src="' + resIcon('back') + '"></button></div>';
       const ln = Object.keys(later).map(A => A + ': ' + later[A].join(', ')).join(' \u00b7 ');
       if (ln) extra2 = '<div class="p-later">' + ln + '</div>';
     }
@@ -6996,7 +7004,7 @@ function buildPanel() {
     }
   } else if (single && single.isBld) {
     const b = single, d = BD[b.kind], own = b.team === 0;
-    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + pName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
+    info = '<div class="p-head"><img alt="" src="' + bldIcon(b.kind, b.team) + '"><div><div class="p-name">' + pName(b.kind, b.team) + '</div><div class="p-sub">' + (b.team === 2 ? 'Neutral' : own ? civRole(b.kind, b.team) + ' \u00b7 tap for more' : CIV_TITLE[CV(b.team)] + ' \u00b7 ' + civRole(b.kind, b.team)) + '</div></div></div>' +
       '<div class="bar"><i id="p-hp"></i></div><div class="p-line" id="p-l1"></div>';
     pdyn.push(() => {
       $('p-hp').style.width = Math.max(0, (b.done ? b.hp / b.maxHp : b.progress) * 100) + '%';
@@ -7255,6 +7263,7 @@ window.addEventListener('pagehide', saveGame);
 // links to the demos: relative on the live site, absolute anywhere else (the playable artifact)
 const SITE = /github\.io$/.test(location.hostname) ? './' : 'https://therediris0827.github.io/SEA-RTS/';
 let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroes', startAge = 1;
+let encyCiv = 'all';   // Encyclopedia civ filter (Iylia, 2026-11-10)
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
 // show a menu screen
 function showMenu(name) {
@@ -7493,6 +7502,8 @@ function renderCampaign() {
   let h = '';
   CAMPAIGNS.forEach(([cv, hero, tag, name, blurb, ms], ci) => {
     h += '<div class="px m-civ cv-' + cv + (ci === 0 ? ' sel' : '') + '"><div class="m-civh">' + portraitImg(hero) + '<div><small>' + escM(tag) + '</small><b>' + escM(name) + '</b></div></div><p class="m-blurb">' + escM(blurb) + '</p>';
+    // a civ with no mission built yet folds into one locked line
+    if (!ms.some(([id]) => id)) { h += '<button class="m-row off" data-m="locked"><em>' + ms.length + '</em><span>Missions coming later</span>' + LOCK_SVG + '</button></div>'; return; }
     ms.forEach(([id, title], i) => {
       h += id ? '<button class="m-row" data-m="brief" data-v="' + id + '"><em>' + (i + 1) + '</em><span>' + escM(title) + '</span>' + PLAY_SVG + '</button>'
         : '<button class="m-row off" data-m="locked"><em>' + (i + 1) + '</em><span>' + escM(title) + '</span>' + LOCK_SVG + '</button>';
@@ -7520,6 +7531,7 @@ function renderHeroes() {
   const sel = HEROES.find((x) => x[1] === heroSel) || HEROES[0];
   let h = '<div class="px m-hero-c cv-' + sel[0] + ' sel">' + portraitImg(sel[1]) + '<div><b>' + escM(sel[2]) + '</b><small>' + escM(CIV_LABEL[sel[0]]) + '</small><span>' + escM(sel[3]) + '</span></div></div>';
   for (const cv of Object.keys(CIV_LABEL)) {
+    if (encyCiv !== 'all' && cv !== encyCiv) continue;
     const list = HEROES.filter((x) => x[0] === cv);
     h += '<div class="m-hgrp m-cap"><span>' + CIV_LABEL[cv] + '</span><span>' + list.length + '</span></div><div class="m-hgrid">';
     for (const [c, k, n] of list) h += '<button class="cv-' + c + '" data-m="hero" data-v="' + k + '" aria-pressed="' + (k === heroSel) + '" aria-label="' + escM(n) + '">' + portraitImg(k) + '</button>';
@@ -7545,7 +7557,13 @@ function renderEncyList() {
   const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const cost = (c) => Object.keys(c || {}).map((k) => c[k] + ' ' + k).join(', ');
   let h = '';
-  if (encyTab === 'heroes') h = renderHeroes();
+  // civ filter: one row of buttons above Heroes, Units, Ships and Buildings
+  if (encyTab !== 'guide' && encyTab !== 'civs') {
+    const cs = encyTab === 'heroes' ? Object.keys(CIV_LABEL) : ['mel', 'maj', 'ayu', 'km'];
+    if (encyCiv !== 'all' && !cs.includes(encyCiv)) encyCiv = 'all';
+    h += '<div class="m-cfilt">' + ['all'].concat(cs).map((c) => '<button class="px' + (c === 'all' ? '' : ' cv-' + c) + '" data-m="ecv" data-v="' + c + '" aria-pressed="' + (c === encyCiv) + '">' + (c === 'all' ? 'All' : CIV_LABEL[c]) + '</button>').join('') + '</div>';
+  }
+  if (encyTab === 'heroes') h += renderHeroes();
   else if (encyTab === 'guide') {
     for (const [name, txt] of ENCY_GUIDE) h += '<div class="px m-ent"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
   }
@@ -7554,6 +7572,7 @@ function renderEncyList() {
   } else {
     const blds = encyTab === 'blds', ships = encyTab === 'ships', table = blds ? ENCY_BLDS : ENCY_UNITS;
     for (const [t, cls] of [[0, 'mel'], [1, 'maj'], [AYU_CIV, 'ayu'], [KHM_CIV, 'km']]) {
+      if (encyCiv !== 'all' && cls !== encyCiv) continue;
       let g = '', n = 0;
       for (const k in table) {
         const d = blds ? BD[k] : UD[k];
@@ -7585,6 +7604,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'foe') { if (+v !== pciv) pfoe = +v; syncMenuSegs(); }
   else if (a === 'start') curSlot = null, startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
   else if (a === 'tab') { encyTab = v; renderEncy(); }
+  else if (a === 'ecv') { encyCiv = v; renderEncy(); }
   else if (a === 'hero') { heroSel = v; renderEncy(); }
   else if (a === 'brief') showBrief(v);
   else if (a === 'locked') toastMenu('This mission comes in a later update.');
@@ -9082,6 +9102,16 @@ hintText = function () {
   if (mode && mode.kind === 'face') return aim ? 'Drag the way they should face, then let go.' : 'Face: press where they should stand, then drag the way to face.';
   return _faceHint.apply(this, arguments);
 };
+// tutorial tips (Iylia, 2026-11-10): only until a player has worked through them once (saved on the phone)
+const TUT_KEY = 'seak-tutdone';
+let tutDone = false; try { tutDone = localStorage.getItem(TUT_KEY) === '1'; } catch (e) { /* private mode */ }
+const _tutHint = hintText;
+hintText = function () {
+  const t = _tutHint.apply(this, arguments);
+  if (typeof setupObj === 'function' || (mode && mode.kind === 'face')) return t;
+  if (/^Destroy the /.test(t) && !tutDone) { tutDone = true; try { localStorage.setItem(TUT_KEY, '1'); } catch (e) { /* ignore */ } }
+  return tutDone ? '' : t;
+};
 function aimMove(q) { if (!aim) return; const w = s2w(q.x, q.y); aim.ex = w.x; aim.ey = w.y; }
 function aimDir() { if (!aim) return null; const dx = aim.ex - aim.x, dy = aim.ey - aim.y; return Math.hypot(dx, dy) < 0.7 ? null : [dx, dy]; }
 function aimEnd() {
@@ -9241,12 +9271,15 @@ body.cmp.nogrp #grps { display: none; }
 body.cmp #panel { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px 8px; padding: 5px; }
 body.cmp .p-info { min-width: 0; max-width: 46vw; gap: 2px; }
 body.cmp .p-head { gap: 6px; }
-body.cmp .p-head > div { min-width: 0; overflow: hidden; }
+body.cmp .p-head > div { min-width: 0; overflow: hidden; flex: 1 1 auto; }
 body.cmp .p-info:has(.chips) { grid-column: 1 / -1; max-width: none; }
+body.cmp #panel:not(:has(.p-tabs)) .p-info { max-width: none; width: auto; grid-column: 1 / -1; }   /* no tabs beside it: the title gets the full width */
 body.cmp .p-head .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; }
 body.cmp .p-head .chip { padding: 1px 6px 1px 1px; flex: none; }
 body.cmp .p-head > img { width: 28px; height: 28px; }
 body.cmp .p-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.cmp .p-name .en { display: none; }   /* the title shows the local name; tap the header for the English name and what it does */
+body.cmp .p-head { cursor: pointer; }
 body.cmp .p-sub { font-size: 12px; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.cmp .p-line, body.cmp .p-later { display: none; }
 body.cmp .bar { height: 5px; }
@@ -9263,11 +9296,21 @@ body.cmp .cmd .nm, body.cmp .cmd .en { display: none; }
 body.cmp .cmd[data-a="build"] .nm, body.cmp .cmd[data-a="build"] .en, body.cmp .cmd[data-a="train"] .nm, body.cmp .cmd[data-a="train"] .en, body.cmp .cmd.lock .nm, body.cmp .cmd.lock .en { display: block; }
 body.cmp .p-cmds.bld, body.cmp .p-cmds:has([data-a="train"]) { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 body.cmp .cmd[data-a="build"] .nm, body.cmp .cmd[data-a="train"] .nm { font-size: 11px; line-height: 1.1; text-align: center; }
+/* building actions keep a short name too (Iylia, 2026-11-10): age up, bell, research, gate */
+body.cmp .cmd[data-a="ageup"] .nm, body.cmp .cmd[data-a="ageup"] .en, body.cmp .cmd[data-a="agecancel"] .nm, body.cmp .cmd[data-a="agecancel"] .en, body.cmp .cmd[data-a="bell"] .nm, body.cmp .cmd[data-a="bell"] .en, body.cmp .cmd[data-a="allclear"] .nm, body.cmp .cmd[data-a="allclear"] .en, body.cmp .cmd[data-a="release"] .nm, body.cmp .cmd[data-a="release"] .en, body.cmp .cmd[data-a="firearrow"] .nm, body.cmp .cmd[data-a="firearrow"] .en, body.cmp .cmd[data-a="raft"] .nm, body.cmp .cmd[data-a="raft"] .en, body.cmp .cmd[data-a="gatelock"] .nm, body.cmp .cmd[data-a="gatelock"] .en, body.cmp .cmd[data-a="unload"] .nm, body.cmp .cmd[data-a="unload"] .en { display: block; }
+body.cmp .cmd[data-a="ageup"] .nm, body.cmp .cmd[data-a="agecancel"] .nm, body.cmp .cmd[data-a="bell"] .nm, body.cmp .cmd[data-a="allclear"] .nm, body.cmp .cmd[data-a="release"] .nm, body.cmp .cmd[data-a="firearrow"] .nm, body.cmp .cmd[data-a="raft"] .nm, body.cmp .cmd[data-a="gatelock"] .nm, body.cmp .cmd[data-a="unload"] .nm { font-size: 11px; line-height: 1.1; text-align: center; }
 body.cmp .cmd[data-a="build"] .en, body.cmp .cmd[data-a="train"] .en { font-size: 9px; }
 body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
 `;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
+  // tap the panel header: the full name and what it does (the title only has room for the local name)
+  document.addEventListener('click', (e) => {
+    const h = e.target.closest && e.target.closest('#panel .p-head'); if (!h || (e.target.closest && e.target.closest('.chip'))) return;
+    const o = sel.length === 1 ? sel[0] : null; if (!o || !o.kind || (!o.isUnit && !o.isBld)) return;
+    const e2 = enName(o.kind, o.team), br = BRIEF[o.kind];
+    toast(civName(o.kind, o.team) + (e2 ? ' (' + e2 + ')' : '') + (br ? ': ' + br : ''));
+  });
   // hold a button for its name (the labels are hidden)
   let holdT = 0, held = false;
   function nameOf(b) {
@@ -9293,12 +9336,15 @@ body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
     // tips: show when the advice changes (numbers ignored), fade after 5 s, tap to close
     const pop = document.createElement('div'); pop.id = 'hintpop'; if (mid) mid.appendChild(pop);
     pop.addEventListener('click', () => pop.classList.remove('on'));
-    let lastKey = '', hideT = 0;
+    let lastKey = '', hideT = 0, popG = null; const seenTips = new Set();
     setInterval(() => {
       const t = hint ? hint.textContent.trim() : '', key = t.replace(/[0-9:]+/g, '#');
       if (t) pop.textContent = t;
+      if (G !== popG) { popG = G; seenTips.clear(); }
       if (key === lastKey) return; lastKey = key;
       if (!t) { pop.classList.remove('on'); return; }
+      // each tutorial tip pops up once a game; Face instructions every time
+      if (!(mode && mode.kind === 'face')) { if (seenTips.has(key)) return; seenTips.add(key); }
       pop.classList.add('on'); clearTimeout(hideT); hideT = setTimeout(() => pop.classList.remove('on'), 5000);
     }, 250);
     compactRest(mid);

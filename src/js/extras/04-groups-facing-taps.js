@@ -104,6 +104,16 @@ hintText = function () {
   if (mode && mode.kind === 'face') return aim ? 'Drag the way they should face, then let go.' : 'Face: press where they should stand, then drag the way to face.';
   return _faceHint.apply(this, arguments);
 };
+// tutorial tips (Iylia, 2026-11-10): only until a player has worked through them once (saved on the phone)
+const TUT_KEY = 'seak-tutdone';
+let tutDone = false; try { tutDone = localStorage.getItem(TUT_KEY) === '1'; } catch (e) { /* private mode */ }
+const _tutHint = hintText;
+hintText = function () {
+  const t = _tutHint.apply(this, arguments);
+  if (typeof setupObj === 'function' || (mode && mode.kind === 'face')) return t;
+  if (/^Destroy the /.test(t) && !tutDone) { tutDone = true; try { localStorage.setItem(TUT_KEY, '1'); } catch (e) { /* ignore */ } }
+  return tutDone ? '' : t;
+};
 function aimMove(q) { if (!aim) return; const w = s2w(q.x, q.y); aim.ex = w.x; aim.ey = w.y; }
 function aimDir() { if (!aim) return null; const dx = aim.ex - aim.x, dy = aim.ey - aim.y; return Math.hypot(dx, dy) < 0.7 ? null : [dx, dy]; }
 function aimEnd() {

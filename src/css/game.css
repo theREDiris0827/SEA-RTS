@@ -116,7 +116,8 @@ body, button, input { font-variant-ligatures: none; font-feature-settings: "liga
 .p-cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
 /* villager build tabs */
 .p-bld { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
-.p-tabs { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr 1fr; gap: 5px; }
+.p-tabs { display: grid; grid-template-columns: 1fr 1fr 44px 44px; gap: 5px; }
+.p-tabs .tab.ico { padding: 0; display: grid; place-items: center; } .p-tabs .tab.ico img { width: 20px; height: 20px; image-rendering: pixelated; }
 .tab { font: inherit; font-size: 13px; padding: 6px 2px; color: var(--muted); background: var(--panel-2); border: 2px solid var(--edge-dark); box-shadow: inset 0 0 0 1px var(--edge), 0 2px 0 rgba(0, 0, 0, .45); }
 .tab.on { color: var(--text); background: var(--jade-deep); box-shadow: inset 0 0 0 1px var(--jade), 0 2px 0 rgba(0, 0, 0, .45); }
 .p-cmds.bld { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
@@ -349,6 +350,10 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-pick.sel { outline: 2px solid var(--p-trim); }
 .m-map { padding: 4px 4px 6px; text-align: left; min-width: 0; display: flex; flex-direction: column; }
 #m-mapk { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* maps slide sideways in one row, and Start battle stays at the bottom of the screen (Iylia, 2026-11-10) */
+#m-skirmish #m-mapk { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: thin; }
+#m-skirmish #m-mapk .m-map { flex: 0 0 30%; scroll-snap-align: start; }
+#m-skirmish .m-start { position: sticky; bottom: 10px; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
 .m-map img, .m-map .q { display: block; width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; background: var(--sea); }
 .m-map .q { display: grid; place-items: center; font-size: 30px; color: var(--foot); }
 .m-map b { font-size: 18px; line-height: 20px; margin: 6px 4px 0; min-height: 40px; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; }
@@ -362,8 +367,11 @@ button.px:active, a.px:active { transform: translateY(2px); box-shadow: inset 0 
 .m-bat b small { background: var(--p-trim); color: #2a1a08; padding: 0 4px; margin: 0; }
 .m-bat span { display: block; font-size: 18px; line-height: 20px; margin: 0 8px; color: var(--sub); }
 /* encyclopedia */
-.m-tabs { display: flex; flex-wrap: wrap; gap: 8px 10px; }
-.m-tabs button { padding: 4px 12px; font-size: 20px; line-height: 22px; text-align: center; }
+.m-tabs { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+.m-tabs button { padding: 4px 10px; font-size: 18px; line-height: 22px; text-align: center; flex: none; }
+.m-cfilt { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 0 8px; }
+.m-cfilt button { flex: none; padding: 3px 10px; font-size: 15px; line-height: 18px; }
+.m-cfilt button[aria-pressed="true"] { outline: 2px solid var(--p-trim, #f0c060); outline-offset: 1px; }
 .m-tabs button[aria-pressed="true"] { --face: var(--p-face); --hi: var(--p-hi); --lo: var(--p-lo); --trim: var(--p-trim); --text: var(--p-text); }
 .m-hero-c { display: flex; gap: 14px; align-items: flex-start; padding: 12px; }
 .m-hero-c b { font-size: 26px; line-height: 28px; }

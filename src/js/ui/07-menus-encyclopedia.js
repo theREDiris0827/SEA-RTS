@@ -11,6 +11,7 @@
 // links to the demos: relative on the live site, absolute anywhere else (the playable artifact)
 const SITE = /github\.io$/.test(location.hostname) ? './' : 'https://therediris0827.github.io/SEA-RTS/';
 let mapChoice = 'same', mapKind = 'strait', pciv = 0, pfoe = 1, encyTab = 'heroes', startAge = 1;
+let encyCiv = 'all';   // Encyclopedia civ filter (Iylia, 2026-11-10)
 const MAP_NOTES = { strait: 'Sea along the south, a bay between the bases.', river: 'Rivers cut the land. Sandy fords are the only dry crossings.', islands: 'An island each. Every attack needs galleys to land troops.' };
 // show a menu screen
 function showMenu(name) {
@@ -249,6 +250,8 @@ function renderCampaign() {
   let h = '';
   CAMPAIGNS.forEach(([cv, hero, tag, name, blurb, ms], ci) => {
     h += '<div class="px m-civ cv-' + cv + (ci === 0 ? ' sel' : '') + '"><div class="m-civh">' + portraitImg(hero) + '<div><small>' + escM(tag) + '</small><b>' + escM(name) + '</b></div></div><p class="m-blurb">' + escM(blurb) + '</p>';
+    // a civ with no mission built yet folds into one locked line
+    if (!ms.some(([id]) => id)) { h += '<button class="m-row off" data-m="locked"><em>' + ms.length + '</em><span>Missions coming later</span>' + LOCK_SVG + '</button></div>'; return; }
     ms.forEach(([id, title], i) => {
       h += id ? '<button class="m-row" data-m="brief" data-v="' + id + '"><em>' + (i + 1) + '</em><span>' + escM(title) + '</span>' + PLAY_SVG + '</button>'
         : '<button class="m-row off" data-m="locked"><em>' + (i + 1) + '</em><span>' + escM(title) + '</span>' + LOCK_SVG + '</button>';
@@ -276,6 +279,7 @@ function renderHeroes() {
   const sel = HEROES.find((x) => x[1] === heroSel) || HEROES[0];
   let h = '<div class="px m-hero-c cv-' + sel[0] + ' sel">' + portraitImg(sel[1]) + '<div><b>' + escM(sel[2]) + '</b><small>' + escM(CIV_LABEL[sel[0]]) + '</small><span>' + escM(sel[3]) + '</span></div></div>';
   for (const cv of Object.keys(CIV_LABEL)) {
+    if (encyCiv !== 'all' && cv !== encyCiv) continue;
     const list = HEROES.filter((x) => x[0] === cv);
     h += '<div class="m-hgrp m-cap"><span>' + CIV_LABEL[cv] + '</span><span>' + list.length + '</span></div><div class="m-hgrid">';
     for (const [c, k, n] of list) h += '<button class="cv-' + c + '" data-m="hero" data-v="' + k + '" aria-pressed="' + (k === heroSel) + '" aria-label="' + escM(n) + '">' + portraitImg(k) + '</button>';
@@ -301,7 +305,13 @@ function renderEncyList() {
   const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const cost = (c) => Object.keys(c || {}).map((k) => c[k] + ' ' + k).join(', ');
   let h = '';
-  if (encyTab === 'heroes') h = renderHeroes();
+  // civ filter: one row of buttons above Heroes, Units, Ships and Buildings
+  if (encyTab !== 'guide' && encyTab !== 'civs') {
+    const cs = encyTab === 'heroes' ? Object.keys(CIV_LABEL) : ['mel', 'maj', 'ayu', 'km'];
+    if (encyCiv !== 'all' && !cs.includes(encyCiv)) encyCiv = 'all';
+    h += '<div class="m-cfilt">' + ['all'].concat(cs).map((c) => '<button class="px' + (c === 'all' ? '' : ' cv-' + c) + '" data-m="ecv" data-v="' + c + '" aria-pressed="' + (c === encyCiv) + '">' + (c === 'all' ? 'All' : CIV_LABEL[c]) + '</button>').join('') + '</div>';
+  }
+  if (encyTab === 'heroes') h += renderHeroes();
   else if (encyTab === 'guide') {
     for (const [name, txt] of ENCY_GUIDE) h += '<div class="px m-ent"><div><b>' + name + '</b><span>' + txt + '</span></div></div>';
   }
@@ -310,6 +320,7 @@ function renderEncyList() {
   } else {
     const blds = encyTab === 'blds', ships = encyTab === 'ships', table = blds ? ENCY_BLDS : ENCY_UNITS;
     for (const [t, cls] of [[0, 'mel'], [1, 'maj'], [AYU_CIV, 'ayu'], [KHM_CIV, 'km']]) {
+      if (encyCiv !== 'all' && cls !== encyCiv) continue;
       let g = '', n = 0;
       for (const k in table) {
         const d = blds ? BD[k] : UD[k];
@@ -341,6 +352,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'foe') { if (+v !== pciv) pfoe = +v; syncMenuSegs(); }
   else if (a === 'start') curSlot = null, startGame(mapChoice === 'new' ? 1 + Math.floor(Math.random() * 900000) : 20241020);
   else if (a === 'tab') { encyTab = v; renderEncy(); }
+  else if (a === 'ecv') { encyCiv = v; renderEncy(); }
   else if (a === 'hero') { heroSel = v; renderEncy(); }
   else if (a === 'brief') showBrief(v);
   else if (a === 'locked') toastMenu('This mission comes in a later update.');
