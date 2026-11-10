@@ -101,7 +101,7 @@ rep("cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your To
     "cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Citadel', null, 'Jump to your Citadel')")
 rep("+ cmdBtn('navy', 'navy', unitIcon('light', 0), 'Navy', null, 'Select all warships')",
     "+ cmdBtn('dinhs', 'dinhs', bldIcon('dinh', 0), 'Đình', null, 'Jump to a Đình') + (G.M && G.M.wave < WAVES.length && !G.M.active ? cmdBtn('callwave', 'callwave', resIcon('amove'), 'Next wave', null, 'Bring the next Ming column now (bonus gold)') : '')")
-rep("(b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? 'Đại Việt' : b.team === 2 ? 'Neutral' : 'Ming')")
+rep("(b.team === 2 ? 'Neutral' : own ? civRole(b.kind, b.team) + ' \\u00b7 tap for more' : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? 'Đại Việt' : b.team === 2 ? 'Neutral' : 'Ming')")
 rep("    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"", "    cmds += dvBldCmds(b);\n    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"")
 rep("    cmds += '<button class=\"cmd\" data-a=\"stop\" title=\"Stop (S)\">", "    cmds += dvUnitCmds(us);\n    cmds += '<button class=\"cmd\" data-a=\"stop\" title=\"Stop (S)\">")
 rep("  else if (a === 'desel') { select([]); mode = null; }",

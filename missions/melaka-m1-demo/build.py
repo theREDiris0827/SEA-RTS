@@ -100,7 +100,7 @@ rep('''bldIcon('towncentre', 0) + '"><div><div class="p-name">' + CIV_REALM[CV(0
     '''bldIcon(homeKind(), 0) + '"><div><div class="p-name">' + civTitle() + '</div><div class="p-sub">' + civSub() + '</div>''')
 rep("cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your Town Centre')",
     "cmdBtn('tc', 'tc', bldIcon(homeKind(), 0), 'Home', null, 'Jump to your palace or Town Centre')")
-rep("(b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? civTitle() : b.team === 2 ? 'Neutral' : 'Majapahit')")
+rep("(b.team === 2 ? 'Neutral' : own ? civRole(b.kind, b.team) + ' \\u00b7 tap for more' : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? civTitle() : b.team === 2 ? 'Neutral' : 'Majapahit')")
 rep("    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"", "    cmds += missionBldCmds(b);\n    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"")
 rep("  else if (a === 'desel') { select([]); mode = null; }", "  else if (a === 'gate') toggleGate(sel[0]);\n  else if (a === 'proclaim') doProclaim(sel[0]);\n  else if (a === 'desel') { select([]); mode = null; }")
 rep("G.buildings.find(b => b.team === 0 && b.kind === 'towncentre')", "homeBuilding()", count=3)

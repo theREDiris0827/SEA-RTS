@@ -116,7 +116,7 @@ rep('''bldIcon('towncentre', 0) + '"><div><div class="p-name">' + CIV_REALM[CV(0
 rep("cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your Town Centre')",
     "cmdBtn('tc', 'tc', unitIcon('flagship', 0), 'Jong', null, 'Select the Jong Raya to launch boats (H)')")
 rep("G.buildings.find(b => b.team === 0 && b.kind === 'towncentre')", "mjHome()", count=3)
-rep("(b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? 'Majapahit' : b.team === 2 ? (b.ol ? 'Orang Laut' : 'Neutral') : b.team === 3 ? 'Ayutthaya' : b.ol ? 'Orang Laut, for Singapura' : 'Singapura')")
+rep("(b.team === 2 ? 'Neutral' : own ? civRole(b.kind, b.team) + ' \\u00b7 tap for more' : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? 'Majapahit' : b.team === 2 ? (b.ol ? 'Orang Laut' : 'Neutral') : b.team === 3 ? 'Ayutthaya' : b.ol ? 'Orang Laut, for Singapura' : 'Singapura')")
 rep("    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"", "    cmds += mjBldCmds(b);\n    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"")
 rep("    cmds += '<button class=\"cmd\" data-a=\"stop\" title=\"Stop (S)\">", "    cmds += mjUnitCmds(us);\n    cmds += '<button class=\"cmd\" data-a=\"stop\" title=\"Stop (S)\">")
 rep("  else if (a === 'desel') { select([]); mode = null; }",

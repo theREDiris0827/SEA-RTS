@@ -97,7 +97,7 @@ rep("cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Town', null, 'Jump to your To
     "cmdBtn('tc', 'tc', bldIcon('towncentre', 0), 'Court', null, 'Jump to the royal compound')")
 rep("+ cmdBtn('navy', 'navy', unitIcon('light', 0), 'Navy', null, 'Select all warships')",
     "+ cmdBtn('navy', 'navy', unitIcon('canoe', 0), 'Canoes', null, 'Select all war canoes') + cmdBtn('elephants', 'elephants', unitIcon('cart', 0), 'Ballistae', null, 'Select all ballistae')")
-rep("(b.team === 2 ? 'Neutral' : own ? (BRIEF[b.kind] || civRole(b.kind, b.team)) : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? 'Khmer' : b.team === 2 ? 'Temple' : 'Ayutthaya')")
+rep("(b.team === 2 ? 'Neutral' : own ? civRole(b.kind, b.team) + ' \\u00b7 tap for more' : CIV_TITLE[CV(b.team)] + ' \\u00b7 ' + civRole(b.kind, b.team))", "(own ? 'Khmer' : b.team === 2 ? 'Temple' : 'Ayutthaya')")
 rep("    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"", "    cmds += kmBldCmds(b);\n    if (own) cmds += '<button class=\"cmd\" data-a=\"desel\"")
 rep("    cmds += '<button class=\"cmd\" data-a=\"stop\" title=\"Stop (S)\">", "    cmds += kmUnitCmds(us);\n    cmds += '<button class=\"cmd\" data-a=\"stop\" title=\"Stop (S)\">")
 rep("  else if (a === 'desel') { select([]); mode = null; }",
