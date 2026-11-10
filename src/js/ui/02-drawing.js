@@ -24,7 +24,7 @@ function toolFor(u) {
 }
 // draw one unit
 function paintUnit(u) {
-  if (u.order.t === 'fishhouse' && u.working && !u.moving && G.byId.get(u.order.id)) return;   // drawn on her raft house's deck
+  if (u.order.t === 'fishhouse' && u.working && !u.moving && G.byId.get(u.order.id) && G.byId.get(u.order.id).kind !== 'baray') return;   // drawn on her raft house's deck
   const px = u.x * TILE, py = u.y * TILE;
   const selected = isSel(u);
   if (u.layer === 1) {
@@ -441,7 +441,7 @@ function render() {
     const px = u.x * TILE, py = u.y * TILE;
     if (!inView(px, py, 50)) continue;
     if (u.team !== 0 && !G.isVisible(u.x, u.y)) continue;
-    tall.push({ y: py + (u.layer === 1 ? 4 : 3), t: 2, o: u });
+    tall.push({ y: u.wallow ? u.wallow : py + (u.layer === 1 ? 4 : 3), t: 2, o: u });
   }
   tall.sort((a, b) => a.y - b.y);
   for (const e of tall) { if (e.t === 0) paintBuilding(e.o); else if (e.t === 1) paintNode(e.o); else paintUnit(e.o); }

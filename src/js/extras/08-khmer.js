@@ -20,6 +20,27 @@ const KHMER = {
     baray: 'A stone-banked reservoir. Farms within 6 tiles gather 25% faster. Kingdom Age.',
   }
 };
+/* the Baray (Iylia, 2026-11-10): a 6 x 4 reservoir. 8 farm plots ring it (3 above, 3 below, 1 at each end) and only
+   farms on them gather 25% faster; villagers drop food at its landing, fish from its banks, and kerbau wallow in it.
+   Engine hooks for it (fishing, kerbau, drop-off) are marked with b.kind === 'baray'. */
+const BARAY = {
+  fishers: 4, fishRate: 0.5,        // 0.5 x a raft-house deck = about 15 food a minute each
+  fatten: 1.5,                      // kerbau fatten 50% faster than at a granary
+  wallow: [[1.3, 1.5], [2.0, 2.2], [4.9, 1.7]],   // where the 3 kerbau stand in the water (tiles from the top-left corner)
+  plots: 8
+};
+// the 8 plots (top-left tile of a 2 x 2 farm): 3 above, 3 below, 1 at each end
+function barayPlots(b) {
+  const x = b.tx, y = b.ty, s = b.size, h = b.h || s;
+  return [[x, y - 2], [x + 2, y - 2], [x + 4, y - 2], [x, y + h], [x + 2, y + h], [x + 4, y + h], [x - 2, y + 1], [x + s, y + 1]];
+}
+// which plot of Baray b this farm stands on (-1: none)
+function barayPlotOf(b, f) {
+  if (!f || !FIELD[f.kind]) return -1;
+  return barayPlots(b).findIndex(([x, y]) => x === f.tx && y === f.ty);
+}
+// the farm standing on a plot, if any
+function plotFarm(b, x, y) { return G.buildings.find(o => FIELD[o.kind] && o.hp > 0 && o.tx === x && o.ty === y); }
 (function khmerColumns() {
   const pad = (a) => { if (Array.isArray(a) && a.length === 3) a.push(a[0]); };
   for (const k in CIV_NAMES) pad(CIV_NAMES[k]);
@@ -1526,7 +1547,7 @@ Object.assign(UD, {
   kcart: { name: 'Cart Ballista', hp: 150, spd: 1.4, atk: 16, bonus: { eleph: 18, ship: 8 }, rng: 8, rate: 4.5, ma: 2, pa: 5, sight: 8.5, cost: { wood: 150, gold: 60 }, time: 22, cls: 'siege', ranged: true, big: 'kcart', cap: 3, civ: KHM_CIV, age: 2 }
 });
 Object.assign(BD, {
-  baray: { name: 'Reservoir', size: 4, hp: 2500, cost: { wood: 200, gold: 80 }, time: 40, sight: 4, civ: KHM_CIV, age: 2, baray: { r: 6, farm: 1.25 } }
+  baray: { name: 'Reservoir', size: 6, fh: 4, hp: 3000, cost: { wood: 250, gold: 100 }, time: 50, sight: 5, civ: KHM_CIV, age: 2, drop: ['food'], baray: { r: 7, farm: 1.25 } }
 });
 BD.palace.train = BD.palace.train.concat('bal');
 BUILD_ORDER.splice(BUILD_ORDER.indexOf('farm') + 1, 0, 'baray');   // Economy tab, after the farm
@@ -1608,7 +1629,7 @@ for (const k of ['tower', 'wall', 'gate']) { const h = BD[k].civHp; if (h) h[3] 
 const _kmGather = Game.prototype.gatherInfo;
 Game.prototype.gatherInfo = function (o) {
   const g = _kmGather.apply(this, arguments);
-  if (g && o && o.isBld && FIELD[o.kind] && CV(o.team) === KHM_CIV && this.buildings.some(b => b.kind === 'baray' && b.team === o.team && b.done && b.hp > 0 && Math.hypot(b.x - o.x, b.y - o.y) <= BD.baray.baray.r + 2)) g.rate *= BD.baray.baray.farm;
+  if (g && o && o.isBld && FIELD[o.kind] && CV(o.team) === KHM_CIV && this.buildings.some(b => b.kind === 'baray' && b.team === o.team && b.done && b.hp > 0 && barayPlotOf(b, o) >= 0)) g.rate *= BD.baray.baray.farm;
   return g;
 };
 // ---------- Khmer looks ----------
@@ -2005,4 +2026,120 @@ civBuildingSprite = function (kind, team, level) {
   }
   return _kmBld.apply(this, arguments);
 };
+
+// ---------- the Baray: 6 x 4 art, farm plots, landing ----------
+/* 96 x 70 logical (6 x 4 tiles plus 6 rows for the palms and banner): laterite banks, three sandstone steps,
+   water, an island prasat, and a wooden landing on the front bank with the rice boat moored beside it */
+const BRY = { landing: [66, 53], boat: [10, 50], spots: [[68, 50], [73, 50], [78, 50], [83, 50], [70, 47], [75, 47], [80, 47], [72, 44]] };
+function baraySprite() {
+  return sprite('baray6x4', 96, 70, 2, (P) => {
+    const r = P.r, LAT = '#a0522d', LAT_D = '#7a3c22', LAT_L = '#b96a3e', SAND = '#b8ad8f', SAND_D = '#8f866c', SAND_L = '#d4cbab';
+    const WAT = '#4ba3bf', WAT_D = '#2c6f90', WAT_L = '#9fd6e2', WOODL = '#b08050', OUT = '#2a1a10', Y = 6;
+    const lat = (x, y, w, h) => { r(x, y, w, h, LAT); for (let j = 0; j < h; j++) { const off = ((j / 3) | 0) & 1 ? 3 : 0; if (j % 3 === 2) r(x, y + j, w, 1, LAT_D); else for (let i = off; i < w; i += 6) r(x + i, y + j, 1, 1, LAT_D); } };
+    lat(0, Y + 6, 96, 52); r(0, Y + 6, 96, 1, LAT_L); r(0, Y + 58, 96, 5, LAT_D); lat(0, Y + 58, 96, 4); r(0, Y + 63, 96, 1, '#5a2a16');
+    for (let i = 0; i < 3; i++) { const c = i & 1 ? SAND : SAND_D; r(3 + i, Y + 9 + i, 90 - i * 2, 1, SAND_L); r(3 + i, Y + 9 + i, 1, 46 - i * 2, c); r(92 - i, Y + 9 + i, 1, 46 - i * 2, c); r(3 + i, Y + 54 - i, 90 - i * 2, 1, SAND_D); }
+    r(6, Y + 12, 84, 40, WAT); r(6, Y + 12, 84, 2, WAT_D); r(6, Y + 12, 2, 40, WAT_D);
+    for (const [x, y, w] of [[12, 18, 6], [70, 17, 7], [18, 40, 7], [74, 30, 5], [60, 26, 4], [30, 36, 5], [80, 22, 4], [10, 30, 4], [44, 40, 6]]) r(x, Y + y, w, 1, WAT_L);
+    // island with a small prasat
+    r(40, Y + 26, 18, 9, LAT_D); r(39, Y + 25, 20, 8, LAT); r(39, Y + 25, 20, 1, LAT_L); r(37, Y + 33, 24, 1, '#7fc3d6');
+    r(44, Y + 20, 10, 6, SAND); r(45, Y + 16, 8, 4, SAND_L); r(46, Y + 12, 6, 4, SAND); r(47, Y + 9, 4, 3, SAND_L); r(48, Y + 7, 2, 2, SAND); r(48, Y + 6, 2, 1, '#e8b830'); r(48, Y + 22, 2, 4, '#3a2a20');
+    for (const y of [19, 15, 11]) r(45 + (y < 15 ? 1 : 0), Y + y, 8 - (y < 15 ? 2 : 0), 1, SAND_D);
+    // sugar palms and the banner
+    for (const x of [2, 8, 84]) { r(x + 1, 0, 1, 12, '#5e3b1c'); r(x - 1, 1, 5, 1, '#3f7a3a'); r(x, 0, 3, 1, '#5a9a4a'); r(x - 1, 2, 1, 1, '#3f7a3a'); r(x + 3, 2, 1, 1, '#3f7a3a'); }
+    r(92, 0, 1, 12, '#5e3b1c'); r(93, 0, 3, 3, '#2f6fd0'); r(94, 1, 1, 1, '#e8b830');
+    // the landing on the front bank
+    const [lx, ly] = BRY.landing;
+    r(lx, ly, 22, 1, OUT); r(lx, ly + 1, 22, 5, WOODL); for (let x = lx; x < lx + 22; x += 3) r(x, ly + 1, 1, 5, WOOD); r(lx, ly + 6, 22, 1, WOOD_D); for (const x of [lx + 1, lx + 10, lx + 20]) r(x, ly + 7, 1, 5, WOOD_D);
+    // the rice boat, moored
+    const [bx, by] = BRY.boat;
+    r(bx, by + 5, 26, 1, OUT); r(bx + 1, by + 4, 24, 1, WOOD_D); r(bx, by + 2, 26, 2, WOOD); r(bx, by + 2, 26, 1, WOODL); r(bx - 1, by + 1, 2, 1, WOOD_D); r(bx + 25, by + 1, 2, 1, WOOD_D); r(bx + 2, by + 6, 22, 1, WAT_L);
+  });
+}
+{ const _bs = civBuildingSprite;
+  civBuildingSprite = function (kind, team, level) { return kind === 'baray' && team === KHM_CIV ? baraySprite() : _bs.apply(this, arguments); }; }
+// a basket of rice in logical pixels of the Baray art
+function barayBasket(ox, oy, x, y) {
+  const R = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(ox + a * 2, oy + b * 2, w * 2, h * 2); };
+  R(x - 1, y, 6, 4, '#2a1a10'); R(x, y, 4, 3, '#c9a25a'); R(x, y + 2, 4, 1, '#8a6a32'); R(x, y, 4, 1, '#f4ecd4'); R(x + 1, y - 1, 2, 1, '#f4ecd4');
+}
+Object.assign(BRIEF, { baray: 'Food drop-off, 8 farm plots +25%, fishing, kerbau wallow' });
+ENCY_BLDS.baray = KHMER.ency.baray = 'A great stone-banked reservoir, 6 by 4 tiles, from the Kingdom Age. Villagers drop food at its landing. Eight farm plots ring it, and farms on them gather 25% faster. Villagers can fish from its banks (4 at most), and up to 3 kerbau wallow in it and fatten 50% faster than at a granary.';
+{ const _bh = bldNote;
+  bldNote = function (b) {
+    if (b && b.kind === 'baray' && b.team === 0) {
+      const n = barayPlots(b).filter(([x, y]) => { const f = plotFarm(b, x, y); return f && f.team === 0; }).length;
+      return 'Farms ' + n + '/' + BARAY.plots + ' on its plots gather 25% faster. Villagers drop food here; tap it with villagers to fish, or with kerbau to let them wallow.';
+    }
+    return _bh.apply(this, arguments);
+  }; }
+// placing a farm: show the free plots around your Baray and snap into the nearest one
+{ const _pp = paintPlacement;
+  paintPlacement = function () {
+    if (mode && mode.kind === 'place' && FIELD[mode.bkind] && mode.tx != null && CV(0) === KHM_CIV) {
+      let best = null, bd = 2.6;
+      ctx.save(); ctx.setLineDash([5, 4]); ctx.lineWidth = 2;
+      for (const b of G.buildings) {
+        if (b.kind !== 'baray' || b.team !== 0 || b.hp <= 0) continue;
+        for (const [x, y] of barayPlots(b)) {
+          if (plotFarm(b, x, y)) continue;
+          const ok = G.canPlace(mode.bkind, x, y, 0);
+          ctx.strokeStyle = ok ? 'rgba(160,225,255,0.9)' : 'rgba(255,140,120,0.6)'; ctx.fillStyle = ok ? 'rgba(160,225,255,0.12)' : 'rgba(255,120,100,0.08)';
+          ctx.fillRect(x * TILE, y * TILE, 2 * TILE, 2 * TILE); ctx.strokeRect(x * TILE + 2, y * TILE + 2, 2 * TILE - 4, 2 * TILE - 4);
+          ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x * TILE + TILE - 6, y * TILE + TILE); ctx.lineTo(x * TILE + TILE + 6, y * TILE + TILE); ctx.moveTo(x * TILE + TILE, y * TILE + TILE - 6); ctx.lineTo(x * TILE + TILE, y * TILE + TILE + 6); ctx.stroke(); ctx.setLineDash([5, 4]);
+          const d = Math.hypot(x - mode.tx, y - mode.ty); if (ok && d < bd) { bd = d; best = [x, y]; }
+        }
+      }
+      ctx.restore();
+      if (best) { mode.tx = best[0]; mode.ty = best[1]; }
+    }
+    return _pp.apply(this, arguments);
+  }; }
+// the landing: baskets pile up as food comes in; every 8th load goes onto the moored rice boat
+{ const _dg = Game.prototype.doGather;
+  Game.prototype.doGather = function (u, dt) {
+    const amt = u.carry ? u.carry.amt : 0, type = u.carry && u.carry.type, ret = u.order && u.order.s === 'ret';
+    const r = _dg.apply(this, arguments);
+    if (ret && amt > 0 && type === 'food' && u.carry && u.carry.amt === 0) {
+      const d = this.nearestDrop(u, 'food');
+      if (d && d.kind === 'baray' && rectDist(u.x, u.y, d.rect) <= 1.2) { d.bask = (d.bask || 0) + 1; if (d.bask > 7) { d.bask = 0; d.boat = 3; } }
+    }
+    return r;
+  }; }
+{ const _pb = paintBuilding;
+  paintBuilding = function (b) {
+    const r = _pb.apply(this, arguments);
+    if (b.kind !== 'baray') return r;
+    const w = b.size * TILE, spr = baraySprite(), ox = b.tx * TILE + (w - spr.width) / 2, oy = (b.ty + (b.h || b.size)) * TILE + 2 - spr.height;
+    if (b.done) {
+      for (let i = 0; i < (b.bask || 0); i++) barayBasket(ox, oy, BRY.spots[i][0], BRY.spots[i][1]);
+      const [bx, by] = BRY.boat;
+      if (b.boat) for (let i = 0; i < 3; i++) barayBasket(ox, oy, bx + 3 + i * 5, by - 1);
+      // the boatman stands at the stern with his pole
+      const v = unitSprite('villager', b.team, 'idle', 0, '');
+      ctx.drawImage(v, ox + (bx + 14) * 2, oy + (by - 14) * 2);
+      ctx.fillStyle = WOOD_D; for (let i = 0; i < 16; i++) ctx.fillRect(ox + (bx + 26 + (i >> 2)) * 2, oy + (by - 9 + i) * 2, 2, 2);
+    }
+    if (b.team === 0 && (b.done || b.progress > 0)) {
+      const n = barayPlots(b).filter(([x, y]) => { const f = plotFarm(b, x, y); return f && f.team === 0; }).length;
+      const t = 'Farms ' + n + '/' + BARAY.plots;
+      ctx.save(); ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      const tw = ctx.measureText(t).width, tx = b.tx * TILE + w / 2 - tw / 2, ty = (b.ty - 2) * TILE - 6;
+      ctx.fillStyle = 'rgba(20,12,6,0.8)'; ctx.fillRect(tx - 5, ty - 13, tw + 10, 17); ctx.fillStyle = '#f2c94c'; ctx.fillText(t, tx, ty);
+      ctx.restore();
+    }
+    return r;
+  }; }
+// the computer as Khmer puts new farms on its Baray's free plots first
+{ const _ab = Game.prototype.aiBuild;
+  Game.prototype.aiBuild = function (kind, tc, vils, nBuilders) {
+    if (FIELD[kind]) for (const br of this.buildings) if (br.team === 1 && br.kind === 'baray' && br.done && br.hp > 0)
+      for (const [x, y] of barayPlots(br)) if (this.canPlace(kind, x, y, 1)) {
+        const near = vils.slice().sort((p, q) => Math.hypot(p.x - x, p.y - y) - Math.hypot(q.x - x, q.y - y)).slice(0, nBuilders).map(v => v.id);
+        this.placeBuilding(1, kind, x, y, near); return true;
+      }
+    return _ab.apply(this, arguments);
+  }; }
+// the boat sails its load away after a while (only for show)
+{ const _ut = Game.prototype.updateBuilding;
+  Game.prototype.updateBuilding = function (b, dt) { _ut.apply(this, arguments); if (b.kind === 'baray' && b.boat > 0) b.boat = Math.max(0, b.boat - dt / 10); }; }
 }

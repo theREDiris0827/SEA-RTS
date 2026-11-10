@@ -42,7 +42,7 @@ function describeOrder(u) {
     case 'board': return 'Boarding';
     case 'garrison': return 'Taking shelter';
     case 'land': return 'Landing troops';
-    case 'fishhouse': return 'Fishing from the deck';
+    case 'fishhouse': return G.byId.get(u.order.id) && G.byId.get(u.order.id).kind === 'baray' ? 'Fishing in the Baray' : 'Fishing from the deck';
     case 'wander': return 'Grazing';
     case 'gather': {
       const n = G.byId.get(o.id);

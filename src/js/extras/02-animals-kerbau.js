@@ -139,12 +139,12 @@
   const center = (b) => ({ x: b.tx + b.size / 2, y: b.ty + (b.h || b.size) / 2 });
   // where an owned kerbau should stand (granary, Town Centre or farm)
   function homeFor(g, u) {
-    const grans = g.buildings.filter(b => b.team === u.own && b.done && b.hp > 0 && (b.kind === 'granary'));
+    const grans = g.buildings.filter(b => b.team === u.own && b.done && b.hp > 0 && (b.kind === 'granary' || b.kind === 'baray'));
     let best = null, bd = 1e9;
     for (const b of grans) {
       const n = g.units.filter(k => k !== u && k.kind === 'kerbau' && k.hp > 0 && k.own === u.own && k.job === 'granary' && k.bid === b.id).length;
       if (n >= KB.perGran) continue;
-      const c = center(b), d = Math.hypot(c.x - u.x, c.y - u.y); if (d < bd) { bd = d; best = b; }
+      const c = center(b), d = Math.hypot(c.x - u.x, c.y - u.y) - (b.kind === 'baray' ? 60 : 0); if (d < bd) { bd = d; best = b; }
     }
     if (best) return { job: 'granary', b: best };
     const tc = g.buildings.find(b => b.team === u.own && b.kind === 'towncentre' && b.hp > 0);
@@ -243,6 +243,7 @@
   }
   // map position of a standing spot
   function slotPoint(g, u, b) {
+    if (b.kind === 'baray') { const i = slotIndex(g, u, b); return { x: b.tx + BARAY.wallow[i % 3][0], y: b.ty + BARAY.wallow[i % 3][1], face: i % 2 ? 1 : -1 }; }
     const i = slotIndex(g, u, b), side = kbSide(g, b), [sx, sy] = SIDES[side];
     const bw = b.size || 2, bh = b.h || bw, cx = b.tx + bw / 2, cy = b.ty + bh / 2;
     const row = Math.floor(i / 3), col = (i % 3) - 1;
@@ -276,6 +277,7 @@
         }
       }
       if (u.own < 0) continue;
+      u.wallow = 0;
       if (u.order.t !== 'kb') { if (u.order.t === 'flee' || u.order.t === 'wander' || u.order.t === 'idle') u.order = { t: 'kb' }; else continue; }
       u.pose = 0;
       if (u.job === 'stay') {      // led to a spot by the player: walk there, then graze
@@ -302,9 +304,9 @@
       // a newly free granary pulls kerbau waiting at the Town Centre
       if (scan && u.job === 'home') { const h = homeFor(g, u); if (h.job === 'granary') { sendHome(g, u); continue; } }
       const sp = slotPoint(g, u, b);
-      if (!u.arrived || Math.hypot(sp.x - u.x, sp.y - u.y) > 0.6) {
+      if ((!u.arrived || Math.hypot(sp.x - u.x, sp.y - u.y) > 0.6) && !(b.kind === 'baray' && rectDist(u.x, u.y, b.rect) <= 1.0)) {
         if (Math.hypot(sp.x - u.x, sp.y - u.y) > 0.25) {
-          if (!u.path && !g.setPath(u, g.pathToPoint(u, sp.x, sp.y))) { u.path = null; continue; }
+          if (!u.path && !g.setPath(u, (b.kind === 'baray' ? g.pathToRect(u, b.rect, 0.85) : g.pathToPoint(u, sp.x, sp.y)))) { u.path = null; continue; }
           if (g.stepMove(u, dt)) u.path = null;
           u.arrived = false; continue;
         }
@@ -312,9 +314,10 @@
       {
         u.path = null; u.arrived = true; u.x += (sp.x - u.x) * Math.min(1, dt * 4); u.y += (sp.y - u.y) * Math.min(1, dt * 4);
         u.face = sp.face;
+        u.wallow = b.kind === 'baray' ? (b.ty + (b.h || b.size)) * TILE + 1 : 0;
         if (u.job === 'granary') { u.pose = u.fat < KB.fatMax ? 1 : (((g.t + u.id * 3.7) % 9) < 3 ? 1 : 0); }
         else u.pose = ((g.t + u.id * 3.7) % 9) < 4 ? 1 : 0;
-        if (u.job === 'granary' && u.fat < KB.fatMax) u.fat = Math.min(KB.fatMax, u.fat + (KB.fatMax - KB.fat0) / KB.fatTime * dt);
+        if (u.job === 'granary' && u.fat < KB.fatMax) u.fat = Math.min(KB.fatMax, u.fat + (KB.fatMax - KB.fat0) / KB.fatTime * dt * (b.kind === 'baray' ? BARAY.fatten : 1));
         // the computer player eats its kerbau once they are fat
         if (u.own === 1 && u.job !== 'plough' && u.fat >= KB.fatMax) { g.butcherKerbau(u); }
       }
@@ -404,11 +407,14 @@
     const px = u.x * TILE, py = u.y * TILE, col = u.own >= 0 ? (TEAMC[CV(u.own)] || TEAMC[0]) : null;
     const pose = u.own >= 0 ? (u.pose || 0) : 0, fr = pose === 1 ? Math.floor((u.anim || 0) * 2.5) % 2 : u.moving ? Math.floor(u.anim * (pose === 2 ? 3 : 5)) % 2 : 0;
     const spr = kerbauSprite(col, fr, fatStage(u), pose), ox = pose === 2 ? 20 : 0;
-    shadow(px, py + 4, 12, 3);
+    const wal = !!u.wallow; if (!wal) shadow(px, py + 4, 12, 3);
     if (isSel(u)) { ctx.strokeStyle = col ? col.ring : '#ddd'; ctx.lineWidth = 1.5; ell(px, py + 4, 14, 5); ctx.stroke(); }
     ctx.save(); ctx.translate(px, py); if (u.face < 0) ctx.scale(-1, 1);
-    if (pose === 1 && u.job === 'granary') { ctx.drawImage(haySprite(), 19, 6 - 11); }     // padi straw from the granary
-    ctx.drawImage(spr, -(spr.width - ox) / 2 - ox, 6 - spr.height); ctx.restore();
+    if (pose === 1 && u.job === 'granary' && !wal) { ctx.drawImage(haySprite(), 19, 6 - 11); }     // padi straw from the granary
+    if (wal) { ctx.save(); ctx.beginPath(); ctx.rect(-80, -90, 160, 89); ctx.clip(); }
+    ctx.drawImage(spr, -(spr.width - ox) / 2 - ox, 6 - spr.height);
+    if (wal) { ctx.restore(); const ph = Math.sin(nowS * 2 + u.id) * 1.5; ctx.fillStyle = 'rgba(214,240,255,0.8)'; ctx.fillRect(-15 + ph, -2, 10, 2); ctx.fillRect(3 - ph, -1, 12, 2); }
+    ctx.restore();
     if (u.own >= 0 && u.job === 'granary' && u.arrived && u.fat < KB.fatMax) {   // gold fattening bar
       const f = (u.fat - KB.fat0) / (KB.fatMax - KB.fat0);
       const by = py + 6 - spr.height + 6; ctx.fillStyle = '#17110c'; ctx.fillRect(px - 9, by, 18, 4); ctx.fillStyle = GOLD; ctx.fillRect(px - 8, by + 1, Math.round(16 * f), 2);
@@ -467,9 +473,9 @@
     const ks = sel.length && sel.every(mine) ? sel.slice() : null;
     if (ks) {
       const hit = G.pick(wx, wy);
-      if (hit && hit.isBld && hit.team === 0 && hit.kind === 'granary') {
+      if (hit && hit.isBld && hit.team === 0 && (hit.kind === 'granary' || hit.kind === 'baray')) {
         let n = 0; for (const k of ks) if (G.kerbauToGranary(k, hit)) n++; else G.kerbauToGranary(k, null);
-        toast(n ? 'Off to the granary to fatten.' : 'That granary already has ' + KB.perGran + ' kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return;
+        toast(n ? (hit.kind === 'baray' ? 'Off to wallow in the Baray: they fatten 50% faster there.' : 'Off to the granary to fatten.') : 'That ' + (hit.kind === 'baray' ? 'Baray' : 'granary') + ' already has ' + KB.perGran + ' kerbau.'); addMarker(hit.x, hit.y, 'gather', hit); panelKey = ''; return;
       }
       if (hit && hit.isBld && hit.team === 0 && FIELD[hit.kind] && melaka(0)) {
         const ok = G.kerbauPlough(ks[0], hit); for (const k of ks.slice(1)) G.kerbauPlough(k, null);

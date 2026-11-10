@@ -82,9 +82,12 @@
       if (this.t > 100 && r.food > (saving ? nextA.cost.food + 150 : 400) && pick === 'food') pick = 'wood';
       let n = this.nearestNode(tc.x, tc.y, pick, 0, 30, 1);
       if (pick === 'food' && (!n || Math.hypot(n.x - tc.x, n.y - tc.y) > 16 || n.kind === 'carcass')) {
-        const fm = farms.find(f => f.done && f.food > 0);
+        // as Khmer with a Baray: one farmer per farm, up to its 8 plots
+        const khB = CV(1) === KHM_CIV && this.buildings.some(b => b.team === 1 && b.kind === 'baray' && b.done && b.hp > 0);
+        let fm = farms.find(f => f.done && f.food > 0 && (!khB || !vils.some(o => o.order.t === 'gather' && o.order.id === f.id)));
+        if (!fm && khB && (farms.length >= 8 || r.wood < BD[K.field].cost.wood || building.some(b => FIELD[b.kind]))) fm = farms.find(f => f.done && f.food > 0);
         if (fm) n = fm;
-        else if (!building.some(b => FIELD[b.kind]) && r.wood >= BD[K.field].cost.wood && farms.length < 5) { this.aiBuild(K.field, tc, [v], 1, 3.5, 8); counts.food++; continue; }
+        else if (!building.some(b => FIELD[b.kind]) && r.wood >= BD[K.field].cost.wood && farms.length < (khB ? 8 : 5)) { this.aiBuild(K.field, tc, [v], 1, 3.5, 8); counts.food++; continue; }
       }
       if (!n) { pick = 'wood'; n = this.nearestNode(tc.x, tc.y, 'wood', 0, 40, 1); }
       if (!n) continue;

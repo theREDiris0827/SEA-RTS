@@ -33,7 +33,7 @@
     if (rectDist(u.x, u.y, b.rect) <= (u.order.deck ? 1.5 : 0.95)) {
       u.path = null; u.working = true; u.order.deck = 1;
       const cx = b.x - u.x; if (Math.abs(cx) > 0.05) u.face = cx > 0 ? 1 : -1;
-      u.gt = (u.gt || 0) + dt * FISH_RATE;
+      u.gt = (u.gt || 0) + dt * FISH_RATE * (b.kind === 'baray' ? BARAY.fishRate : 1);
       if (u.gt >= 10) { u.gt -= 10; this.res[u.team].food += 10; if (u.team === 0) this.floaters.push({ x: b.x, y: b.y - 1.2, text: '+10 food', type: 'food', t: 1.2 }); }
       return;
     }

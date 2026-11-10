@@ -240,6 +240,14 @@
         for (const u of us) { if (u.cls === 'boat') this.orderMove(u, target.x, target.y); else this.orderAttack(u, target); }
         return;
       }
+      if (target.isBld && target.team === team && target.kind === 'baray' && target.done && us.some(u => u.cls === 'vil')) {
+        const vs = us.filter(u => u.cls === 'vil'), rest = us.filter(u => u.cls !== 'vil');
+        let room = BARAY.fishers - this.units.filter(o => o.hp > 0 && o.order.t === 'fishhouse' && o.order.id === target.id && !vs.includes(o)).length;
+        for (const v of vs) { if (room > 0) { v.order = { t: 'fishhouse', id: target.id }; v.path = null; v.wait = 0; room--; } else rest.push(v); }
+        if (room <= 0 && team === 0 && rest.some(u => u.cls === 'vil')) this.msg('A Baray has room for ' + BARAY.fishers + ' fishers.');
+        if (rest.length) this.groupMove(rest, target.x, target.y, opts);
+        return;
+      }
       if (target.isBld && target.team === team && target.kind === 'rafthouse' && target.done && us.some(u => u.cls === 'vil')) {
         const v = us.find(u => u.cls === 'vil'), rest = us.filter(u => u !== v);
         for (const o of this.units) if (o !== v && o.order.t === 'fishhouse' && o.order.id === target.id) this.idleOrder(o);

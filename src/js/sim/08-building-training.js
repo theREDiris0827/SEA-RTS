@@ -33,11 +33,11 @@
      can't cover another building */
   underPortArt(tx, ty, w, h, kind) {
     const hit = (ax, ay, aw, ah, bx, by, bw, bh) => ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
-    const d = BD[kind], art = d.fh && d.fh < d.size ? [tx, ty + h - d.size, w, d.size - h] : null;
+    const d = BD[kind], art = d.fh && d.fh < d.size && kind !== 'baray' ? [tx, ty + h - d.size, w, d.size - h] : null;
     for (const b of this.buildings) {
       if (b.hp <= 0) continue;
       const bh = b.h || b.size;
-      if (bh < b.size && hit(tx, ty, w, h, b.tx, b.ty + bh - b.size, b.size, b.size - bh)) return true;
+      if (bh < b.size && b.kind !== 'baray' && hit(tx, ty, w, h, b.tx, b.ty + bh - b.size, b.size, b.size - bh)) return true;
       if (art && hit(art[0], art[1], art[2], art[3], b.tx, b.ty, b.size, bh)) return true;
     }
     return false;
