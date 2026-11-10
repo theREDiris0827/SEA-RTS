@@ -9359,11 +9359,8 @@ body.cmp .cmd .ct { font-size: 11px; min-height: 0; }
       b.addEventListener('click', (e) => { e.stopPropagation(); document.body.classList.toggle('nomini'); label(); try { localStorage.setItem('seak-nomini', document.body.classList.contains('nomini') ? '1' : '0'); } catch (_) { /* ignore */ } });
       label(); mid.appendChild(b);
     }
-    // group tabs appear once a group exists
-    setInterval(() => {
-      const any = typeof GROUPS !== 'undefined' && GROUPS.some(g => g.length);
-      document.body.classList.toggle('nogrp', !any);
-    }, 300);
+    // group tabs are always shown (Iylia, 2026-11-10): tap an empty tab with soldiers selected to save them as a group
+    document.body.classList.remove('nogrp');
     if (typeof resize === 'function') resize();
   }
   if (document.readyState === 'complete') setTimeout(boot, 200); else window.addEventListener('load', () => setTimeout(boot, 200));

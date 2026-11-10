@@ -42,10 +42,10 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 2 · Animals and kerbau](#extra-2--animals-and-kerbau) | `src/js/extras/02-animals-kerbau.js` | 8460 to 8950 |
 | [EXTRA 3 · Smarter AI](#extra-3--smarter-ai) | `src/js/extras/03-ai-plus.js` | 8951 to 8998 |
 | [EXTRA 4 · Groups, facing and taps](#extra-4--groups-facing-and-taps) | `src/js/extras/04-groups-facing-taps.js` | 8999 to 9243 |
-| [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9244 to 9371 |
-| [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9372 to 9419 |
-| [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9420 to 9486 |
-| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9487 to 11631 |
+| [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9244 to 9368 |
+| [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9369 to 9416 |
+| [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9417 to 9483 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9484 to 11628 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1020,7 +1020,7 @@ group tabs 1-4 and Make group, the Face button, soldiers facing their move direc
 
 ## EXTRA 5 · Compact screen
 
-`src/js/extras/05-compact-hud.js` · lines 9244 to 9371
+`src/js/extras/05-compact-hud.js` · lines 9244 to 9368
 
 a bigger play area: no hint strip (small clock, tips pop up then fade), slim one-row panel, icon-only command buttons, smaller foldable minimap.
 
@@ -1038,7 +1038,7 @@ a bigger play area: no hint strip (small clock, tips pop up then fade), slim one
 
 ## EXTRA 6 · Base footprints, wading, wet ports, house drop-off
 
-`src/js/extras/06-footprint-wading.js` · lines 9372 to 9419
+`src/js/extras/06-footprint-wading.js` · lines 9369 to 9416
 
 buildings stand on their base only (the roof hangs over the tiles behind), land units wade through shallow water in Skirmish, a Port's deck may sit on shallow water, Ayutthaya paddy farmers drop rice at their paired house, and the panel button tidy-ups (centred icons, red Demolish, one-row queue).
 
@@ -1052,11 +1052,11 @@ buildings stand on their base only (the roof hangs over the tiles behind), land 
 
 | Name | Line | What it does |
 |---|---|---|
-| `wadeOn` | 9387 | wading is for Skirmish; campaign missions and battles (they have setupObj) keep their own water rules |
+| `wadeOn` | 9384 | wading is for Skirmish; campaign missions and battles (they have setupObj) keep their own water rules |
 
 ## EXTRA 7 · Fire Arrows research
 
-`src/js/extras/07-fire-arrows.js` · lines 9420 to 9486
+`src/js/extras/07-fire-arrows.js` · lines 9417 to 9483
 
 Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once. Archers then do extra damage to buildings and set them alight more often. Torches on melee hits stay automatic.
 
@@ -1070,11 +1070,11 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 
 | Name | Line | What it does |
 |---|---|---|
-| `fireArrowBtn` | 9480 | the Barracks button: research, progress, or done |
+| `fireArrowBtn` | 9477 | the Barracks button: research, progress, or done |
 
 ## EXTRA 8 · Khmer
 
-`src/js/extras/08-khmer.js` · lines 9487 to 11631
+`src/js/extras/08-khmer.js` · lines 9484 to 11628
 
 the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
 
@@ -1086,85 +1086,85 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 
 | Name | Line | What it does |
 |---|---|---|
-| `barayPlots` | 9519 | the 8 plots (top-left tile of a 2 x 2 farm): 3 above, 3 below, 1 at each end |
-| `barayPlotOf` | 9524 | which plot of Baray b this farm stands on (-1: none) |
-| `plotFarm` | 9529 | the farm standing on a plot, if any |
-| `weave` | 9554 |  |
-| `sacks` | 9555 |  |
-| `crates` | 9556 |  |
-| `banner` | 9557 |  |
-| `melakaBuilding` | 9559 |  |
-| `neutralSite` | 9609 | Neutral map sites. Pangkalan can only be built on a landing next to a settlement. |
-| `brick` | 9637 |  |
-| `meru` | 9639 | meru: stacked black thatch tiers, each narrower than the one below |
-| `surya` | 9641 | sun of Majapahit (Surya Majapahit) emblem |
-| `mjBanner` | 9642 |  |
-| `majapahitBuilding` | 9644 |  |
-| `ijukRoof` | 9701 | black ijuk gable roof with a thick dark edge |
-| `majapahitBase` | 9703 |  |
-| `hull` | 9751 | Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line. |
-| `tanja` | 9759 | Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig. |
-| `fan` | 9767 | Junk-style battened fan sail (the green sails of the great Jong). |
-| `sq` | 9775 | Square sail with a darker belly edge (European-influenced late ships). |
-| `mast` | 9776 |  |
-| `flag` | 9777 |  |
-| `oars` | 9778 |  |
-| `crew` | 9779 |  |
-| `flames` | 9780 |  |
-| `navalSprite` | 9793 |  |
-| `drawCivUnit` | 9898 |  |
-| `civUnitSprite` | 9984 |  |
-| `elephantSprite` | 9989 | Chang Suek: Ayutthaya war elephant with a mahout and a spearman in a gilded howdah. 28x26 logical. |
-| `drawKhmerUnit` | 10025 |  |
-| `khmerUnitSprite` | 10069 |  |
-| `ballistaElephantSprite` | 10074 | Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical. |
-| `khmerCanoeSprite` | 10100 | River war canoe from the Bayon naval relief: long, low, many paddlers, a carved prow. 32x18 logical. |
-| `junk` | 10128 | Battened junk sail: a tall rectangle with battens and a rounded top-front corner. |
-| `prow` | 10133 | Tall curving prow (Thai and Khmer barges). |
-| `eye` | 10135 | Painted bow eye, the mark of Vietnamese boats. |
-| `pavilion` | 10137 | Pavilion with a tiered pointed roof. |
-| `mainlandShip` | 10142 |  |
-| `civTeam` | 10268 |  |
-| `thaiRoof` | 10274 | Thai roof: steep layered gable with chofa horns at the ridge ends |
-| `vietRoof` | 10280 | Vietnamese roof: low tiled hip roof with upturned corners |
-| `prasat` | 10287 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
-| `mainlandBuilding` | 10292 |  |
-| `pier` | 10379 |  |
-| `rack` | 10380 |  |
-| `mainlandBase` | 10382 |  |
-| `kmHash` | 10470 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10472 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10487 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10497 | sandstone coping / cornice band |
-| `kmPrasat` | 10499 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10523 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10545 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10555 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10557 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10568 |  |
-| `cartBallistaSprite` | 10686 |  |
-| `kmHash` | 10734 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10736 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10751 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10761 | sandstone coping / cornice band |
-| `kmPrasat` | 10763 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10787 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10809 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10819 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10821 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10832 |  |
-| `bxPaddy` | 10953 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
-| `bxSpears` | 10965 | a rack of spears (tassel colour per civ) |
-| `kmBuildingX` | 10967 |  |
-| `building` | 11020 |  |
-| `kmUnit` | 11139 |  |
-| `kmuPerson` | 11147 |  |
-| `kmuDoubleBow` | 11275 | Each bow is an arc with its tips bent back; the string runs to the nock (drawn) or straight across (shot). |
-| `kmuCrew` | 11291 | small seated/standing figure: head at y, body below |
-| `kmuElephant` | 11299 |  |
-| `kmuCart` | 11342 |  |
-| `guardUnit` | 11379 |  |
-| `gduPerson` | 11384 |  |
-| `kmShipFor` | 11500 |  |
-| `baraySprite` | 11520 |  |
-| `barayBasket` | 11547 | a basket of rice in logical pixels of the Baray art |
+| `barayPlots` | 9516 | the 8 plots (top-left tile of a 2 x 2 farm): 3 above, 3 below, 1 at each end |
+| `barayPlotOf` | 9521 | which plot of Baray b this farm stands on (-1: none) |
+| `plotFarm` | 9526 | the farm standing on a plot, if any |
+| `weave` | 9551 |  |
+| `sacks` | 9552 |  |
+| `crates` | 9553 |  |
+| `banner` | 9554 |  |
+| `melakaBuilding` | 9556 |  |
+| `neutralSite` | 9606 | Neutral map sites. Pangkalan can only be built on a landing next to a settlement. |
+| `brick` | 9634 |  |
+| `meru` | 9636 | meru: stacked black thatch tiers, each narrower than the one below |
+| `surya` | 9638 | sun of Majapahit (Surya Majapahit) emblem |
+| `mjBanner` | 9639 |  |
+| `majapahitBuilding` | 9641 |  |
+| `ijukRoof` | 9698 | black ijuk gable roof with a thick dark edge |
+| `majapahitBase` | 9700 |  |
+| `hull` | 9748 | Hull with an upswept bow and stern. x0..x1 is the deck length, y the deck line. |
+| `tanja` | 9756 | Tanja sail: slanted four-sided sail between two spars, the classic Nusantara rig. |
+| `fan` | 9764 | Junk-style battened fan sail (the green sails of the great Jong). |
+| `sq` | 9772 | Square sail with a darker belly edge (European-influenced late ships). |
+| `mast` | 9773 |  |
+| `flag` | 9774 |  |
+| `oars` | 9775 |  |
+| `crew` | 9776 |  |
+| `flames` | 9777 |  |
+| `navalSprite` | 9790 |  |
+| `drawCivUnit` | 9895 |  |
+| `civUnitSprite` | 9981 |  |
+| `elephantSprite` | 9986 | Chang Suek: Ayutthaya war elephant with a mahout and a spearman in a gilded howdah. 28x26 logical. |
+| `drawKhmerUnit` | 10022 |  |
+| `khmerUnitSprite` | 10066 |  |
+| `ballistaElephantSprite` | 10071 | Ballista Elephant: elephant with a large double-bow crossbow on its back, crewed by two. 28x26 logical. |
+| `khmerCanoeSprite` | 10097 | River war canoe from the Bayon naval relief: long, low, many paddlers, a carved prow. 32x18 logical. |
+| `junk` | 10125 | Battened junk sail: a tall rectangle with battens and a rounded top-front corner. |
+| `prow` | 10130 | Tall curving prow (Thai and Khmer barges). |
+| `eye` | 10132 | Painted bow eye, the mark of Vietnamese boats. |
+| `pavilion` | 10134 | Pavilion with a tiered pointed roof. |
+| `mainlandShip` | 10139 |  |
+| `civTeam` | 10265 |  |
+| `thaiRoof` | 10271 | Thai roof: steep layered gable with chofa horns at the ridge ends |
+| `vietRoof` | 10277 | Vietnamese roof: low tiled hip roof with upturned corners |
+| `prasat` | 10284 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
+| `mainlandBuilding` | 10289 |  |
+| `pier` | 10376 |  |
+| `rack` | 10377 |  |
+| `mainlandBase` | 10379 |  |
+| `kmHash` | 10467 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10469 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10484 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10494 | sandstone coping / cornice band |
+| `kmPrasat` | 10496 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10520 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10542 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10552 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10554 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10565 |  |
+| `cartBallistaSprite` | 10683 |  |
+| `kmHash` | 10731 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10733 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10748 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10758 | sandstone coping / cornice band |
+| `kmPrasat` | 10760 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10784 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10806 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10816 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10818 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10829 |  |
+| `bxPaddy` | 10950 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
+| `bxSpears` | 10962 | a rack of spears (tassel colour per civ) |
+| `kmBuildingX` | 10964 |  |
+| `building` | 11017 |  |
+| `kmUnit` | 11136 |  |
+| `kmuPerson` | 11144 |  |
+| `kmuDoubleBow` | 11272 | Each bow is an arc with its tips bent back; the string runs to the nock (drawn) or straight across (shot). |
+| `kmuCrew` | 11288 | small seated/standing figure: head at y, body below |
+| `kmuElephant` | 11296 |  |
+| `kmuCart` | 11339 |  |
+| `guardUnit` | 11376 |  |
+| `gduPerson` | 11381 |  |
+| `kmShipFor` | 11497 |  |
+| `baraySprite` | 11517 |  |
+| `barayBasket` | 11544 | a basket of rice in logical pixels of the Baray art |
