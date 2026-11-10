@@ -138,8 +138,8 @@ const ENCY_CIVS = [
   ['mel', 'Melaka', 'Maritime trade. Chiefs call up cheap levies: soldiers cost 10% less. Timber buildings burn fast.'],
   ['maj', 'Majapahit', 'Speed and numbers. Cheap fast fleets, fire ships and raids. Red brick burns at half rate. Its Bandar on a coast village pays tribute in gold.'],
   ['ayu', 'Ayutthaya', 'The river kingdom: raft houses, households that pay food, women who carry more, and war elephants.'],
-  ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.'],
-  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Skirmish, or in Battles.']
+  ['km', 'Khmer', 'Stone that barely burns, reservoirs and ballista elephants. Play it in Skirmish, or in Battles.'],
+  ['dv', '\u0110\u1ea1i Vi\u1ec7t', 'Villages that turn into militia, and early guns. Play it in Battles.']
 ];
 /* entries that differ by civ: [Melaka, Majapahit, Ayutthaya, Khmer] (CI column); null falls back to the shared text */
 const ENCY_BY_CIV = {
@@ -194,10 +194,10 @@ const CAMPAIGNS = [
     [['maj1', 'Rise of Majapahit'], ['maj2', "The Treasurer's Gate"], [0, 'The Paregreg War'], [0, 'The Melaka Envoys'], [0, 'Sirna Ilang Kertaning Bumi'], [0, 'The Road to Bali']]],
   ['ayu', 'u-thong', '1351-1569', 'Ayutthaya', 'The river kingdom of war elephants.',
     [['ayu1', 'The Island City'], ['ayu2', 'The Fall of Angkor'], [0, 'A Thousand Torches'], [0, 'The Queen on the Elephant'], [0, 'The White Elephants']]],
-  ['dv', 'le-loi', 'Free update   1406-1527', 'Dai Viet', 'From the fall of the Ho to the Lam Son rising. Try it now in Battles.',
-    [[0, 'The Ho Citadel'], [0, "Le Lai's Cloak"], [0, 'Attack the Heart'], [0, 'Chi Lang'], [0, 'The Last Le Court']]],
   ['km', 'ponhea-yat', 'Free update   1431-1594', 'Khmer', 'From the fall of Angkor to the bamboo walls of Lovek. Try it now in Battles.',
-    [[0, 'The Gates of Angkor'], [0, 'Where Four Rivers Meet'], [0, 'The Usurper King'], [0, 'Siem Reap'], [0, 'The Bamboo of Lovek']]]
+    [[0, 'The Gates of Angkor'], [0, 'Where Four Rivers Meet'], [0, 'The Usurper King'], [0, 'Siem Reap'], [0, 'The Bamboo of Lovek']]],
+  ['dv', 'le-loi', 'Free update   1406-1527', 'Dai Viet', 'From the fall of the Ho to the Lam Son rising. Try it now in Battles.',
+    [[0, 'The Ho Citadel'], [0, "Le Lai's Cloak"], [0, 'Attack the Heart'], [0, 'Chi Lang'], [0, 'The Last Le Court']]]
 ];
 const MISSIONS = {
   mel1: { civ: 'mel', n: 1, site: 'campaign/melaka-1/', year: 'c. 1398', hero: 'parameswara', name: 'Parameswara', as: 'As Singapura', foe: 'Majapahit fleet', fc: '#a8231c',
@@ -229,8 +229,8 @@ const HEROES = [
   ['maj', 'gajah-mada', 'Gajah Mada', 'The Oath of Palapa'], ['maj', 'tribhuwana', 'Tribhuwana', 'The Queen Regnant'], ['maj', 'hayam-wuruk', 'Hayam Wuruk', 'The Golden Age King'], ['maj', 'taming-sari', 'Taming Sari', 'The Champion'],
   ['maj', 'wikramawardhana', 'Wikramawardhana', 'King of the West'], ['maj', 'bhre-wirabhumi', 'Bhre Wirabhumi', 'Prince of the East'], ['maj', 'brawijaya', 'Brawijaya', 'The Last King'], ['maj', 'girindrawardhana', 'Girindrawardhana', 'Lord of Daha'],
   ['ayu', 'u-thong', 'U Thong', 'The Founder King'], ['ayu', 'borommatrailokanat', 'Borommatrailokanat', 'The Lawgiver King'], ['ayu', 'suriyothai', 'Suriyothai', 'The Queen on the Elephant'], ['ayu', 'maha-chakkraphat', 'Maha Chakkraphat', 'The Besieged King'], ['ayu', 'the-kalahom', 'The Kalahom', 'Minister of War'], ['ayu', 'naresuan', 'Naresuan', 'The Black Prince'],
-  ['dv', 'ho-quy-ly', 'Ho Quy Ly', 'The Reformer'], ['dv', 'ho-nguyen-trung', 'Ho Nguyen Trung', 'The Gun-Maker'], ['dv', 'le-loi', 'Le Loi', 'The Lam Son King'], ['dv', 'le-lai', 'Le Lai', 'The Loyal Decoy'], ['dv', 'nguyen-trai', 'Nguyen Trai', 'The Strategist'], ['dv', 'le-thanh-tong', 'Le Thanh Tong', 'The Golden Emperor'],
   ['km', 'ponhea-yat', 'Ponhea Yat', 'The King Who Saved the Court'], ['km', 'ang-chan-i', 'Ang Chan I', 'The Elephant King'],
+  ['dv', 'ho-quy-ly', 'Ho Quy Ly', 'The Reformer'], ['dv', 'ho-nguyen-trung', 'Ho Nguyen Trung', 'The Gun-Maker'], ['dv', 'le-loi', 'Le Loi', 'The Lam Son King'], ['dv', 'le-lai', 'Le Lai', 'The Loyal Decoy'], ['dv', 'nguyen-trai', 'Nguyen Trai', 'The Strategist'], ['dv', 'le-thanh-tong', 'Le Thanh Tong', 'The Golden Emperor'],
   ['riv', 'afonso-de-albuquerque', 'Afonso de Albuquerque', 'Portugal'], ['riv', 'sultan-trenggana', 'Sultan Trenggana', 'Demak'], ['riv', 'lieu-thang', 'Lieu Thang', 'Ming general'], ['riv', 'setthathirath', 'Setthathirath', 'Lan Xang']
 ];
 let heroSel = 'hang-tuah';
