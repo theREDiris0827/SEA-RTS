@@ -11,7 +11,7 @@ import os, shutil
 PF = '/mnt/project-files'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MISSIONS = {   # repo page -> source folder
-    'campaign/melaka-1': 'melaka-m1-demo', 'melaka-ages': 'melaka-ages-demo', 'campaign/melaka-5': 'melaka-m5', 'campaign/melaka-3': 'melaka-m3',
+    'campaign/melaka-1': 'melaka-m1-demo', 'melaka-ages': 'melaka-ages-demo', 'campaign/melaka-5': 'melaka-m5', 'campaign/melaka-3': 'melaka-m3', 'campaign/khmer-2': 'khmer-m2',
     'majapahit-ages': 'majapahit-ages-demo', 'majapahit': 'majapahit-demo', 'campaign/ayutthaya-1': 'ayutthaya-m1',
     'ayutthaya': 'ayutthaya-demo', 'daiviet': 'daiviet-demo', 'khmer': 'khmer-demo',
 }

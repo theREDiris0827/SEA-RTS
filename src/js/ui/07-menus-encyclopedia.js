@@ -25,7 +25,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.50 \u00b7 14 Nov 2026';
+const BUILD = '0.9.51 \u00b7 14 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -197,8 +197,8 @@ const CAMPAIGNS = [
     [['maj1', 'Rise of Majapahit'], ['maj2', "The Treasurer's Gate"], [0, 'The Paregreg War'], [0, 'The Melaka Envoys'], [0, 'Sirna Ilang Kertaning Bumi'], [0, 'The Road to Bali']]],
   ['ayu', 'u-thong', '1351-1569', 'Ayutthaya', 'The river kingdom of war elephants.',
     [['ayu1', 'The Island City'], ['ayu2', 'The Fall of Angkor'], [0, 'A Thousand Torches'], [0, 'The Queen on the Elephant'], [0, 'The White Elephants']]],
-  ['km', 'ponhea-yat', 'Free update   1431-1594', 'Khmer', 'From the fall of Angkor to the bamboo walls of Lovek. Try it now in Battles.',
-    [[0, 'The Gates of Angkor'], [0, 'Where Four Rivers Meet'], [0, 'The Usurper King'], [0, 'Siem Reap'], [0, 'The Bamboo of Lovek']]],
+  ['km', 'ponhea-yat', 'Free update   1432-1594', 'Khmer', 'From the new capital where four rivers meet to the bamboo walls of Lovek. The fall of Angkor is in Battles.',
+    [['khm1', 'Where Four Rivers Meet'], [0, 'The Usurper King'], [0, 'Siem Reap'], [0, 'The Bamboo of Lovek']]],
   ['dv', 'le-loi', 'Free update   1406-1527', 'Dai Viet', 'From the fall of the Ho to the Lam Son rising. Try it now in Battles.',
     [[0, 'The Ho Citadel'], [0, "Le Lai's Cloak"], [0, 'Attack the Heart'], [0, 'Chi Lang'], [0, 'The Last Le Court']]],
   ['tg', 'bayinnaung', 'Coming later   1510-1599', 'Toungoo', 'From a small river kingdom to the largest empire Southeast Asia has seen, built by conquest.',
@@ -214,6 +214,9 @@ const MISSIONS = {
   mel3: { civ: 'mel', n: 3, site: 'campaign/melaka-3/', year: 'c. 1456', hero: 'tun-perak', name: 'Tun Perak', as: 'Torches in the Mangroves', foe: 'Siamese war fleet', fc: '#7b4fb0',
     story: 'A Siamese war fleet anchors off the mangrove coast, and Melaka has too few ships to fight it. Tun Perak has another idea.',
     obj: [['Ready', 'Build a port and win over the Orang Laut'], ['Trick', 'Tie torches in the mangroves at night'], ['Chase', 'Break their courage and chase the fleet']] },
+  khm1: { civ: 'km', n: 1, site: 'campaign/khmer-2/', year: '1432-1434', hero: 'ponhea-yat', name: 'Ponhea Yat', as: 'Where Four Rivers Meet', foe: 'Raiders and the flood', fc: '#7b4fb0',
+    story: 'Angkor is lost. King Ponhea Yat brings the court, the monks and the farmers down the river to Chaktomuk, where four rivers meet. The land is rich, but every year the Mekong rises and the low ground goes under water.',
+    obj: [['Found', 'Build the royal palace on the hill'], ['Dike', 'Raise earth dikes and dig the first Baray'], ['Hold', 'Win over the river villages and beat the raiders from the west']] },
   maj1: { civ: 'maj', n: 1, site: 'majapahit-ages/', year: '1293-1336', hero: 'gajah-mada', name: 'Gajah Mada', as: 'The Oath of Palapa', foe: 'Kediri, Yuan, rebels', fc: '#8a6a4a',
     story: 'A new town rises in the Tarik forest. Kediri, a Yuan fleet and Majapahit’s own lords will test it before Gajah Mada swears his oath.',
     obj: [['Found', 'Grow the village into a kingdom'], ['Defend', 'Turn back Kediri, the Yuan and the rebels'], ['Unite', 'Crush Sadeng and Keta']] },
