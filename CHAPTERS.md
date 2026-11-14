@@ -47,6 +47,7 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9417 to 9483 |
 | [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9484 to 11628 |
 | [EXTRA 9 · The computer's Ayutthaya households](#extra-9--the-computers-ayutthaya-households) | `src/js/extras/09-ai-households.js` | 11629 to 11703 |
+| [EXTRA 10 · Computer-player fixes](#extra-10--computer-player-fixes) | `src/js/extras/10-ai-fixes.js` | 11704 to 11808 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1187,3 +1188,21 @@ Add-on: when the computer plays Ayutthaya it builds each house touching a paddy 
 |---|---|---|
 | `spotBeside` | 11651 | a free spot for `kind` touching building `o`, nearest the town centre |
 | `tend` | 11680 |  |
+
+## EXTRA 10 · Computer-player fixes
+
+`src/js/extras/10-ai-fixes.js` · lines 11704 to 11808
+
+Add-on from the overnight computer-vs-computer test of v0.9.49 (Game demos thread): - Big Islands: a loaded galley left idle lands its troops again, and the port builds galleys first when it is short. - Economy: now and then one villager moves from the fullest stock to the emptiest (no more wood piles and no food). - Ages: when the next age is due and unaffordable, it stops training past a home guard until it can pay. - Trade ships with no water route to the trading post give up (the player gets a message too).
+
+**Things you can tweak**
+
+- AIFIX.every, rich, poor: how often it checks and when one stock counts as too full or too empty.
+- AIFIX.farms (4), AIFIX.tradeStuck (25 s), AIFIX.ageArmy (4).
+- AIFIX.ageAt copies the AT table in aiTick (age times by difficulty): keep the two in step.
+
+**Functions**
+
+| Name | Line | What it does |
+|---|---|---|
+| `aiFix` | 11732 |  |

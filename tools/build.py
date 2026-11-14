@@ -64,6 +64,7 @@ JS_PARTS = [
     ('/* ##### CHAPTER EXTRA 7 · Fire Arrows research #####', 'js/extras/07-fire-arrows.js'),
     ('/* ##### CHAPTER EXTRA 8 · Khmer #####', 'js/extras/08-khmer.js'),
     ("/* ##### CHAPTER EXTRA 9 · The computer's Ayutthaya households #####", 'js/extras/09-ai-households.js'),
+    ('/* ##### CHAPTER EXTRA 10 · Computer-player fixes #####', 'js/extras/10-ai-fixes.js'),
 ]
 
 
