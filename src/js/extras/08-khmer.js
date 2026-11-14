@@ -289,7 +289,11 @@ function fan(P, x, y, w, h) {
 function sq(P, x, y, w, h) { P.r(x, y, w, h, SAIL); P.r(x + w - 1, y + 1, 1, h - 1, SAIL_D); P.r(x, y + h - 1, w, 1, SAIL_D); P.r(x - 1, y - 1, w + 2, 1, WOOD_D); }
 function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
 function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
-function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat
+  const ph = window.OARPH;
+  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][(ph + j) % 4];
+    for (let i = 0; i < len; i++) P.r(x - (q === 1 ? i >> 1 : i), y + (q === 2 ? i >> 1 : i), 1, 1, i === len - 1 ? HULL_L : WOOD); });
+}
 function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
 function flames(P, list, base) { for (const [x, h] of list) { P.r(x, base - h, 2, h, FIRE); P.r(x, base - h + 2, 1, h - 3, FIRE_L); P.r(x, base - h + 3, 1, 1, '#fff0a0'); } }
 

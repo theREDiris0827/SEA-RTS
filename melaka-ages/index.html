@@ -3956,7 +3956,11 @@ const NAVAL = (() => {
   // paint a small flag
   function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
   // paint a row of oars
-  function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+  function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat
+  const ph = window.OARPH;
+  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][(ph + j) % 4];
+    for (let i = 0; i < len; i++) P.r(x - (q === 1 ? i >> 1 : i), y + (q === 2 ? i >> 1 : i), 1, 1, i === len - 1 ? HULL_L : WOOD); });
+}
   // paint a crewman on deck
   function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
   // paint flames
@@ -4919,7 +4923,11 @@ function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
 // paint a small flag
 function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
 // paint a row of oars
-function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat
+  const ph = window.OARPH;
+  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][(ph + j) % 4];
+    for (let i = 0; i < len; i++) P.r(x - (q === 1 ? i >> 1 : i), y + (q === 2 ? i >> 1 : i), 1, 1, i === len - 1 ? HULL_L : WOOD); });
+}
 // paint a crewman on deck
 function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
 // paint flames
@@ -12245,7 +12253,11 @@ function fan(P, x, y, w, h) {
 function sq(P, x, y, w, h) { P.r(x, y, w, h, SAIL); P.r(x + w - 1, y + 1, 1, h - 1, SAIL_D); P.r(x, y + h - 1, w, 1, SAIL_D); P.r(x - 1, y - 1, w + 2, 1, WOOD_D); }
 function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
 function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
-function oars(P, xs, y, len) { for (const x of xs) for (let i = 0; i < len; i++) P.r(x - i, y + i, 1, 1, i === len - 1 ? HULL_L : WOOD); }
+function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat
+  const ph = window.OARPH;
+  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][(ph + j) % 4];
+    for (let i = 0; i < len; i++) P.r(x - (q === 1 ? i >> 1 : i), y + (q === 2 ? i >> 1 : i), 1, 1, i === len - 1 ? HULL_L : WOOD); });
+}
 function crew(P, x, y, head, body) { P.r(x, y, 2, 1, head); P.r(x, y + 1, 2, 2, SKIN); P.r(x, y + 3, 2, 1, body); }
 function flames(P, list, base) { for (const [x, h] of list) { P.r(x, base - h, 2, h, FIRE); P.r(x, base - h + 2, 1, h - 3, FIRE_L); P.r(x, base - h + 3, 1, 1, '#fff0a0'); } }
 
@@ -14280,6 +14292,28 @@ ENCY_BLDS.baray = KHMER.ency.baray = 'A great stone-banked reservoir, 6 by 4 til
   const _ot = Game.prototype.orderTrade;
   Game.prototype.orderTrade = function (u, post) { if (u.team === T1 && this.ai && this.ai.noSea) return; return _ot.apply(this, arguments); };
 })();
+/* ##### CHAPTER EXTRA 11 · Rowing oars #####
+   File: src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)
+   What it does: ships under way (u.moving) swing their oars in a slow ripple; a ship at rest keeps the still picture.
+   How: oars() in the ship-art files reads window.OARPH. While a moving ship's picture is built, this chapter sets
+   OARPH to the stroke frame (0-3) and adds it to the sprite cache key, so each ship is drawn once per frame, then reused.
+   Things you can tweak:
+     - OARANIM.fps: strokes per second (frames must stay 4 unless oars() changes).
+   ############################################################################ */
+(function () {
+  const OARANIM = { fps: 6, frames: 4 };   // strokes per second; the picture cycle (do not change frames without changing oars())
+  window.OARANIM = OARANIM;
+  let on = false;
+  const _sprite = sprite;
+  sprite = function (key, lw, lh, scale, draw, outline) { return _sprite(on ? key + '|o' + window.OARPH : key, lw, lh, scale, draw, outline); };
+  const _ship = shipSprite;
+  shipSprite = function (u) {
+    if (!u || !u.moving || u.kind === 'raft' || typeof nowS === 'undefined') return _ship(u);
+    on = true; window.OARPH = Math.floor(nowS * OARANIM.fps + (u.id || 0)) % OARANIM.frames;
+    try { return _ship(u); } finally { on = false; window.OARPH = null; }
+  };
+})();
+/* ===== end rowing oars ===== */
 </script>
 <script>
 /* app updates: check for a new version on every open and whenever the app comes back to the front;
