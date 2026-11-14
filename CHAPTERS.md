@@ -46,6 +46,7 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9369 to 9416 |
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9417 to 9483 |
 | [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9484 to 11628 |
+| [EXTRA 9 · The computer's Ayutthaya households](#extra-9--the-computers-ayutthaya-households) | `src/js/extras/09-ai-households.js` | 11629 to 11703 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1168,3 +1169,21 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 | `kmShipFor` | 11497 |  |
 | `baraySprite` | 11517 |  |
 | `barayBasket` | 11544 | a basket of rice in logical pixels of the Baray art |
+
+## EXTRA 9 · The computer's Ayutthaya households
+
+`src/js/extras/09-ai-households.js` · lines 11629 to 11703
+
+Add-on: when the computer plays Ayutthaya it builds each house touching a paddy (and each paddy touching a house) and keeps one farmer on every paired paddy, so its houses pay household food like yours. Skipped in campaign missions and battles (g.M set). Drafted and tested by the Game demos thread (Ayutthaya AI went from 12 wins, 23 losses to 25 wins, 10 losses over 72 matches).
+
+**Things you can tweak**
+
+- AYH.want: households the computer aims for by difficulty (2/4/6; the game's own cap is HOUSEHOLD.max).
+- AYH.every (6 s) and AYH.farmWood (120): how often it checks, and the wood it needs before adding a paddy.
+
+**Functions**
+
+| Name | Line | What it does |
+|---|---|---|
+| `spotBeside` | 11651 | a free spot for `kind` touching building `o`, nearest the town centre |
+| `tend` | 11680 |  |
