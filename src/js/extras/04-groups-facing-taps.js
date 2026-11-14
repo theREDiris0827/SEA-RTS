@@ -199,6 +199,8 @@ tabCss.textContent = `
 #grps .grp.empty { opacity: .55; justify-content: flex-start; } #grps .grp.empty b { margin-left: 4px; font-size: 16px; color: var(--muted); }
 #grps .grp.on { height: 38px; box-shadow: inset 0 2px 0 var(--gold); border-color: var(--gold); }
 #grps .grp.on i { background: var(--gold); color: #3a2a10; }
+/* group tabs stay out from under the start, pause, help and end cards */
+body:has(#ov:not([hidden])) #grps, body:has(#menu:not([hidden])) #grps { display: none !important; }
 #btn-zin, #btn-zout { display: none !important; }`;
 document.head.appendChild(tabCss);
 function updateGroupBar(force) {

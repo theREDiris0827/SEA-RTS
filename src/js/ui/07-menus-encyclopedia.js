@@ -25,7 +25,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.51 \u00b7 14 Nov 2026';
+const BUILD = '0.9.52 \u00b7 14 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen

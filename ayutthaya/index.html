@@ -5077,6 +5077,7 @@ function mainlandShip(civ, kind) {
   const d = (civ === 'dv' && kind === 'fishing') ? [20, 18] : (civ === 'km' && kind === 'trade') ? [32, 18] : NAVAL_DIMS[kind];
   return sprite('ml|' + civ + '|' + kind, d[0], d[1], 2, (P) => {
     const r = P.r;
+    const kman = (x, top, col, spear) => { r(x, top, 3, 1, HAIR); r(x, top + 1, 3, 2, SKIN); r(x + 2, top + 2, 1, 1, SKIN_D); r(x, top + 3, 3, 2, SKIN); r(x + 1, top + 4, 1, 1, SKIN_D); r(x, top + 5, 3, 2, col); if (spear) { r(x + 3, top - 2, 1, 9, WOOD); r(x + 3, top - 3, 1, 1, STEEL); } };
     if (civ === 'ayu') {
       if (kind === 'fishing') {
         // small canoe with a square mat lug sail
@@ -5148,22 +5149,22 @@ function mainlandShip(civ, kind) {
     } else {
       if (kind === 'fishing') {
         // touk: dugout canoe, a paddler under a krama
-        r(9, 8, 2, 1, '#c0392b'); r(9, 9, 2, 2, SKIN); r(9, 11, 2, 1, T.main); r(12, 9, 1, 5, WOOD); r(13, 14, 1, 2, WOOD_D);
+        kman(8, 6, '#c0392b', false); r(7, 5, 5, 1, '#c0392b'); r(12, 10, 1, 7, WOOD); r(13, 15, 1, 2, WOOD_D);
         hull(P, 3, 18, 13, 3, T);
       } else if (kind === 'trade') {
         // touk ngo: long war canoe with many paddlers and a carved prow (Bayon naval relief)
-        for (const x of [7, 11, 15, 19, 23]) { r(x, 8, 2, 1, HAIR); r(x, 9, 2, 2, SKIN); r(x + 1, 11, 1, 1, WOOD); r(x + 2, 12, 1, 3, WOOD); }
+        for (const x of [7, 11, 15, 19, 23]) { kman(x, 4, x === 15 ? T.main : '#c0392b', false); r(x + 3, 9, 1, 6, WOOD); r(x + 3, 14, 1, 2, WOOD_D); }
         r(4, 6, 1, 4, WOOD_D); r(3, 6, 3, 1, T.main);
         hull(P, 3, 28, 11, 3, T); r(29, 6, 1, 5, STONE); r(30, 5, 1, 2, STONE); r(28, 5, 2, 1, STONE_D); r(5, 12, 22, 1, STONE);
       } else if (kind === 'light') {
         // river skiff: small canoe, one archer, a small mat sail
         mast(P, 15, 4, 15); r(11, 5, 7, 7, MAT); r(11, 8, 7, 1, MAT_D); r(10, 4, 9, 1, WOOD_D);
-        r(6, 10, 2, 1, HAIR); r(6, 11, 2, 2, SKIN); r(8, 10, 1, 4, WOOD);
+        kman(6, 6, T.main, false); r(9, 6, 1, 8, WOOD); r(9, 5, 1, 1, STEEL);
         hull(P, 3, 26, 15, 3, T); prow(P, 27, 9, 7, STONE, STONE_D);
       } else if (kind === 'galley') {
         // bayon galley: long oared galley, warriors under a canopy, carved prow
-        r(10, 12, 18, 1, T.main); r(10, 13, 1, 5, WOOD_D); r(27, 13, 1, 5, WOOD_D);
-        for (const x of [13, 17, 21, 24]) { r(x, 14, 2, 1, HAIR); r(x, 15, 2, 3, SKIN); }
+        r(10, 6, 20, 1, T.main); r(10, 7, 20, 1, T.dark); r(10, 8, 1, 10, WOOD_D); r(29, 8, 1, 10, WOOD_D);
+        for (const x of [12, 16, 20, 24]) kman(x, 10, x === 16 ? T.main : '#c0392b', x !== 20);
         hull(P, 3, 34, 18, 5, T); prow(P, 35, 10, 10, STONE, STONE_D); r(5, 19, 28, 1, STONE);
         oars(P, [9, 14, 19, 24, 29], 23, 4);
       } else if (kind === 'frigate') {
@@ -5171,7 +5172,7 @@ function mainlandShip(civ, kind) {
         mast(P, 12, 3, 24); r(7, 4, 10, 12, MAT); r(7, 8, 10, 1, MAT_D); r(7, 12, 10, 1, MAT_D); r(6, 3, 12, 1, WOOD_D);
         r(22, 21, 14, 3, WOOD); r(22, 21, 14, 1, '#a8773c');
         r(24, 19, 12, 1, WOOD_D); r(34, 14, 1, 5, WOOD); r(34, 20, 1, 3, WOOD); r(31, 16, 1, 2, WOOD); r(31, 20, 1, 2, WOOD); r(26, 19, 10, 1, '#d8d0b0'); r(36, 19, 1, 1, STEEL);
-        r(24, 17, 2, 2, SKIN); r(24, 16, 2, 1, HAIR);
+        kman(9, 17, '#c0392b', false); kman(14, 17, T.main, false); kman(24, 14, '#c0392b', false);
         hull(P, 3, 40, 24, 7, T); prow(P, 41, 16, 9, STONE, STONE_D);
       } else {
         // naga barge: royal barge with a five-headed naga prow and a tiered pavilion
@@ -7374,7 +7375,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.51 \u00b7 14 Nov 2026';
+const BUILD = '0.9.52 \u00b7 14 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -13169,6 +13170,8 @@ tabCss.textContent = `
 #grps .grp.empty { opacity: .55; justify-content: flex-start; } #grps .grp.empty b { margin-left: 4px; font-size: 16px; color: var(--muted); }
 #grps .grp.on { height: 38px; box-shadow: inset 0 2px 0 var(--gold); border-color: var(--gold); }
 #grps .grp.on i { background: var(--gold); color: #3a2a10; }
+/* group tabs stay out from under the start, pause, help and end cards */
+body:has(#ov:not([hidden])) #grps, body:has(#menu:not([hidden])) #grps { display: none !important; }
 #btn-zin, #btn-zout { display: none !important; }`;
 document.head.appendChild(tabCss);
 function updateGroupBar(force) {
@@ -14113,6 +14116,7 @@ function mainlandShip(civ, kind) {
   const d = (civ === 'dv' && kind === 'fishing') ? [20, 18] : (civ === 'km' && kind === 'trade') ? [32, 18] : NAVAL_DIMS[kind];
   return sprite('ml|' + civ + '|' + kind, d[0], d[1], 2, (P) => {
     const r = P.r;
+    const kman = (x, top, col, spear) => { r(x, top, 3, 1, HAIR); r(x, top + 1, 3, 2, SKIN); r(x + 2, top + 2, 1, 1, SKIN_D); r(x, top + 3, 3, 2, SKIN); r(x + 1, top + 4, 1, 1, SKIN_D); r(x, top + 5, 3, 2, col); if (spear) { r(x + 3, top - 2, 1, 9, WOOD); r(x + 3, top - 3, 1, 1, STEEL); } };
     if (civ === 'ayu') {
       if (kind === 'fishing') {
         // small canoe with a square mat lug sail
@@ -14184,22 +14188,22 @@ function mainlandShip(civ, kind) {
     } else {
       if (kind === 'fishing') {
         // touk: dugout canoe, a paddler under a krama
-        r(9, 8, 2, 1, '#c0392b'); r(9, 9, 2, 2, SKIN); r(9, 11, 2, 1, T.main); r(12, 9, 1, 5, WOOD); r(13, 14, 1, 2, WOOD_D);
+        kman(8, 6, '#c0392b', false); r(7, 5, 5, 1, '#c0392b'); r(12, 10, 1, 7, WOOD); r(13, 15, 1, 2, WOOD_D);
         hull(P, 3, 18, 13, 3, T);
       } else if (kind === 'trade') {
         // touk ngo: long war canoe with many paddlers and a carved prow (Bayon naval relief)
-        for (const x of [7, 11, 15, 19, 23]) { r(x, 8, 2, 1, HAIR); r(x, 9, 2, 2, SKIN); r(x + 1, 11, 1, 1, WOOD); r(x + 2, 12, 1, 3, WOOD); }
+        for (const x of [7, 11, 15, 19, 23]) { kman(x, 4, x === 15 ? T.main : '#c0392b', false); r(x + 3, 9, 1, 6, WOOD); r(x + 3, 14, 1, 2, WOOD_D); }
         r(4, 6, 1, 4, WOOD_D); r(3, 6, 3, 1, T.main);
         hull(P, 3, 28, 11, 3, T); r(29, 6, 1, 5, STONE); r(30, 5, 1, 2, STONE); r(28, 5, 2, 1, STONE_D); r(5, 12, 22, 1, STONE);
       } else if (kind === 'light') {
         // river skiff: small canoe, one archer, a small mat sail
         mast(P, 15, 4, 15); r(11, 5, 7, 7, MAT); r(11, 8, 7, 1, MAT_D); r(10, 4, 9, 1, WOOD_D);
-        r(6, 10, 2, 1, HAIR); r(6, 11, 2, 2, SKIN); r(8, 10, 1, 4, WOOD);
+        kman(6, 6, T.main, false); r(9, 6, 1, 8, WOOD); r(9, 5, 1, 1, STEEL);
         hull(P, 3, 26, 15, 3, T); prow(P, 27, 9, 7, STONE, STONE_D);
       } else if (kind === 'galley') {
         // bayon galley: long oared galley, warriors under a canopy, carved prow
-        r(10, 12, 18, 1, T.main); r(10, 13, 1, 5, WOOD_D); r(27, 13, 1, 5, WOOD_D);
-        for (const x of [13, 17, 21, 24]) { r(x, 14, 2, 1, HAIR); r(x, 15, 2, 3, SKIN); }
+        r(10, 6, 20, 1, T.main); r(10, 7, 20, 1, T.dark); r(10, 8, 1, 10, WOOD_D); r(29, 8, 1, 10, WOOD_D);
+        for (const x of [12, 16, 20, 24]) kman(x, 10, x === 16 ? T.main : '#c0392b', x !== 20);
         hull(P, 3, 34, 18, 5, T); prow(P, 35, 10, 10, STONE, STONE_D); r(5, 19, 28, 1, STONE);
         oars(P, [9, 14, 19, 24, 29], 23, 4);
       } else if (kind === 'frigate') {
@@ -14207,7 +14211,7 @@ function mainlandShip(civ, kind) {
         mast(P, 12, 3, 24); r(7, 4, 10, 12, MAT); r(7, 8, 10, 1, MAT_D); r(7, 12, 10, 1, MAT_D); r(6, 3, 12, 1, WOOD_D);
         r(22, 21, 14, 3, WOOD); r(22, 21, 14, 1, '#a8773c');
         r(24, 19, 12, 1, WOOD_D); r(34, 14, 1, 5, WOOD); r(34, 20, 1, 3, WOOD); r(31, 16, 1, 2, WOOD); r(31, 20, 1, 2, WOOD); r(26, 19, 10, 1, '#d8d0b0'); r(36, 19, 1, 1, STEEL);
-        r(24, 17, 2, 2, SKIN); r(24, 16, 2, 1, HAIR);
+        kman(9, 17, '#c0392b', false); kman(14, 17, T.main, false); kman(24, 14, '#c0392b', false);
         hull(P, 3, 40, 24, 7, T); prow(P, 41, 16, 9, STONE, STONE_D);
       } else {
         // naga barge: royal barge with a five-headed naga prow and a tiered pavilion

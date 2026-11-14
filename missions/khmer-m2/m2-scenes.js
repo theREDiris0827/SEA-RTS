@@ -36,8 +36,9 @@ function drawScene(id) {
     x.fillStyle = '#6f8a5a'; x.fillRect(0, 96, W2, 10);
     palms(x, [[40, 104], [70, 102], [400, 104], [440, 102]]);
     seaBand(x, W2, 104, H2, '#5f7f86', '#a9c4c0', 4);
-    putShip(x, 'boat', 0, 120, 160, false); putShip(x, 'boat', 0, 230, 182, false); putShip(x, 'boat', 0, 330, 150, false);
-    putUnit(x, 'ponhea', 0, 236, 168, 'idle', 0); putUnit(x, 'sangha', 0, 128, 148);
+    putShip(x, 'galley', 0, 92, 150, false); putShip(x, 'galley', 0, 378, 150, true); putShip(x, 'boat', 0, 440, 124, false);
+    putShip(x, 'flagship', 0, 236, 186, false);   // the royal naga barge, King Ponhea Yat forward, the monks before the pavilion
+    putUnit(x, 'ponhea', 0, 262, 169, 'idle', 0); putUnit(x, 'sangha', 0, 222, 169);
     ground(x, W2, 196, H2, '#6f8a5a', '#5a7448');
   } else if (id === 'flood' || id === 'rise') {
     // the river spreads over the fields; farmers raise an earth dike
