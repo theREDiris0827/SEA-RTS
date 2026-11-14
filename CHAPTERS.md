@@ -45,10 +45,10 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9258 to 9382 |
 | [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9383 to 9430 |
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9431 to 9497 |
-| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9498 to 11647 |
-| [EXTRA 9 · The computer's Ayutthaya households](#extra-9--the-computers-ayutthaya-households) | `src/js/extras/09-ai-households.js` | 11648 to 11722 |
-| [EXTRA 10 · Computer-player fixes](#extra-10--computer-player-fixes) | `src/js/extras/10-ai-fixes.js` | 11723 to 11827 |
-| [EXTRA 11 · Rowing oars](#extra-11--rowing-oars) | `src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` | 11828 to 11849 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9498 to 11803 |
+| [EXTRA 9 · The computer's Ayutthaya households](#extra-9--the-computers-ayutthaya-households) | `src/js/extras/09-ai-households.js` | 11804 to 11878 |
+| [EXTRA 10 · Computer-player fixes](#extra-10--computer-player-fixes) | `src/js/extras/10-ai-fixes.js` | 11879 to 11983 |
+| [EXTRA 11 · Rowing oars](#extra-11--rowing-oars) | `src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` | 11984 to 12005 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1077,7 +1077,7 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 
 ## EXTRA 8 · Khmer
 
-`src/js/extras/08-khmer.js` · lines 9498 to 11647
+`src/js/extras/08-khmer.js` · lines 9498 to 11803
 
 the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
 
@@ -1168,13 +1168,15 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 | `kmuCart` | 11358 |  |
 | `guardUnit` | 11395 |  |
 | `gduPerson` | 11400 |  |
-| `kmShipFor` | 11516 |  |
-| `baraySprite` | 11536 |  |
-| `barayBasket` | 11563 | a basket of rice in logical pixels of the Baray art |
+| `kmaPerson` | 11504 | Khmer soldiers through the four ages (draft, art thread 2026-11-08). Load after lore/scenes/units-khmer.js. Built by gen.py from kmuPerson in... |
+| `kmAgeUnit` | 11644 |  |
+| `kmShipFor` | 11672 |  |
+| `baraySprite` | 11692 |  |
+| `barayBasket` | 11719 | a basket of rice in logical pixels of the Baray art |
 
 ## EXTRA 9 · The computer's Ayutthaya households
 
-`src/js/extras/09-ai-households.js` · lines 11648 to 11722
+`src/js/extras/09-ai-households.js` · lines 11804 to 11878
 
 Add-on: when the computer plays Ayutthaya it builds each house touching a paddy (and each paddy touching a house) and keeps one farmer on every paired paddy, so its houses pay household food like yours. Skipped in campaign missions and battles (g.M set). Drafted and tested by the Game demos thread (Ayutthaya AI went from 12 wins, 23 losses to 25 wins, 10 losses over 72 matches).
 
@@ -1187,12 +1189,12 @@ Add-on: when the computer plays Ayutthaya it builds each house touching a paddy 
 
 | Name | Line | What it does |
 |---|---|---|
-| `spotBeside` | 11670 | a free spot for `kind` touching building `o`, nearest the town centre |
-| `tend` | 11699 |  |
+| `spotBeside` | 11826 | a free spot for `kind` touching building `o`, nearest the town centre |
+| `tend` | 11855 |  |
 
 ## EXTRA 10 · Computer-player fixes
 
-`src/js/extras/10-ai-fixes.js` · lines 11723 to 11827
+`src/js/extras/10-ai-fixes.js` · lines 11879 to 11983
 
 Add-on from the overnight computer-vs-computer test of v0.9.49 (Game demos thread): - Big Islands: a loaded galley left idle lands its troops again, and the port builds galleys first when it is short. - Economy: now and then one villager moves from the fullest stock to the emptiest (no more wood piles and no food). - Ages: when the next age is due and unaffordable, it stops training past a home guard until it can pay. - Trade ships with no water route to the trading post give up (the player gets a message too).
 
@@ -1206,11 +1208,11 @@ Add-on from the overnight computer-vs-computer test of v0.9.49 (Game demos threa
 
 | Name | Line | What it does |
 |---|---|---|
-| `aiFix` | 11751 |  |
+| `aiFix` | 11907 |  |
 
 ## EXTRA 11 · Rowing oars
 
-`src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` · lines 11828 to 11849
+`src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` · lines 11984 to 12005
 
 ships under way (u.moving) swing their oars in a slow ripple; a ship at rest keeps the still picture. How: oars() in the ship-art files reads window.OARPH. While a moving ship's picture is built, this chapter sets OARPH to the stroke frame (0-3) and adds it to the sprite cache key, so each ship is drawn once per frame, then reused.
 
