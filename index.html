@@ -7286,7 +7286,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.53 \u00b7 14 Nov 2026';
+const BUILD = '0.9.54 \u00b7 15 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -11097,6 +11097,20 @@ BD.palace.train.push('lguard');
     if (u && kind === 'lguard') { this.lgN = this.lgN || {}; const n = this.lgN[team] = (this.lgN[team] || 0) + 1; u.gk = n % 2 ? 'malay' : 'cham'; }
     return u;
   }; }
+/* hired loyalty: the Laksamana's Guard serve the palace that pays them. If a side has no standing palace, its guard leaves. */
+{ const _upd = Game.prototype.update;
+  // once a second: any side with guards and no finished palace loses them (they walk away, they do not die)
+  Game.prototype.update = function (dt) {
+    _upd.apply(this, arguments);
+    if (this.over || this.tickN % 30) return;
+    for (const team of [0, 1]) {
+      const gs = this.units.filter(u => u.team === team && u.kind === 'lguard' && u.hp > 0); if (!gs.length) continue;
+      if (this.buildings.some(b => b.team === team && b.kind === 'palace' && b.done && b.hp > 0)) continue;
+      for (const u of gs) u.hp = 0;
+      this.units = this.units.filter(u => !(u.team === team && u.kind === 'lguard'));
+      if (team === 0) this.msg("The palace has fallen. The Laksamana's Guard has left your service.");
+    }
+  }; }
 // villagers repair 25% faster, and towers, walls and gates near a Baray another 25%
 { const _rep = Game.prototype.doRepair;
   Game.prototype.doRepair = function (u, dt) {
@@ -11132,7 +11146,7 @@ FIRE_ARROWS.local[3] = 'Sna Phleung';
 // a weak, river navy: the Touk Ngo is an unarmed river trader and earns like Ayutthaya's
 UD.trade.civAtk[3] = 0; TRADE.civ[3] = 1;
 Object.assign(BRIEF, { sna: 'Light, fast crossbow', heavysna: 'Longest-range foot archer, slow reload', elitesna: 'Golden Age crossbow, longer range still',
-  lguard: 'Hired Malay and Cham gunners, six at most', baray: 'Farms nearby gather 25% faster' });
+  lguard: 'Hired Malay and Cham gunners, six at most. They leave if the palace falls', baray: 'Farms nearby gather 25% faster' });
 Object.assign(ENCY_UNITS, {
   sna: 'Khmer crossbowman from the Kingdom Age: light and quick to shoot. Strong against spearmen, weak when swords reach it.',
   heavysna: 'From the Age of Commerce: a heavy crossbow with the longest range of any foot soldier, but slow to reload.',
