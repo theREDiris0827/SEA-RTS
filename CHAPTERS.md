@@ -45,10 +45,10 @@ Every chapter of the game: where it sits in `index.html`, what it does, the numb
 | [EXTRA 5 · Compact screen](#extra-5--compact-screen) | `src/js/extras/05-compact-hud.js` | 9258 to 9382 |
 | [EXTRA 6 · Base footprints, wading, wet ports, house drop-off](#extra-6--base-footprints-wading-wet-ports-house-drop-off) | `src/js/extras/06-footprint-wading.js` | 9383 to 9430 |
 | [EXTRA 7 · Fire Arrows research](#extra-7--fire-arrows-research) | `src/js/extras/07-fire-arrows.js` | 9431 to 9497 |
-| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9498 to 11803 |
-| [EXTRA 9 · The computer's Ayutthaya households](#extra-9--the-computers-ayutthaya-households) | `src/js/extras/09-ai-households.js` | 11804 to 11878 |
-| [EXTRA 10 · Computer-player fixes](#extra-10--computer-player-fixes) | `src/js/extras/10-ai-fixes.js` | 11879 to 11983 |
-| [EXTRA 11 · Rowing oars](#extra-11--rowing-oars) | `src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` | 11984 to 12005 |
+| [EXTRA 8 · Khmer](#extra-8--khmer) | `src/js/extras/08-khmer.js` | 9498 to 11817 |
+| [EXTRA 9 · The computer's Ayutthaya households](#extra-9--the-computers-ayutthaya-households) | `src/js/extras/09-ai-households.js` | 11818 to 11892 |
+| [EXTRA 10 · Computer-player fixes](#extra-10--computer-player-fixes) | `src/js/extras/10-ai-fixes.js` | 11893 to 11997 |
+| [EXTRA 11 · Rowing oars](#extra-11--rowing-oars) | `src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` | 11998 to 12019 |
 | Styles | `src/css/game.css` | inside `<style>` |
 | Page layout (menus, HUD) | `src/index.html` | outside the script and styles |
 
@@ -1077,7 +1077,7 @@ Panah Api (lore/siege.md): from Age 2 the Barracks can research Fire Arrows once
 
 ## EXTRA 8 · Khmer
 
-`src/js/extras/08-khmer.js` · lines 9498 to 11803
+`src/js/extras/08-khmer.js` · lines 9498 to 11817
 
 the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per-civ table gets a Khmer column. Until Khmer's own roster lands, a missing Khmer value copies Melaka's, so nothing breaks.
 
@@ -1132,51 +1132,51 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 | `vietRoof` | 10296 | Vietnamese roof: low tiled hip roof with upturned corners |
 | `prasat` | 10303 | Khmer prasat tower: stepped sandstone tower with a lotus-bud top |
 | `mainlandBuilding` | 10308 |  |
-| `pier` | 10395 |  |
-| `rack` | 10396 |  |
-| `mainlandBase` | 10398 |  |
-| `kmHash` | 10486 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10488 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10503 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10513 | sandstone coping / cornice band |
-| `kmPrasat` | 10515 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10539 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10561 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10571 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10573 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10584 |  |
-| `cartBallistaSprite` | 10702 |  |
-| `kmHash` | 10750 | deterministic hash for pit/texture placement |
-| `kmLaterite` | 10752 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
-| `kmSand` | 10767 | sandstone: smooth grey-tan ashlar |
-| `kmCoping` | 10777 | sandstone coping / cornice band |
-| `kmPrasat` | 10779 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
-| `kmFace` | 10803 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
-| `kmNaga` | 10825 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
-| `kmBanner` | 10835 | blue team banner with a gold border and a small gold lotus |
-| `kmTileRoof` | 10837 | steep tile roof with ribbed tile channels and upswept gold gable horns |
-| `kmBuilding` | 10848 |  |
-| `bxPaddy` | 10969 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
-| `bxSpears` | 10981 | a rack of spears (tassel colour per civ) |
-| `kmBuildingX` | 10983 |  |
-| `building` | 11036 |  |
-| `kmUnit` | 11155 |  |
-| `kmuPerson` | 11163 |  |
-| `kmuDoubleBow` | 11291 | Each bow is an arc with its tips bent back; the string runs to the nock (drawn) or straight across (shot). |
-| `kmuCrew` | 11307 | small seated/standing figure: head at y, body below |
-| `kmuElephant` | 11315 |  |
-| `kmuCart` | 11358 |  |
-| `guardUnit` | 11395 |  |
-| `gduPerson` | 11400 |  |
-| `kmaPerson` | 11504 | Khmer soldiers through the four ages (draft, art thread 2026-11-08). Load after lore/scenes/units-khmer.js. Built by gen.py from kmuPerson in... |
-| `kmAgeUnit` | 11644 |  |
-| `kmShipFor` | 11672 |  |
-| `baraySprite` | 11692 |  |
-| `barayBasket` | 11719 | a basket of rice in logical pixels of the Baray art |
+| `pier` | 10409 |  |
+| `rack` | 10410 |  |
+| `mainlandBase` | 10412 |  |
+| `kmHash` | 10500 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10502 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10517 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10527 | sandstone coping / cornice band |
+| `kmPrasat` | 10529 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10553 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10575 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10585 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10587 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10598 |  |
+| `cartBallistaSprite` | 10716 |  |
+| `kmHash` | 10764 | deterministic hash for pit/texture placement |
+| `kmLaterite` | 10766 | laterite blocks: rusty orange-brown, staggered courses, dark pits |
+| `kmSand` | 10781 | sandstone: smooth grey-tan ashlar |
+| `kmCoping` | 10791 | sandstone coping / cornice band |
+| `kmPrasat` | 10793 | corncob prasat tower: a body with a false door, then stacked tiers tapering to a lotus bud |
+| `kmFace` | 10817 | carved Bayon face: crown, brows, closed eyes, broad nose, calm smile. s = 1 small (7x9) or 2 large (11x13) |
+| `kmNaga` | 10839 | naga balustrade: a stone serpent body on little posts, ending in a fanned multi-headed hood |
+| `kmBanner` | 10849 | blue team banner with a gold border and a small gold lotus |
+| `kmTileRoof` | 10851 | steep tile roof with ribbed tile channels and upswept gold gable horns |
+| `kmBuilding` | 10862 |  |
+| `bxPaddy` | 10983 | rice paddy shared by both: water, bunds, rows of rice that grow with the level |
+| `bxSpears` | 10995 | a rack of spears (tassel colour per civ) |
+| `kmBuildingX` | 10997 |  |
+| `building` | 11050 |  |
+| `kmUnit` | 11169 |  |
+| `kmuPerson` | 11177 |  |
+| `kmuDoubleBow` | 11305 | Each bow is an arc with its tips bent back; the string runs to the nock (drawn) or straight across (shot). |
+| `kmuCrew` | 11321 | small seated/standing figure: head at y, body below |
+| `kmuElephant` | 11329 |  |
+| `kmuCart` | 11372 |  |
+| `guardUnit` | 11409 |  |
+| `gduPerson` | 11414 |  |
+| `kmaPerson` | 11518 | Khmer soldiers through the four ages (draft, art thread 2026-11-08). Load after lore/scenes/units-khmer.js. Built by gen.py from kmuPerson in... |
+| `kmAgeUnit` | 11658 |  |
+| `kmShipFor` | 11686 |  |
+| `baraySprite` | 11706 |  |
+| `barayBasket` | 11733 | a basket of rice in logical pixels of the Baray art |
 
 ## EXTRA 9 · The computer's Ayutthaya households
 
-`src/js/extras/09-ai-households.js` · lines 11804 to 11878
+`src/js/extras/09-ai-households.js` · lines 11818 to 11892
 
 Add-on: when the computer plays Ayutthaya it builds each house touching a paddy (and each paddy touching a house) and keeps one farmer on every paired paddy, so its houses pay household food like yours. Skipped in campaign missions and battles (g.M set). Drafted and tested by the Game demos thread (Ayutthaya AI went from 12 wins, 23 losses to 25 wins, 10 losses over 72 matches).
 
@@ -1189,12 +1189,12 @@ Add-on: when the computer plays Ayutthaya it builds each house touching a paddy 
 
 | Name | Line | What it does |
 |---|---|---|
-| `spotBeside` | 11826 | a free spot for `kind` touching building `o`, nearest the town centre |
-| `tend` | 11855 |  |
+| `spotBeside` | 11840 | a free spot for `kind` touching building `o`, nearest the town centre |
+| `tend` | 11869 |  |
 
 ## EXTRA 10 · Computer-player fixes
 
-`src/js/extras/10-ai-fixes.js` · lines 11879 to 11983
+`src/js/extras/10-ai-fixes.js` · lines 11893 to 11997
 
 Add-on from the overnight computer-vs-computer test of v0.9.49 (Game demos thread): - Big Islands: a loaded galley left idle lands its troops again, and the port builds galleys first when it is short. - Economy: now and then one villager moves from the fullest stock to the emptiest (no more wood piles and no food). - Ages: when the next age is due and unaffordable, it stops training past a home guard until it can pay. - Trade ships with no water route to the trading post give up (the player gets a message too).
 
@@ -1208,11 +1208,11 @@ Add-on from the overnight computer-vs-computer test of v0.9.49 (Game demos threa
 
 | Name | Line | What it does |
 |---|---|---|
-| `aiFix` | 11907 |  |
+| `aiFix` | 11921 |  |
 
 ## EXTRA 11 · Rowing oars
 
-`src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` · lines 11984 to 12005
+`src/js/extras/11-oar-animation.js   (drafted by the demos thread, added in v0.9.53)` · lines 11998 to 12019
 
 ships under way (u.moving) swing their oars in a slow ripple; a ship at rest keeps the still picture. How: oars() in the ship-art files reads window.OARPH. While a moving ship's picture is built, this chapter sets OARPH to the stroke frame (0-3) and adds it to the sprite cache key, so each ship is drawn once per frame, then reused.
 
