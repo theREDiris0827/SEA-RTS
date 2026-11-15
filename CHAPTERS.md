@@ -1111,7 +1111,7 @@ the fourth civ (civ id 4, column 3 of the per-civ tables). Groundwork: every per
 | `sq` | 9800 | Square sail with a darker belly edge (European-influenced late ships). |
 | `mast` | 9801 |  |
 | `flag` | 9802 |  |
-| `oars` | 9803 | OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat |
+| `oars` | 9803 | OARPH (0-3) set while a moving ship is drawn: every oar takes the same stroke together: mid, steep, mid, flat |
 | `crew` | 9808 |  |
 | `flames` | 9809 |  |
 | `navalSprite` | 9822 |  |

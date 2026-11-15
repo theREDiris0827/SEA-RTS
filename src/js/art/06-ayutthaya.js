@@ -511,9 +511,9 @@ function mast(P, x, y0, y1) { P.r(x, y0, 1, y1 - y0, WOOD_D); }
 // paint a small flag
 function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
 // paint a row of oars
-function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat
+function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: every oar takes the same stroke together: mid, steep, mid, flat
   const ph = window.OARPH;
-  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][(ph + j) % 4];
+  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][ph % 4];
     for (let i = 0; i < len; i++) P.r(x - (q === 1 ? i >> 1 : i), y + (q === 2 ? i >> 1 : i), 1, 1, i === len - 1 ? HULL_L : WOOD); });
 }
 // paint a crewman on deck
@@ -745,7 +745,7 @@ function mainlandShip(civ, kind) {
       if (kind === 'fishing') {
         // touk: river canoe with an arched woven-bamboo shelter, one paddler at the stern
         r(9, 9, 6, 1, MAT); r(8, 10, 8, 3, MAT); r(8, 12, 8, 1, MAT_D); r(11, 10, 1, 3, MAT_D); r(8, 10, 8, 1, T.main);
-        crew(P, 5, 9, '#c0392b', T.main); r(4, 10, 1, 6, WOOD); r(3, 15, 1, 2, WOOD_D);
+        crew(P, 5, 9, '#c0392b', T.main); { const q = window.OARPH == null ? 0 : [0, 1, 0, -1][window.OARPH % 4]; r(4 + q, 10, 1, 3, WOOD); r(4, 13, 1, 3, WOOD); r(3 - q, 15, 1, 2, WOOD_D); }   // the paddle dips with the stroke
         hull(P, 3, 18, 13, 3, T);
       } else if (kind === 'trade') {
         // touk ngo: long river canoe with a carved prow, an arched cargo shelter and jars of prahok and rice

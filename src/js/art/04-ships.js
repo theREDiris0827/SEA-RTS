@@ -48,9 +48,9 @@ const NAVAL = (() => {
   // paint a small flag
   function flag(P, x, y, c1, c2) { P.r(x, y, 4, 2, c1); P.r(x + 1, y, 2, 1, c2); }
   // paint a row of oars
-  function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: oar j is at stroke (OARPH + j) % 4: mid, steep, mid, flat
+  function oars(P, xs, y, len) {   // OARPH (0-3) set while a moving ship is drawn: every oar takes the same stroke together: mid, steep, mid, flat
   const ph = window.OARPH;
-  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][(ph + j) % 4];
+  xs.forEach((x, j) => { const q = ph == null ? 0 : [0, 1, 0, 2][ph % 4];
     for (let i = 0; i < len; i++) P.r(x - (q === 1 ? i >> 1 : i), y + (q === 2 ? i >> 1 : i), 1, 1, i === len - 1 ? HULL_L : WOOD); });
 }
   // paint a crewman on deck

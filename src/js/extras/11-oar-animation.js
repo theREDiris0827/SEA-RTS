@@ -7,7 +7,7 @@
      - OARANIM.fps: strokes per second (frames must stay 4 unless oars() changes).
    ############################################################################ */
 (function () {
-  const OARANIM = { fps: 6, frames: 4 };   // strokes per second; the picture cycle (do not change frames without changing oars())
+  const OARANIM = { fps: 5, frames: 4 };   // strokes per second; the picture cycle (do not change frames without changing oars())
   window.OARANIM = OARANIM;
   let on = false;
   const _sprite = sprite;
