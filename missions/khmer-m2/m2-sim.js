@@ -284,7 +284,7 @@ function sendWave(g, i) {
   });
   M.waveSent = i + 1; M.wave = i + 1;
   g.msg('Raiders from the west are coming! (' + (i + 1) + ' of ' + KM2.waves.length + ')');
-  g.alerts.push({ x: from.x + 3, y: from.y, t: 4 });
+  g.alerts.push({ x: from.x + 3, y: from.y, t: 3 });
   M.cardQ.push('v-raid');
 }
 Game.prototype.aiTick = function () { if (this.M) m2AI(this); };

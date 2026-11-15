@@ -494,7 +494,7 @@ function drawMini() {
   mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 1;
   mctx.strokeRect(cam.x / TILE * S + 0.5, cam.y / TILE * S + 0.5, view.w / view.zoom / TILE * S, view.h / view.zoom / TILE * S);
   for (const a of G.alerts) {
-    const p = 1 - a.t / 3; mctx.strokeStyle = 'rgba(255,90,74,' + (1 - p).toFixed(2) + ')'; mctx.lineWidth = 2;
+    const p = Math.max(0, Math.min(1, 1 - a.t / 3)); mctx.strokeStyle = 'rgba(255,90,74,' + (1 - p).toFixed(2) + ')'; mctx.lineWidth = 2;
     mctx.beginPath(); mctx.arc(a.x * S, a.y * S, 3 + p * 12, 0, 6.2832); mctx.stroke();
   }
 }
