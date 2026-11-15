@@ -2145,6 +2145,13 @@ class Game {
         for (const u of us) { if (u.cls === 'boat') this.orderMove(u, target.x, target.y); else this.orderAttack(u, target); }
         return;
       }
+      // a damaged farm, paddy or Baray is mended first; the villagers then go on to work it (order.then)
+      if (target.isBld && target.team === team && target.done && target.hp < target.maxHp && (FIELD[target.kind] || target.kind === 'baray') && us.some(u => u.cls === 'vil')) {
+        const movers = [];
+        for (const u of us) { if (u.cls === 'vil') { u.order = { t: 'repair', id: target.id, then: 1 }; u.path = null; u.wait = 0; } else movers.push(u); }
+        if (movers.length) this.groupMove(movers, target.x, target.y, opts);
+        return;
+      }
       if (target.isBld && target.team === team && target.kind === 'baray' && target.done && us.some(u => u.cls === 'vil')) {
         const vs = us.filter(u => u.cls === 'vil'), rest = us.filter(u => u.cls !== 'vil');
         let room = KBARAY.fishers - this.units.filter(o => o.hp > 0 && o.order.t === 'fishhouse' && o.order.id === target.id && !vs.includes(o)).length;
@@ -3090,7 +3097,10 @@ class Game {
      building's price in wood (at least 25), paid as the work goes */
   doRepair(u, dt) {
     const b = this.byId.get(u.order.id);
-    if (!b || b.hp <= 0 || !b.done || b.hp >= b.maxHp) { this.idleOrder(u); return; }
+    if (!b || b.hp <= 0 || !b.done || b.hp >= b.maxHp) {
+      const go = b && b.done && b.hp >= b.maxHp && u.order.then;   // mended a farm or Baray: now work it
+      this.idleOrder(u); if (go) this.command([u.id], b.x, b.y, b, { any: true }); return;
+    }
     if (rectDist(u.x, u.y, b.rect) <= 0.95) {
       u.path = null;
       const c = BD[b.kind].cost || {}, perHp = Math.max(b.kind === 'towncentre' ? 300 : 40, (c.wood || 0) + (c.gold || 0)) * 0.5 / b.maxHp, r = this.res[u.team];
@@ -5154,31 +5164,35 @@ function mainlandShip(civ, kind) {
       }
     } else {
       if (kind === 'fishing') {
-        // touk: dugout canoe, a paddler under a krama
-        kman(8, 6, '#c0392b', false); r(7, 8, 4, 1, '#c0392b'); r(12, 10, 1, 7, WOOD); r(13, 15, 1, 2, WOOD_D);
+        // touk: river canoe with an arched woven-bamboo shelter, one paddler at the stern
+        r(9, 9, 6, 1, MAT); r(8, 10, 8, 3, MAT); r(8, 12, 8, 1, MAT_D); r(11, 10, 1, 3, MAT_D); r(8, 10, 8, 1, T.main);
+        crew(P, 5, 9, '#c0392b', T.main); r(4, 10, 1, 6, WOOD); r(3, 15, 1, 2, WOOD_D);
         hull(P, 3, 18, 13, 3, T);
       } else if (kind === 'trade') {
-        // touk ngo: long war canoe with many paddlers and a carved prow (Bayon naval relief)
-        for (const x of [7, 11, 15, 19, 23]) { kman(x, 4, x === 15 ? T.main : '#c0392b', false); r(x + 3, 9, 1, 6, WOOD); r(x + 3, 14, 1, 2, WOOD_D); }
+        // touk ngo: long river canoe with a carved prow, an arched cargo shelter and jars of prahok and rice
+        r(10, 5, 10, 1, MAT); r(9, 6, 12, 5, MAT); r(9, 10, 12, 1, MAT_D); r(13, 6, 1, 5, MAT_D); r(17, 6, 1, 5, MAT_D); r(9, 6, 12, 1, T.main);
+        r(22, 8, 2, 3, '#b0563a'); r(22, 7, 2, 1, '#8a3f2a'); r(25, 9, 2, 2, '#e8dfc8');
+        crew(P, 6, 7, HAIR, '#c0392b');
         r(4, 6, 1, 4, WOOD_D); r(3, 6, 3, 1, T.main);
         hull(P, 3, 28, 11, 3, T); r(29, 6, 1, 5, STONE); r(30, 5, 1, 2, STONE); r(28, 5, 2, 1, STONE_D); r(5, 12, 22, 1, STONE);
       } else if (kind === 'light') {
-        // river skiff: small canoe, one archer, a small mat sail
-        mast(P, 15, 4, 15); r(11, 5, 7, 7, MAT); r(11, 8, 7, 1, MAT_D); r(10, 4, 9, 1, WOOD_D);
-        kman(6, 6, T.main, false); r(9, 6, 1, 8, WOOD); r(9, 5, 1, 1, STEEL);
+        // river skiff: small canoe with a mat sail, a blue pennant and one steersman
+        mast(P, 15, 3, 15); r(11, 5, 8, 8, MAT); r(11, 8, 8, 1, MAT_D); r(11, 11, 8, 1, MAT_D); r(10, 4, 10, 1, WOOD_D); r(16, 2, 3, 2, T.main);
+        crew(P, 6, 11, HAIR, T.main);
         hull(P, 3, 26, 15, 3, T); prow(P, 27, 9, 7, STONE, STONE_D);
       } else if (kind === 'galley') {
-        // bayon galley: long oared galley, warriors under a canopy, carved prow
-        r(10, 9, 20, 1, T.main); r(10, 10, 20, 1, T.dark); r(10, 11, 1, 7, WOOD_D); r(29, 11, 1, 7, WOOD_D);
-        for (const x of [12, 16, 20, 24]) kman(x, 10, x === 16 ? T.main : '#c0392b', x !== 20);
+        // bayon galley: long oared war galley, a tiered pavilion amidships, round shields along the side, carved stone prow
+        pavilion(P, 13, 12, 11, 6, T.main, T.dark, STONE); r(15, 14, 2, 4, T.dark); r(20, 14, 2, 4, T.dark);
+        r(5, 12, 1, 6, WOOD_D); flag(P, 6, 11, T.main, GOLD);
         hull(P, 3, 34, 18, 5, T); prow(P, 35, 10, 10, STONE, STONE_D); r(5, 19, 28, 1, STONE);
+        for (let x = 7; x < 32; x += 4) { r(x, 20, 2, 2, STONE); r(x, 20, 1, 1, T.main); }
         oars(P, [9, 14, 19, 24, 29], 23, 4);
       } else if (kind === 'frigate') {
         // ballista barge: broad barge with a big double-bow ballista and a mat sail
         mast(P, 12, 3, 24); r(7, 4, 10, 12, MAT); r(7, 8, 10, 1, MAT_D); r(7, 12, 10, 1, MAT_D); r(6, 3, 12, 1, WOOD_D);
         r(22, 21, 14, 3, WOOD); r(22, 21, 14, 1, '#a8773c');
         r(24, 19, 12, 1, WOOD_D); r(34, 14, 1, 5, WOOD); r(34, 20, 1, 3, WOOD); r(31, 16, 1, 2, WOOD); r(31, 20, 1, 2, WOOD); r(26, 19, 10, 1, '#d8d0b0'); r(36, 19, 1, 1, STEEL);
-        kman(9, 17, '#c0392b', false); kman(14, 17, T.main, false); kman(24, 14, '#c0392b', false);
+        crew(P, 24, 17, HAIR, '#c0392b'); crew(P, 19, 20, HAIR, T.main);
         hull(P, 3, 40, 24, 7, T); prow(P, 41, 16, 9, STONE, STONE_D);
       } else {
         // naga barge: royal barge with a five-headed naga prow and a tiered pavilion
@@ -7380,7 +7394,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.54 \u00b7 15 Nov 2026';
+const BUILD = '0.9.55 \u00b7 15 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -12020,31 +12034,35 @@ function mainlandShip(civ, kind) {
       }
     } else {
       if (kind === 'fishing') {
-        // touk: dugout canoe, a paddler under a krama
-        kman(8, 6, '#c0392b', false); r(7, 8, 4, 1, '#c0392b'); r(12, 10, 1, 7, WOOD); r(13, 15, 1, 2, WOOD_D);
+        // touk: river canoe with an arched woven-bamboo shelter, one paddler at the stern
+        r(9, 9, 6, 1, MAT); r(8, 10, 8, 3, MAT); r(8, 12, 8, 1, MAT_D); r(11, 10, 1, 3, MAT_D); r(8, 10, 8, 1, T.main);
+        crew(P, 5, 9, '#c0392b', T.main); r(4, 10, 1, 6, WOOD); r(3, 15, 1, 2, WOOD_D);
         hull(P, 3, 18, 13, 3, T);
       } else if (kind === 'trade') {
-        // touk ngo: long war canoe with many paddlers and a carved prow (Bayon naval relief)
-        for (const x of [7, 11, 15, 19, 23]) { kman(x, 4, x === 15 ? T.main : '#c0392b', false); r(x + 3, 9, 1, 6, WOOD); r(x + 3, 14, 1, 2, WOOD_D); }
+        // touk ngo: long river canoe with a carved prow, an arched cargo shelter and jars of prahok and rice
+        r(10, 5, 10, 1, MAT); r(9, 6, 12, 5, MAT); r(9, 10, 12, 1, MAT_D); r(13, 6, 1, 5, MAT_D); r(17, 6, 1, 5, MAT_D); r(9, 6, 12, 1, T.main);
+        r(22, 8, 2, 3, '#b0563a'); r(22, 7, 2, 1, '#8a3f2a'); r(25, 9, 2, 2, '#e8dfc8');
+        crew(P, 6, 7, HAIR, '#c0392b');
         r(4, 6, 1, 4, WOOD_D); r(3, 6, 3, 1, T.main);
         hull(P, 3, 28, 11, 3, T); r(29, 6, 1, 5, STONE); r(30, 5, 1, 2, STONE); r(28, 5, 2, 1, STONE_D); r(5, 12, 22, 1, STONE);
       } else if (kind === 'light') {
-        // river skiff: small canoe, one archer, a small mat sail
-        mast(P, 15, 4, 15); r(11, 5, 7, 7, MAT); r(11, 8, 7, 1, MAT_D); r(10, 4, 9, 1, WOOD_D);
-        kman(6, 6, T.main, false); r(9, 6, 1, 8, WOOD); r(9, 5, 1, 1, STEEL);
+        // river skiff: small canoe with a mat sail, a blue pennant and one steersman
+        mast(P, 15, 3, 15); r(11, 5, 8, 8, MAT); r(11, 8, 8, 1, MAT_D); r(11, 11, 8, 1, MAT_D); r(10, 4, 10, 1, WOOD_D); r(16, 2, 3, 2, T.main);
+        crew(P, 6, 11, HAIR, T.main);
         hull(P, 3, 26, 15, 3, T); prow(P, 27, 9, 7, STONE, STONE_D);
       } else if (kind === 'galley') {
-        // bayon galley: long oared galley, warriors under a canopy, carved prow
-        r(10, 9, 20, 1, T.main); r(10, 10, 20, 1, T.dark); r(10, 11, 1, 7, WOOD_D); r(29, 11, 1, 7, WOOD_D);
-        for (const x of [12, 16, 20, 24]) kman(x, 10, x === 16 ? T.main : '#c0392b', x !== 20);
+        // bayon galley: long oared war galley, a tiered pavilion amidships, round shields along the side, carved stone prow
+        pavilion(P, 13, 12, 11, 6, T.main, T.dark, STONE); r(15, 14, 2, 4, T.dark); r(20, 14, 2, 4, T.dark);
+        r(5, 12, 1, 6, WOOD_D); flag(P, 6, 11, T.main, GOLD);
         hull(P, 3, 34, 18, 5, T); prow(P, 35, 10, 10, STONE, STONE_D); r(5, 19, 28, 1, STONE);
+        for (let x = 7; x < 32; x += 4) { r(x, 20, 2, 2, STONE); r(x, 20, 1, 1, T.main); }
         oars(P, [9, 14, 19, 24, 29], 23, 4);
       } else if (kind === 'frigate') {
         // ballista barge: broad barge with a big double-bow ballista and a mat sail
         mast(P, 12, 3, 24); r(7, 4, 10, 12, MAT); r(7, 8, 10, 1, MAT_D); r(7, 12, 10, 1, MAT_D); r(6, 3, 12, 1, WOOD_D);
         r(22, 21, 14, 3, WOOD); r(22, 21, 14, 1, '#a8773c');
         r(24, 19, 12, 1, WOOD_D); r(34, 14, 1, 5, WOOD); r(34, 20, 1, 3, WOOD); r(31, 16, 1, 2, WOOD); r(31, 20, 1, 2, WOOD); r(26, 19, 10, 1, '#d8d0b0'); r(36, 19, 1, 1, STEEL);
-        kman(9, 17, '#c0392b', false); kman(14, 17, T.main, false); kman(24, 14, '#c0392b', false);
+        crew(P, 24, 17, HAIR, '#c0392b'); crew(P, 19, 20, HAIR, T.main);
         hull(P, 3, 40, 24, 7, T); prow(P, 41, 16, 9, STONE, STONE_D);
       } else {
         // naga barge: royal barge with a five-headed naga prow and a tiered pavilion

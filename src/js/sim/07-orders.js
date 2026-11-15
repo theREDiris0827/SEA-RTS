@@ -240,6 +240,13 @@
         for (const u of us) { if (u.cls === 'boat') this.orderMove(u, target.x, target.y); else this.orderAttack(u, target); }
         return;
       }
+      // a damaged farm, paddy or Baray is mended first; the villagers then go on to work it (order.then)
+      if (target.isBld && target.team === team && target.done && target.hp < target.maxHp && (FIELD[target.kind] || target.kind === 'baray') && us.some(u => u.cls === 'vil')) {
+        const movers = [];
+        for (const u of us) { if (u.cls === 'vil') { u.order = { t: 'repair', id: target.id, then: 1 }; u.path = null; u.wait = 0; } else movers.push(u); }
+        if (movers.length) this.groupMove(movers, target.x, target.y, opts);
+        return;
+      }
       if (target.isBld && target.team === team && target.kind === 'baray' && target.done && us.some(u => u.cls === 'vil')) {
         const vs = us.filter(u => u.cls === 'vil'), rest = us.filter(u => u.cls !== 'vil');
         let room = KBARAY.fishers - this.units.filter(o => o.hp > 0 && o.order.t === 'fishhouse' && o.order.id === target.id && !vs.includes(o)).length;

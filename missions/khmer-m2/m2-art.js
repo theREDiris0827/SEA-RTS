@@ -30,25 +30,27 @@ function ponheaSprite(anim, f) {
 }
 /* the monks: shaven heads, saffron robes, one bare shoulder; the abbot carries his fan. 26x18 */
 function monksSprite(f) {
-  // abbot at the back and centre, a monk on each side a little in front; a clear gap between them so the group reads at a glance
-  return sprite('monks3|' + f, 28, 20, 2, (P) => {
-    const r = P.r, SK = '#d9a066', SKD = '#b97a46';
+  // abbot at the back and centre, a monk on each side a little in front; a clear gap between them so the group reads at a glance.
+  // Heads are pale with a dark shaven crown so they stand out from the saffron robes; all three stand on nearly the same line.
+  return sprite('monks4|' + f, 28, 20, 2, (P) => {
+    const r = P.r, SK = '#f0c898', SKD = '#c8935e', CROWN = '#7a5a3e';
     const monk = (x, y, ph, abbot) => {
       const ff = (f + ph) & 3, bob = (ff === 1 || ff === 3) ? -1 : 0, y0 = y + bob;
-      const st = [[1, 4], [2, 3], [2, 4], [1, 3]][ff];
-      r(x + st[0], y + 13, 2, 1, SKD); r(x + st[1], y + 13, 2, 1, SKD);              // bare feet
-      r(x + 1, y0 + 4, 7, 9, SAFF); r(x + 1, y0 + 12, 7, 1, SAFF_D);                  // robe, hem
-      r(x + 3, y0 + 4, 1, 8, SAFF_L); r(x + 6, y0 + 6, 1, 6, SAFF_D);                 // folds
-      for (let k = 0; k < 5; k++) r(x + 1 + k, y0 + 5 + k, 2, 1, SAFF_D);             // sash from the left shoulder to the right hip
-      r(x + 6, y0 + 4, 2, 3, SK); r(x + 7, y0 + 6, 1, 2, SKD);                        // bare right shoulder and arm
-      r(x + 3, y0 + 3, 2, 1, SKD);                                                    // neck
-      r(x + 2, y0, 4, 4, SK); r(x + 2, y0, 4, 1, '#c08a5a'); r(x + 1, y0 + 2, 1, 1, SKD); r(x + 6, y0 + 2, 1, 1, SKD); r(x + 5, y0 + 2, 1, 1, HAIR); // shaven head, ears, eye
-      if (abbot) { r(x, y0 + 4, 1, 9, WOOD_D); r(x - 1, y0 + 2, 3, 1, SAFF_D); r(x - 1, y0 + 3, 3, 1, SAFF); }  // the abbot's staff and fan
-      else r(x + 7, y0 + 9, 2, 2, '#3a2a1c');                                         // alms bowl
+      const st = [[1, 5], [2, 4], [2, 5], [1, 4]][ff];
+      r(x + st[0], y + 14, 2, 1, SKD); r(x + st[1], y + 14, 2, 1, SKD);              // bare feet
+      r(x + 1, y0 + 5, 7, 9, SAFF); r(x + 1, y0 + 13, 7, 1, SAFF_D);                  // robe, hem
+      r(x + 3, y0 + 6, 1, 7, SAFF_L); r(x + 6, y0 + 8, 1, 5, SAFF_D);                 // folds
+      for (let k = 0; k < 5; k++) r(x + 1 + k, y0 + 6 + k, 2, 1, SAFF_D);             // sash from the left shoulder to the right hip
+      r(x + 6, y0 + 5, 2, 3, SK); r(x + 7, y0 + 7, 1, 2, SKD);                        // bare right shoulder and arm
+      r(x + 3, y0 + 4, 3, 1, SKD);                                                    // neck
+      r(x + 2, y0, 5, 4, SK); r(x + 2, y0, 5, 1, CROWN); r(x + 2, y0 + 1, 1, 1, CROWN); // shaven head with a dark crown
+      r(x + 5, y0 + 2, 1, 1, HAIR); r(x + 3, y0 + 3, 3, 1, SKD);                      // eye, jaw
+      if (abbot) { r(x - 1, y0 + 1, 1, 13, WOOD_D); r(x - 2, y0, 3, 1, GOLD); }       // the abbot's staff with a gold cap
+      else r(x + 6, y0 + 10, 3, 2, '#3a2a1c');                                        // alms bowl
     };
-    monk(10, 0, 1, true);
-    monk(1, 4, 0, false);
-    monk(19, 4, 2, false);
+    monk(10, 3, 1, true);
+    monk(0, 5, 0, false);
+    monk(19, 5, 2, false);
   });
 }
 

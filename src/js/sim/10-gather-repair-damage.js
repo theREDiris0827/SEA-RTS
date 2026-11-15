@@ -139,7 +139,10 @@
      building's price in wood (at least 25), paid as the work goes */
   doRepair(u, dt) {
     const b = this.byId.get(u.order.id);
-    if (!b || b.hp <= 0 || !b.done || b.hp >= b.maxHp) { this.idleOrder(u); return; }
+    if (!b || b.hp <= 0 || !b.done || b.hp >= b.maxHp) {
+      const go = b && b.done && b.hp >= b.maxHp && u.order.then;   // mended a farm or Baray: now work it
+      this.idleOrder(u); if (go) this.command([u.id], b.x, b.y, b, { any: true }); return;
+    }
     if (rectDist(u.x, u.y, b.rect) <= 0.95) {
       u.path = null;
       const c = BD[b.kind].cost || {}, perHp = Math.max(b.kind === 'towncentre' ? 300 : 40, (c.wood || 0) + (c.gold || 0)) * 0.5 / b.maxHp, r = this.res[u.team];
