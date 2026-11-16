@@ -130,6 +130,27 @@ function paintMission() {
     if (M.won.includes(id)) { ctx.fillStyle = '#3a2408'; ctx.fillRect(x - 1, y - 30, 2, 26); ctx.fillStyle = KBLUE; ctx.fillRect(x + 1, y - 30, 12, 8); ctx.fillStyle = '#f2c94c'; ctx.fillRect(x + 5, y - 28, 4, 4); }
     else flagAt(x, y + 18, b4);
   }
+  // the blessing: a gold ring fills round the village, with the seconds left
+  for (const u of G.units) {
+    if (u.kind !== 'sangha' || u.hp <= 0 || u.order.t !== 'bless' || !(u.order.w > 0)) continue;
+    const v = G.byId.get(u.order.id); if (!v) continue;
+    const cx = v.x * TILE, cy = v.y * TILE, k = Math.min(1, u.order.w / KM2.blessTime), r = v.size * TILE * 0.62;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(23,17,12,0.6)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
+    const t = 'Blessing ' + Math.ceil(KM2.blessTime - u.order.w) + ' s';
+    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#17110c'; ctx.fillText(t, cx + 1, cy + r + 17); ctx.fillStyle = '#f2c94c'; ctx.fillText(t, cx, cy + r + 16); ctx.textAlign = 'left';
+    break;
+  }
+  // while the river rises, a red mark flashes wherever water will get past the dikes
+  if (!M.flood && M.t >= M.nextFlood - KM2.floodWarn) {
+    const a = 0.45 + 0.45 * Math.sin(nowS * 6);
+    for (const gp of floodGaps(G)) {
+      const x = gp.x * TILE, y = gp.y * TILE;
+      ctx.globalAlpha = a; ctx.fillStyle = '#e0402a'; ctx.fillRect(x, y, TILE, TILE);
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#fff0e0'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+      ctx.fillStyle = '#fff0e0'; ctx.fillRect(x + TILE / 2 - 2, y + 6, 4, TILE - 18); ctx.fillRect(x + TILE / 2 - 2, y + TILE - 9, 4, 4);
+    }
+  }
   // while the river rises (and during the flood), buildings that would go under get a red wash
   const rising = !M.flood && M.t >= M.nextFlood - KM2.floodWarn;
   if (rising || M.flood) {

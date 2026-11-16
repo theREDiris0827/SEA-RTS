@@ -6812,6 +6812,8 @@ function handleTap(wx, wy, o) {
     if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].troops && us.some(u => u.layer === 0))) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
     const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
+    // villagers tapped onto a damaged building of yours repair it
+    if (hit && hit.isBld && hit.team === 0 && hasVil && hit.done && hit.hp < hit.maxHp - 0.5) { issue(wx, wy, hit); return; }
     if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || FIELD[hit.kind] || hit.kind === 'rafthouse'))) { select([hit]); return; }
     issue(wx, wy, hit); return;
   }
@@ -7394,7 +7396,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.58 \u00b7 15 Nov 2026';
+const BUILD = '0.9.59 \u00b7 15 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
@@ -12241,11 +12243,14 @@ function plainMask(g) {
 }
 function onHill(x, y) { return Math.hypot((x + 0.5 - HILL.x) / HILL.rx, (y + 0.5 - HILL.y) / HILL.ry) < 1; }
 // the water's reach in this flood: spreads from the river over the plain, stopped by dikes and walls
-let wetG = null, wetD = null, wetAt = -1;
+// a port, trading post or fish house stands in the water anyway: it seals the dike line and never floods
+function waterside(b) { const d = BD[b.kind]; return !!(d.shore || d.site || b.kind === 'port' || b.kind === 'fishhouse' || b.kind === 'rafthouse'); }
+function sealsFlood(b) { return b.hp > 0 && b.done && (BD[b.kind].wall || (b.team === 0 && waterside(b))); }
+let wetG = null, wetD = null, wetAt = -1, wetP = null;
 function floodDepth(g) {
   if (wetG === g && wetAt === g.tickN) return wetD;
-  const pm = plainMask(g), dike = new Uint8Array(W * H), d = new Int16Array(W * H).fill(-1), q = [];
-  for (const b of g.buildings) if (b.hp > 0 && b.done && BD[b.kind].wall) dike[b.ty * W + b.tx] = 1;
+  const pm = plainMask(g), dike = new Uint8Array(W * H), d = new Int16Array(W * H).fill(-1), q = [], par = new Int32Array(W * H).fill(-1);
+  for (const b of g.buildings) if (sealsFlood(b)) { const h = b.h || b.size; for (let y = b.ty; y < b.ty + h; y++) for (let x = b.tx; x < b.tx + b.size; x++) dike[y * W + x] = 1; }
   for (let i = 0; i < W * H; i++) {
     if (!pm[i] || dike[i]) continue;
     const x = i % W, y = (i / W) | 0;
@@ -12256,12 +12261,29 @@ function floodDepth(g) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const x = cx + dx, y = cy + dy; if (!g.inb(x, y)) continue; const j = y * W + x;
       if (d[j] >= 0 || !pm[j] || dike[j]) continue;
-      d[j] = d[c] + 1; q.push(j);
+      d[j] = d[c] + 1; par[j] = c; q.push(j);
     }
   }
-  wetG = g; wetD = d; wetAt = g.tickN; return d;
+  wetG = g; wetD = d; wetP = par; wetDike = dike; wetAt = g.tickN; return d;
 }
 // how far the water has spread now (in tiles from the river), 0 when there is no flood
+let wetDike = null;
+// where the water gets past the dikes: for each building that would flood, the spot where its water first slips by a dike
+function floodGaps(g) {
+  const d = floodDepth(g), out = [];
+  const near = (i) => { const x = i % W, y = (i / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (g.inb(x + dx, y + dy) && wetDike[(y + dy) * W + x + dx]) return true; return false; };
+  for (const b of g.buildings) {
+    if (b.team !== 0 || b.hp <= 0 || !wouldFlood(g, b)) continue;
+    const h = b.h || b.size; let c = -1;
+    for (let y = b.ty; y < b.ty + h && c < 0; y++) for (let x = b.tx; x < b.tx + b.size; x++) if (d[y * W + x] >= 0) { c = y * W + x; break; }
+    let mark = -1, n = 0;
+    while (c >= 0 && n++ < W * H) { if (near(c)) mark = c; c = wetP[c]; }
+    if (mark < 0) continue;
+    const x = mark % W, y = (mark / W) | 0;
+    if (!out.some(o => Math.abs(o.x - x) <= 2 && Math.abs(o.y - y) <= 2)) out.push({ x, y });
+  }
+  return out;
+}
 function floodReach(g) {
   const M = g.M; if (!M || !M.flood) return -1;
   const t = M.t - M.floodStart, left = M.floodEnd - M.t;
@@ -12273,7 +12295,7 @@ function isWet(g, x, y) {
 }
 // a building is flooded if water stands on any of its tiles
 function bldWet(g, b) {
-  if (BD[b.kind].wall || b.kind === 'baray') return false;   // dikes hold the water back; the Baray is meant to hold it
+  if (BD[b.kind].wall || b.kind === 'baray' || waterside(b)) return false;   // dikes hold the water back; the Baray is meant to hold it
   const r = floodReach(g); if (r < 0) return false;
   const d = floodDepth(g), h = b.h || b.size;
   for (let y = b.ty; y < b.ty + h; y++) for (let x = b.tx; x < b.tx + b.size; x++) { const v = d[y * W + x]; if (v >= 0 && v <= r) return true; }
@@ -12281,7 +12303,7 @@ function bldWet(g, b) {
 }
 // what floods if the river rose now (the preview drawn before each flood)
 function wouldFlood(g, b) {
-  if (BD[b.kind].wall || b.kind === 'baray') return false;
+  if (BD[b.kind].wall || b.kind === 'baray' || waterside(b)) return false;
   const d = floodDepth(g), h = b.h || b.size;
   for (let y = b.ty; y < b.ty + h; y++) for (let x = b.tx; x < b.tx + b.size; x++) if (d[y * W + x] >= 0) return true;
   return false;
@@ -12323,8 +12345,44 @@ Game.prototype.populate = function () {
   for (const b of g.buildings) if (b.kind !== 'village') b.hp = 0;
   for (const u of g.units) if (u.team !== 2) u.hp = 0;
   g.cleanup();
-  M.villages = g.villages.map(v => v.id);
   for (const v of g.villages) v.rv = true;
+  // the trading landing stands two tiles clear of the village houses, still on the bank
+  for (const v of g.villages.slice()) {
+    const s = v.site, dir = Math.sign(s.tx - v.tx) || 1;
+    const mask = (tx, ty, k) => { for (let y = ty; y < ty + 3; y++) for (let x = tx; x < tx + 3; x++) g.siteMask[y * W + x] = k; };
+    const ok = (tx, ty) => {
+      let water = 0;
+      for (let y = ty - 1; y <= ty + 3; y++) for (let x = tx - 1; x <= tx + 3; x++) {
+        if (!g.inb(x, y)) return false;
+        const inn = x >= tx && x <= tx + 2 && y >= ty && y <= ty + 2;
+        if (inn) { if (!g.isLand(x, y) || g.block[y * W + x] && !g.nodes.some(n => n.kind === 'tree' && n.tx === x && n.ty === y)) return false; }
+        else if (g.isWater(x, y)) water++;
+      }
+      return water >= 4;
+    };
+    let best = null;
+    for (const [dx, dy] of [[2, 0], [2, 1], [2, -1], [3, 0], [2, 2], [2, -2], [3, 1], [3, -1]]) { const tx = s.tx + dx * dir, ty = s.ty + dy; if (ok(tx, ty)) { best = { tx, ty }; break; } }
+    if (!best) {
+      // no room along the bank: the village itself steps two tiles back from its landing
+      const vx = v.tx - 2 * dir, vy = v.ty; let free = true;
+      for (let y = vy; y < vy + 3 && free; y++) for (let x = vx; x < vx + 3; x++) {
+        if (x >= v.tx && x < v.tx + 3) continue;
+        if (!g.inb(x, y) || !g.isLand(x, y) || (g.block[y * W + x] || g.occ[y * W + x]) && !g.nodes.some(n => n.kind === 'tree' && n.tx === x && n.ty === y)) { free = false; break; }
+      }
+      if (!free) continue;
+      for (const n of g.nodes.slice()) if (n.kind === 'tree' && n.tx >= vx - 1 && n.tx <= vx + 3 && n.ty >= vy - 1 && n.ty <= vy + 3) g.removeNode(n);
+      const i = g.villages.indexOf(v); v.hp = 0; g.cleanup();
+      const nv = g.addBuilding('village', 2, vx, vy, true); nv.site = s; nv.post = 0; nv.rv = true;
+      if (!g.villages.includes(nv)) g.villages.splice(i < 0 ? g.villages.length : i, 0, nv);
+      g.villages = g.villages.filter(q => q.hp > 0);
+      continue;
+    }
+    mask(s.tx, s.ty, 0);
+    for (const n of g.nodes.slice()) if (n.kind === 'tree' && n.tx >= best.tx - 1 && n.tx <= best.tx + 3 && n.ty >= best.ty - 1 && n.ty <= best.ty + 3) g.removeNode(n);
+    v.site = best; mask(best.tx, best.ty, 1);
+    for (let y = best.ty - 1; y <= best.ty + 3; y++) for (let x = best.tx - 1; x <= best.tx + 3; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
+  }
+  M.villages = g.villages.map(v => v.id);
   // the hill and the landing: open ground, a few old trees left on the hill
   for (const n of g.nodes) if (n.kind !== 'fish' && (onHill(n.tx, n.ty) && hash2(n.tx, n.ty, 5) < 0.85 || Math.hypot(n.tx - LANDING.x, n.ty - LANDING.y) < 5)) g.removeNode(n);
   for (const n of g.nodes) if (n.kind === 'tree' && RAID_FROM.some(r => Math.hypot(n.tx + 0.5 - r.x, n.ty + 0.5 - r.y) < 4)) g.removeNode(n);
@@ -12361,6 +12419,27 @@ function plotsPlanted(g) {
   return barayPlots(b).filter(([x, y]) => g.buildings.some(o => FIELD[o.kind] && o.team === 0 && o.hp > 0 && o.done && o.tx === x && o.ty === y)).length;
 }
 function raidersLeft(g) { return g.units.filter(u => u.team === 1 && u.hp > 0).length; }
+
+/* ---------- a dike can be laid through trees: the tree is cleared ---------- */
+function dikeTree(g, kind, x, y, team) {
+  if (!g.M || team !== 0 || !BD[kind] || !BD[kind].wall) return null;
+  return g.nodes.find(n => n.kind === 'tree' && n.hp !== 0 && n.tx === x && n.ty === y) || null;
+}
+const _m2cp = Game.prototype.canPlace;
+Game.prototype.canPlace = function (kind, tx, ty, team) {
+  const n = dikeTree(this, kind, tx, ty, team);
+  if (!n) return _m2cp.call(this, kind, tx, ty, team);
+  const i = ty * W + tx, b0 = this.block[i], o0 = this.occ[i];
+  this.block[i] = 0; this.occ[i] = 0;
+  const ok = _m2cp.call(this, kind, tx, ty, team);
+  this.block[i] = b0; this.occ[i] = o0;
+  return ok;
+};
+const _m2ab = Game.prototype.addBuilding;
+Game.prototype.addBuilding = function (kind, team, tx, ty, done) {
+  const n = dikeTree(this, kind, tx, ty, team); if (n) this.removeNode(n);
+  return _m2ab.apply(this, arguments);
+};
 
 /* ---------- the monks bless a village ---------- */
 const _m2cmd = Game.prototype.command;
@@ -12466,6 +12545,12 @@ function missionTick(g, dt) {
   const pal = palaceOf(g);
   if (pal && pal.done && !M.tc) { M.tc = pal.id; M.cardQ.push('v-founded'); g.msg('The Preah Reachea Veang stands. The court has a home again.'); }
   if (pal && !pal.done && !M.warned.tcUp) M.warned.tcUp = true;
+  // monks standing idle near a village that has not joined start the blessing by themselves
+  if (g.tickN % 15 === 0) for (const u of g.units) {
+    if (u.kind !== 'sangha' || u.team !== 0 || u.hp <= 0 || u.order.t !== 'idle') continue;
+    const v = g.villages.find(v => v.hp > 0 && !M.won.includes(v.id) && rectDist(u.x, u.y, v.rect) <= 3.5);
+    if (v) { u.order = { t: 'bless', id: v.id, w: 0 }; u.path = null; u.wait = 0; }
+  }
   // new monks if they fell
   if (!monksUnit(g) && M.monkDown && M.t - M.monkDown >= KM2.monkBack && M.won.length < 2) {
     const at = pal && pal.done ? g.findSpawn(pal, null, 0) : heroUnit(g);
@@ -12640,6 +12725,27 @@ function paintMission() {
     if (M.won.includes(id)) { ctx.fillStyle = '#3a2408'; ctx.fillRect(x - 1, y - 30, 2, 26); ctx.fillStyle = KBLUE; ctx.fillRect(x + 1, y - 30, 12, 8); ctx.fillStyle = '#f2c94c'; ctx.fillRect(x + 5, y - 28, 4, 4); }
     else flagAt(x, y + 18, b4);
   }
+  // the blessing: a gold ring fills round the village, with the seconds left
+  for (const u of G.units) {
+    if (u.kind !== 'sangha' || u.hp <= 0 || u.order.t !== 'bless' || !(u.order.w > 0)) continue;
+    const v = G.byId.get(u.order.id); if (!v) continue;
+    const cx = v.x * TILE, cy = v.y * TILE, k = Math.min(1, u.order.w / KM2.blessTime), r = v.size * TILE * 0.62;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(23,17,12,0.6)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
+    const t = 'Blessing ' + Math.ceil(KM2.blessTime - u.order.w) + ' s';
+    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#17110c'; ctx.fillText(t, cx + 1, cy + r + 17); ctx.fillStyle = '#f2c94c'; ctx.fillText(t, cx, cy + r + 16); ctx.textAlign = 'left';
+    break;
+  }
+  // while the river rises, a red mark flashes wherever water will get past the dikes
+  if (!M.flood && M.t >= M.nextFlood - KM2.floodWarn) {
+    const a = 0.45 + 0.45 * Math.sin(nowS * 6);
+    for (const gp of floodGaps(G)) {
+      const x = gp.x * TILE, y = gp.y * TILE;
+      ctx.globalAlpha = a; ctx.fillStyle = '#e0402a'; ctx.fillRect(x, y, TILE, TILE);
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#fff0e0'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+      ctx.fillStyle = '#fff0e0'; ctx.fillRect(x + TILE / 2 - 2, y + 6, 4, TILE - 18); ctx.fillRect(x + TILE / 2 - 2, y + TILE - 9, 4, 4);
+    }
+  }
   // while the river rises (and during the flood), buildings that would go under get a red wash
   const rising = !M.flood && M.t >= M.nextFlood - KM2.floodWarn;
   if (rising || M.flood) {
@@ -12789,7 +12895,7 @@ function storyFor(id) {
   if (id === 'flood') return {
     tag: 'The rainy season', title: 'The river is rising',
     body: [P('The water climbs a little more each day. Soon all the low ground by the rivers, tinted blue on the map, will be under water.'),
-      goal('Flooded buildings lose health and flooded farms give no food. Build Thnal (earth dikes) between the river and your fields: water cannot pass them. Buildings that would flood glow red.'),
+      goal('Flooded buildings lose health and flooded farms give no food. Build Thnal (earth dikes) between the river and your buildings, with no gaps and both ends on dry ground. Red marks flash where water will still get in.'),
       P('The flood is also a gift: it leaves rich silt behind, so farms on the blue ground gather 20% faster while they are dry.'),
       tip(TIPS[1])],
     btn: 'To the dikes'
@@ -12839,7 +12945,12 @@ function hintText() {
   if (!pal) return 'Select villagers and build the Preah Reachea Veang at the gold flag on the hill.';
   if (!pal.done) return 'The palace is going up: ' + Math.floor(pal.progress * 100) + '%.';
   if (M.flood) return 'The flood is here. ' + M.floodHit.length + ' building' + (M.floodHit.length === 1 ? '' : 's') + ' under water.';
-  if (M.t >= M.nextFlood - KM2.floodWarn) return 'The river is rising! Close the dikes before the water comes.';
+  if (M.t >= M.nextFlood - KM2.floodWarn) {
+    const n = floodGaps(G).length, w = G.buildings.filter(b => b.team === 0 && b.hp > 0 && wouldFlood(G, b)).length;
+    if (n) return 'The river is rising! Water will get in at ' + n + ' red mark' + (n === 1 ? '' : 's') + '. Close them with dike.';
+    if (w) return 'The river is rising! ' + w + ' building' + (w === 1 ? '' : 's') + ' will flood. Raise dikes between them and the river.';
+    return 'The river is rising. Your dikes are sealed: nothing will flood.';
+  }
   const raid = raidersLeft(G);
   if (raid) return raid + ' raiders in the city lands. Drive them off!';
   if (!barayOf(G)) return 'Dig the Baray: Economy tab, then plant farms on its plots.';
@@ -12854,7 +12965,7 @@ function objList() {
   items.push({ t: 'Build the royal palace on the hill' + (pal && !pal.done ? ' (' + Math.floor(pal.progress * 100) + '%)' : ''), ok: !!(pal && pal.done),
     how: 'Select villagers, Economy tab, Preah Reachea Veang (' + costTitle(KM2.tcCost) + '). Build it at the gold flag: the hill stays dry in a flood.' });
   items.push({ t: 'Keep the town dry through a flood' + (M.lastHit > 0 && !M.dryOk ? ' (last time ' + M.lastHit + ' flooded)' : ''), ok: M.dryOk,
-    how: 'The blue ground floods. Build Thnal (dikes, Economy tab) in a line between the river and your buildings, closing the gaps: water cannot pass them. Farms on the blue ground gather 20% faster.' });
+    how: 'The blue ground floods. Build Thnal (dikes, Economy tab) in a line between the river and your buildings. The line must have no gaps and both ends must reach dry ground, or the water walks round. Ports and trading posts count as dike. Red marks show where water still gets in. Farms on the blue ground gather 20% faster.' });
   items.push({ t: 'Dig the Baray and plant ' + KM2.plotsNeeded + ' of its plots (' + Math.min(KM2.plotsNeeded, pl) + ' of ' + KM2.plotsNeeded + ')', ok: pl >= KM2.plotsNeeded,
     how: by ? 'Build farms: they snap to the dotted plots around the Baray, and gather 25% faster there.' : 'Economy tab, Baray (' + costTitle(BD.baray.cost) + '). Leave room for the farm plots around it.' });
   items.push({ t: 'Win over 2 river villages (' + M.won.length + ' of 2)', ok: M.won.length >= 2,
@@ -12968,6 +13079,16 @@ function mrBoot() {
 }
 Object.assign(BRIEF, { ponhea: 'Your hero. Villagers repairing near him work 50% faster. If he falls, the mission is lost',
   sangha: 'Tap a river village to bless it and win it over', palisade: 'Earth dike: flood water cannot pass', towncentre: 'The royal palace of the new city' });
+
+// a tap on a river village always sends the selected monks to bless it, whatever the tap setting
+const _m2tap = handleTap;
+handleTap = function (wx, wy, o) {
+  if (o && o.touch && !mode && G && G.M) {
+    const hit = G.pick(wx, wy), mk = selUnits().filter(u => u.kind === 'sangha');
+    if (hit && hit.isBld && hit.kind === 'village' && mk.length && !G.M.won.includes(hit.id)) { issue(wx, wy, hit); return; }
+  }
+  return _m2tap.apply(this, arguments);
+};
 
 mrBoot();
 </script>

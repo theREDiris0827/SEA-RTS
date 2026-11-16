@@ -50,7 +50,7 @@ function storyFor(id) {
   if (id === 'flood') return {
     tag: 'The rainy season', title: 'The river is rising',
     body: [P('The water climbs a little more each day. Soon all the low ground by the rivers, tinted blue on the map, will be under water.'),
-      goal('Flooded buildings lose health and flooded farms give no food. Build Thnal (earth dikes) between the river and your fields: water cannot pass them. Buildings that would flood glow red.'),
+      goal('Flooded buildings lose health and flooded farms give no food. Build Thnal (earth dikes) between the river and your buildings, with no gaps and both ends on dry ground. Red marks flash where water will still get in.'),
       P('The flood is also a gift: it leaves rich silt behind, so farms on the blue ground gather 20% faster while they are dry.'),
       tip(TIPS[1])],
     btn: 'To the dikes'
@@ -100,7 +100,12 @@ function hintText() {
   if (!pal) return 'Select villagers and build the Preah Reachea Veang at the gold flag on the hill.';
   if (!pal.done) return 'The palace is going up: ' + Math.floor(pal.progress * 100) + '%.';
   if (M.flood) return 'The flood is here. ' + M.floodHit.length + ' building' + (M.floodHit.length === 1 ? '' : 's') + ' under water.';
-  if (M.t >= M.nextFlood - KM2.floodWarn) return 'The river is rising! Close the dikes before the water comes.';
+  if (M.t >= M.nextFlood - KM2.floodWarn) {
+    const n = floodGaps(G).length, w = G.buildings.filter(b => b.team === 0 && b.hp > 0 && wouldFlood(G, b)).length;
+    if (n) return 'The river is rising! Water will get in at ' + n + ' red mark' + (n === 1 ? '' : 's') + '. Close them with dike.';
+    if (w) return 'The river is rising! ' + w + ' building' + (w === 1 ? '' : 's') + ' will flood. Raise dikes between them and the river.';
+    return 'The river is rising. Your dikes are sealed: nothing will flood.';
+  }
   const raid = raidersLeft(G);
   if (raid) return raid + ' raiders in the city lands. Drive them off!';
   if (!barayOf(G)) return 'Dig the Baray: Economy tab, then plant farms on its plots.';
@@ -115,7 +120,7 @@ function objList() {
   items.push({ t: 'Build the royal palace on the hill' + (pal && !pal.done ? ' (' + Math.floor(pal.progress * 100) + '%)' : ''), ok: !!(pal && pal.done),
     how: 'Select villagers, Economy tab, Preah Reachea Veang (' + costTitle(KM2.tcCost) + '). Build it at the gold flag: the hill stays dry in a flood.' });
   items.push({ t: 'Keep the town dry through a flood' + (M.lastHit > 0 && !M.dryOk ? ' (last time ' + M.lastHit + ' flooded)' : ''), ok: M.dryOk,
-    how: 'The blue ground floods. Build Thnal (dikes, Economy tab) in a line between the river and your buildings, closing the gaps: water cannot pass them. Farms on the blue ground gather 20% faster.' });
+    how: 'The blue ground floods. Build Thnal (dikes, Economy tab) in a line between the river and your buildings. The line must have no gaps and both ends must reach dry ground, or the water walks round. Ports and trading posts count as dike. Red marks show where water still gets in. Farms on the blue ground gather 20% faster.' });
   items.push({ t: 'Dig the Baray and plant ' + KM2.plotsNeeded + ' of its plots (' + Math.min(KM2.plotsNeeded, pl) + ' of ' + KM2.plotsNeeded + ')', ok: pl >= KM2.plotsNeeded,
     how: by ? 'Build farms: they snap to the dotted plots around the Baray, and gather 25% faster there.' : 'Economy tab, Baray (' + costTitle(BD.baray.cost) + '). Leave room for the farm plots around it.' });
   items.push({ t: 'Win over 2 river villages (' + M.won.length + ' of 2)', ok: M.won.length >= 2,
@@ -229,3 +234,13 @@ function mrBoot() {
 }
 Object.assign(BRIEF, { ponhea: 'Your hero. Villagers repairing near him work 50% faster. If he falls, the mission is lost',
   sangha: 'Tap a river village to bless it and win it over', palisade: 'Earth dike: flood water cannot pass', towncentre: 'The royal palace of the new city' });
+
+// a tap on a river village always sends the selected monks to bless it, whatever the tap setting
+const _m2tap = handleTap;
+handleTap = function (wx, wy, o) {
+  if (o && o.touch && !mode && G && G.M) {
+    const hit = G.pick(wx, wy), mk = selUnits().filter(u => u.kind === 'sangha');
+    if (hit && hit.isBld && hit.kind === 'village' && mk.length && !G.M.won.includes(hit.id)) { issue(wx, wy, hit); return; }
+  }
+  return _m2tap.apply(this, arguments);
+};

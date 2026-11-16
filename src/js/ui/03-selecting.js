@@ -153,6 +153,8 @@ function handleTap(wx, wy, o) {
     if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].troops && us.some(u => u.layer === 0))) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
     const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
+    // villagers tapped onto a damaged building of yours repair it
+    if (hit && hit.isBld && hit.team === 0 && hasVil && hit.done && hit.hp < hit.maxHp - 0.5) { issue(wx, wy, hit); return; }
     if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || FIELD[hit.kind] || hit.kind === 'rafthouse'))) { select([hit]); return; }
     issue(wx, wy, hit); return;
   }

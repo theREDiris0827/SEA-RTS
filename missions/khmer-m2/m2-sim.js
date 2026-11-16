@@ -100,11 +100,14 @@ function plainMask(g) {
 }
 function onHill(x, y) { return Math.hypot((x + 0.5 - HILL.x) / HILL.rx, (y + 0.5 - HILL.y) / HILL.ry) < 1; }
 // the water's reach in this flood: spreads from the river over the plain, stopped by dikes and walls
-let wetG = null, wetD = null, wetAt = -1;
+// a port, trading post or fish house stands in the water anyway: it seals the dike line and never floods
+function waterside(b) { const d = BD[b.kind]; return !!(d.shore || d.site || b.kind === 'port' || b.kind === 'fishhouse' || b.kind === 'rafthouse'); }
+function sealsFlood(b) { return b.hp > 0 && b.done && (BD[b.kind].wall || (b.team === 0 && waterside(b))); }
+let wetG = null, wetD = null, wetAt = -1, wetP = null;
 function floodDepth(g) {
   if (wetG === g && wetAt === g.tickN) return wetD;
-  const pm = plainMask(g), dike = new Uint8Array(W * H), d = new Int16Array(W * H).fill(-1), q = [];
-  for (const b of g.buildings) if (b.hp > 0 && b.done && BD[b.kind].wall) dike[b.ty * W + b.tx] = 1;
+  const pm = plainMask(g), dike = new Uint8Array(W * H), d = new Int16Array(W * H).fill(-1), q = [], par = new Int32Array(W * H).fill(-1);
+  for (const b of g.buildings) if (sealsFlood(b)) { const h = b.h || b.size; for (let y = b.ty; y < b.ty + h; y++) for (let x = b.tx; x < b.tx + b.size; x++) dike[y * W + x] = 1; }
   for (let i = 0; i < W * H; i++) {
     if (!pm[i] || dike[i]) continue;
     const x = i % W, y = (i / W) | 0;
@@ -115,12 +118,29 @@ function floodDepth(g) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const x = cx + dx, y = cy + dy; if (!g.inb(x, y)) continue; const j = y * W + x;
       if (d[j] >= 0 || !pm[j] || dike[j]) continue;
-      d[j] = d[c] + 1; q.push(j);
+      d[j] = d[c] + 1; par[j] = c; q.push(j);
     }
   }
-  wetG = g; wetD = d; wetAt = g.tickN; return d;
+  wetG = g; wetD = d; wetP = par; wetDike = dike; wetAt = g.tickN; return d;
 }
 // how far the water has spread now (in tiles from the river), 0 when there is no flood
+let wetDike = null;
+// where the water gets past the dikes: for each building that would flood, the spot where its water first slips by a dike
+function floodGaps(g) {
+  const d = floodDepth(g), out = [];
+  const near = (i) => { const x = i % W, y = (i / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (g.inb(x + dx, y + dy) && wetDike[(y + dy) * W + x + dx]) return true; return false; };
+  for (const b of g.buildings) {
+    if (b.team !== 0 || b.hp <= 0 || !wouldFlood(g, b)) continue;
+    const h = b.h || b.size; let c = -1;
+    for (let y = b.ty; y < b.ty + h && c < 0; y++) for (let x = b.tx; x < b.tx + b.size; x++) if (d[y * W + x] >= 0) { c = y * W + x; break; }
+    let mark = -1, n = 0;
+    while (c >= 0 && n++ < W * H) { if (near(c)) mark = c; c = wetP[c]; }
+    if (mark < 0) continue;
+    const x = mark % W, y = (mark / W) | 0;
+    if (!out.some(o => Math.abs(o.x - x) <= 2 && Math.abs(o.y - y) <= 2)) out.push({ x, y });
+  }
+  return out;
+}
 function floodReach(g) {
   const M = g.M; if (!M || !M.flood) return -1;
   const t = M.t - M.floodStart, left = M.floodEnd - M.t;
@@ -132,7 +152,7 @@ function isWet(g, x, y) {
 }
 // a building is flooded if water stands on any of its tiles
 function bldWet(g, b) {
-  if (BD[b.kind].wall || b.kind === 'baray') return false;   // dikes hold the water back; the Baray is meant to hold it
+  if (BD[b.kind].wall || b.kind === 'baray' || waterside(b)) return false;   // dikes hold the water back; the Baray is meant to hold it
   const r = floodReach(g); if (r < 0) return false;
   const d = floodDepth(g), h = b.h || b.size;
   for (let y = b.ty; y < b.ty + h; y++) for (let x = b.tx; x < b.tx + b.size; x++) { const v = d[y * W + x]; if (v >= 0 && v <= r) return true; }
@@ -140,7 +160,7 @@ function bldWet(g, b) {
 }
 // what floods if the river rose now (the preview drawn before each flood)
 function wouldFlood(g, b) {
-  if (BD[b.kind].wall || b.kind === 'baray') return false;
+  if (BD[b.kind].wall || b.kind === 'baray' || waterside(b)) return false;
   const d = floodDepth(g), h = b.h || b.size;
   for (let y = b.ty; y < b.ty + h; y++) for (let x = b.tx; x < b.tx + b.size; x++) if (d[y * W + x] >= 0) return true;
   return false;
@@ -182,8 +202,44 @@ Game.prototype.populate = function () {
   for (const b of g.buildings) if (b.kind !== 'village') b.hp = 0;
   for (const u of g.units) if (u.team !== 2) u.hp = 0;
   g.cleanup();
-  M.villages = g.villages.map(v => v.id);
   for (const v of g.villages) v.rv = true;
+  // the trading landing stands two tiles clear of the village houses, still on the bank
+  for (const v of g.villages.slice()) {
+    const s = v.site, dir = Math.sign(s.tx - v.tx) || 1;
+    const mask = (tx, ty, k) => { for (let y = ty; y < ty + 3; y++) for (let x = tx; x < tx + 3; x++) g.siteMask[y * W + x] = k; };
+    const ok = (tx, ty) => {
+      let water = 0;
+      for (let y = ty - 1; y <= ty + 3; y++) for (let x = tx - 1; x <= tx + 3; x++) {
+        if (!g.inb(x, y)) return false;
+        const inn = x >= tx && x <= tx + 2 && y >= ty && y <= ty + 2;
+        if (inn) { if (!g.isLand(x, y) || g.block[y * W + x] && !g.nodes.some(n => n.kind === 'tree' && n.tx === x && n.ty === y)) return false; }
+        else if (g.isWater(x, y)) water++;
+      }
+      return water >= 4;
+    };
+    let best = null;
+    for (const [dx, dy] of [[2, 0], [2, 1], [2, -1], [3, 0], [2, 2], [2, -2], [3, 1], [3, -1]]) { const tx = s.tx + dx * dir, ty = s.ty + dy; if (ok(tx, ty)) { best = { tx, ty }; break; } }
+    if (!best) {
+      // no room along the bank: the village itself steps two tiles back from its landing
+      const vx = v.tx - 2 * dir, vy = v.ty; let free = true;
+      for (let y = vy; y < vy + 3 && free; y++) for (let x = vx; x < vx + 3; x++) {
+        if (x >= v.tx && x < v.tx + 3) continue;
+        if (!g.inb(x, y) || !g.isLand(x, y) || (g.block[y * W + x] || g.occ[y * W + x]) && !g.nodes.some(n => n.kind === 'tree' && n.tx === x && n.ty === y)) { free = false; break; }
+      }
+      if (!free) continue;
+      for (const n of g.nodes.slice()) if (n.kind === 'tree' && n.tx >= vx - 1 && n.tx <= vx + 3 && n.ty >= vy - 1 && n.ty <= vy + 3) g.removeNode(n);
+      const i = g.villages.indexOf(v); v.hp = 0; g.cleanup();
+      const nv = g.addBuilding('village', 2, vx, vy, true); nv.site = s; nv.post = 0; nv.rv = true;
+      if (!g.villages.includes(nv)) g.villages.splice(i < 0 ? g.villages.length : i, 0, nv);
+      g.villages = g.villages.filter(q => q.hp > 0);
+      continue;
+    }
+    mask(s.tx, s.ty, 0);
+    for (const n of g.nodes.slice()) if (n.kind === 'tree' && n.tx >= best.tx - 1 && n.tx <= best.tx + 3 && n.ty >= best.ty - 1 && n.ty <= best.ty + 3) g.removeNode(n);
+    v.site = best; mask(best.tx, best.ty, 1);
+    for (let y = best.ty - 1; y <= best.ty + 3; y++) for (let x = best.tx - 1; x <= best.tx + 3; x++) if (g.inb(x, y)) g.reserve[y * W + x] = 1;
+  }
+  M.villages = g.villages.map(v => v.id);
   // the hill and the landing: open ground, a few old trees left on the hill
   for (const n of g.nodes) if (n.kind !== 'fish' && (onHill(n.tx, n.ty) && hash2(n.tx, n.ty, 5) < 0.85 || Math.hypot(n.tx - LANDING.x, n.ty - LANDING.y) < 5)) g.removeNode(n);
   for (const n of g.nodes) if (n.kind === 'tree' && RAID_FROM.some(r => Math.hypot(n.tx + 0.5 - r.x, n.ty + 0.5 - r.y) < 4)) g.removeNode(n);
@@ -220,6 +276,27 @@ function plotsPlanted(g) {
   return barayPlots(b).filter(([x, y]) => g.buildings.some(o => FIELD[o.kind] && o.team === 0 && o.hp > 0 && o.done && o.tx === x && o.ty === y)).length;
 }
 function raidersLeft(g) { return g.units.filter(u => u.team === 1 && u.hp > 0).length; }
+
+/* ---------- a dike can be laid through trees: the tree is cleared ---------- */
+function dikeTree(g, kind, x, y, team) {
+  if (!g.M || team !== 0 || !BD[kind] || !BD[kind].wall) return null;
+  return g.nodes.find(n => n.kind === 'tree' && n.hp !== 0 && n.tx === x && n.ty === y) || null;
+}
+const _m2cp = Game.prototype.canPlace;
+Game.prototype.canPlace = function (kind, tx, ty, team) {
+  const n = dikeTree(this, kind, tx, ty, team);
+  if (!n) return _m2cp.call(this, kind, tx, ty, team);
+  const i = ty * W + tx, b0 = this.block[i], o0 = this.occ[i];
+  this.block[i] = 0; this.occ[i] = 0;
+  const ok = _m2cp.call(this, kind, tx, ty, team);
+  this.block[i] = b0; this.occ[i] = o0;
+  return ok;
+};
+const _m2ab = Game.prototype.addBuilding;
+Game.prototype.addBuilding = function (kind, team, tx, ty, done) {
+  const n = dikeTree(this, kind, tx, ty, team); if (n) this.removeNode(n);
+  return _m2ab.apply(this, arguments);
+};
 
 /* ---------- the monks bless a village ---------- */
 const _m2cmd = Game.prototype.command;
@@ -325,6 +402,12 @@ function missionTick(g, dt) {
   const pal = palaceOf(g);
   if (pal && pal.done && !M.tc) { M.tc = pal.id; M.cardQ.push('v-founded'); g.msg('The Preah Reachea Veang stands. The court has a home again.'); }
   if (pal && !pal.done && !M.warned.tcUp) M.warned.tcUp = true;
+  // monks standing idle near a village that has not joined start the blessing by themselves
+  if (g.tickN % 15 === 0) for (const u of g.units) {
+    if (u.kind !== 'sangha' || u.team !== 0 || u.hp <= 0 || u.order.t !== 'idle') continue;
+    const v = g.villages.find(v => v.hp > 0 && !M.won.includes(v.id) && rectDist(u.x, u.y, v.rect) <= 3.5);
+    if (v) { u.order = { t: 'bless', id: v.id, w: 0 }; u.path = null; u.wait = 0; }
+  }
   // new monks if they fell
   if (!monksUnit(g) && M.monkDown && M.t - M.monkDown >= KM2.monkBack && M.won.length < 2) {
     const at = pal && pal.done ? g.findSpawn(pal, null, 0) : heroUnit(g);

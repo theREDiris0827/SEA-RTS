@@ -6818,6 +6818,8 @@ function handleTap(wx, wy, o) {
     if (hit && hit.isUnit && hit.team === 0 && !(UD[hit.kind].troops && us.some(u => u.layer === 0))) { select([hit]); return; }
     const hasVil = us.some(u => u.cls === 'vil');
     const trading = hit && hit.kind === 'tradepost' && hit.done && us.some(u => UD[u.kind].trader);
+    // villagers tapped onto a damaged building of yours repair it
+    if (hit && hit.isBld && hit.team === 0 && hasVil && hit.done && hit.hp < hit.maxHp - 0.5) { issue(wx, wy, hit); return; }
     if (hit && hit.isBld && hit.team === 0 && !trading && !(hasVil && (!hit.done || FIELD[hit.kind] || hit.kind === 'rafthouse' || hit.hp < hit.maxHp))) { select([hit]); return; }
     if (!hit && groundTap && now - groundTap.t < 380 && Math.hypot(wx - groundTap.wx, wy - groundTap.wy) < 1.5) { groundTap = null; select([]); return; }
     groundTap = hit ? null : { t: now, wx, wy };
@@ -7402,7 +7404,7 @@ function showMenu(name) {
   if (name === 'ency') renderEncy();
   if (name) $('menu').scrollTop = 0;
 }
-const BUILD = '0.9.58 \u00b7 15 Nov 2026';
+const BUILD = '0.9.59 \u00b7 15 Nov 2026';
 /* deleting the saved game takes two taps: the first turns the button red and asks */
 let delT = 0;
 // two-tap Delete on the home screen
